@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 
 class BoundingBox(BaseModel):
@@ -19,3 +19,11 @@ class ALPRResult(BaseModel):
     confidence: float = Field(0.0, description="Độ tin cậy tổng thể của kết quả nhận diện (0.0 đến 1.0)")
     processing_time_ms: int = Field(..., description="Thời gian xử lý ảnh tính bằng mili-giây")
     requires_confirmation: bool = Field(..., description="True nếu độ tin cậy thấp hơn ngưỡng quy định, cần nhân viên xác nhận")
+
+class ALPRHTTPResponse(BaseModel):
+    raw_plate: Optional[str] = Field(None, description="Biển số thô chưa xử lý")
+    normalized_plate: Optional[str] = Field(None, description="Biển số đã loại bỏ ký tự thừa")
+    bbox: List[int] = Field(..., description="Tọa độ [x1, y1, x2, y2]")
+    confidence: float
+    latency_ms: float
+    model_version: str
