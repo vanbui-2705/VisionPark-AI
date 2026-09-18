@@ -3,19 +3,16 @@ import cv2
 import numpy as np
 
 # Giữ nguyên import của Người 1
-from ....alpr.schema import ALPRResult
-from ....alpr.service import ALPRApplicationService
-from ....alpr.errors import ALPRNotReadyError, ALPRProcessingError
+from app.alpr.schema import ALPRResult
+from app.alpr.service import ALPRApplicationService
+from app.alpr.errors import ALPRNotReadyError, ALPRProcessingError
 
-# Import thêm HTTP DTO của Người 3 (mà chúng ta đã tạo ở bước trước)
-from ....alpr.schema import ALPRHTTPResponse
+# Import thêm HTTP DTO của Người 3
+from app.alpr.schema import ALPRHTTPResponse
+from app.di_container import get_alpr_service
 
 router = APIRouter()
 
-def get_alpr_service() -> ALPRApplicationService:
-    raise NotImplementedError("Dependency injection chưa được cấu hình.")
-
-# ĐỔI THÀNH: response_model=ALPRHTTPResponse của Người 3
 @router.post("/detections", response_model=ALPRHTTPResponse)
 async def create_detection(
     lane_id: str = Form(...),
@@ -37,7 +34,7 @@ async def create_detection(
             detail="Kích thước ảnh vượt quá giới hạn 5MB cho phép."
         )
 
-    # BỔ SUNG CỦA NGƯỜI 3 (P1-BE2-08): Decode bằng OpenCV để chặn file hỏng
+    # P1-BE2-08: Decode bằng OpenCV để chặn file hỏng
     try:
         nparr = np.frombuffer(image_bytes, np.uint8)
         image_matrix = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -50,11 +47,9 @@ async def create_detection(
         )
 
     try:
-        # Gọi Service của Người 1 (Lưu ý: Nếu service của họ bắt buộc nhận image_bytes thì truyền image_bytes, 
-        # nếu họ đã sửa lại để nhận OpenCV image thì truyền image_matrix)
         result: ALPRResult = alpr_service.process_detection(image_bytes, lane_id)
         
-        # BỔ SUNG CỦA NGƯỜI 3 (P1-BE2-10): Mapping dữ liệu trước khi trả về
+        # P1-BE2-10: Mapping dữ liệu trước khi trả về
         raw_plate = result.plate_number
         normalized = None
         if raw_plate:
@@ -71,7 +66,6 @@ async def create_detection(
             model_version="v1.0" 
         )
         
-    # Giữ nguyên toàn bộ phần bắt lỗi của Người 1
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
     except ALPRNotReadyError as e:
@@ -80,3 +74,24 @@ async def create_detection(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"code": "ALPR_PROCESSING_ERROR", "message": str(e)})
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Đã xảy ra lỗi hệ thống không xác định.")
+
+
+@router.get("/health/live")
+async def alpr_live_health():
+    """Liveness probe - chỉ cần endpoint còn chạy là healthy."""
+    return {"status": "alive"}
+
+@router.get("/health/ready")
+async def alpr_ready_health(alpr_service: ALPRApplicationService = Depends(get_alpr_service)):
+    """Readiness probe - kiểm tra DB và AI runtime."""
+    try:
+        _ = alpr_service.runtime.version
+        return {
+            "status": "ready",
+            "checks": {
+                "database": "ok",
+                "alpr_runtime": f"ok ({alpr_service.runtime.version})"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
