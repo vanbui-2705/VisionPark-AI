@@ -6,11 +6,13 @@ from app.core.security import hash_password
 from app.database.session import database
 from app.modules.users.models import Role, User
 from app.modules.users.schemas import RoleName
+from app.modules.lanes.models import Lane
 
 
 def seed_database(session: Session, settings: Settings) -> None:
     """Create the Phase 1 roles and demo users without duplicating existing rows."""
 
+    # ===== SEED ROLES =====
     roles: dict[RoleName, Role] = {}
     for role_name in RoleName:
         role = session.scalar(select(Role).where(Role.name == role_name.value))
@@ -20,6 +22,7 @@ def seed_database(session: Session, settings: Settings) -> None:
             session.flush()
         roles[role_name] = role
 
+    # ===== SEED USERS =====
     demo_users = (
         (
             settings.seed_admin_username,
@@ -49,6 +52,28 @@ def seed_database(session: Session, settings: Settings) -> None:
                     is_active=True,
                 )
             )
+
+    # ===== SEED LANES (Idempotent) =====
+    demo_lanes = [
+        {
+            "name": "LANE_IN_01",
+            "direction": "IN",
+            "video_source": "rtsp://demo/in",
+            "is_active": True,
+        },
+        {
+            "name": "LANE_OUT_01",
+            "direction": "OUT",
+            "video_source": "rtsp://demo/out",
+            "is_active": True,
+        },
+    ]
+
+    for lane_data in demo_lanes:
+        existing = session.scalar(select(Lane).where(Lane.name == lane_data["name"]))
+        if existing is None:
+            session.add(Lane(**lane_data))
+
     session.commit()
 
 
