@@ -4,11 +4,12 @@ Revision ID: 20260918_0002
 Revises: 20260906_0001
 Create Date: 2026-09-18
 """
+
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "20260918_0002_create_lane_tables"
 down_revision: str | None = "20260906_0001"

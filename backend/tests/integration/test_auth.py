@@ -38,9 +38,7 @@ def test_wrong_password_uses_generic_error_contract(client: TestClient) -> None:
     }
 
 
-def test_inactive_user_cannot_login(
-    client: TestClient, db_session: Session
-) -> None:
+def test_inactive_user_cannot_login(client: TestClient, db_session: Session) -> None:
     operator = db_session.scalar(select(User).where(User.username == "operator"))
     assert operator is not None
     operator.is_active = False
@@ -59,9 +57,7 @@ def test_me_requires_a_valid_bearer_token(client: TestClient) -> None:
     assert missing.status_code == 401
     assert missing.json()["code"] == "UNAUTHENTICATED"
 
-    invalid = client.get(
-        "/api/v1/auth/me", headers={"Authorization": "Bearer not-a-token"}
-    )
+    invalid = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer not-a-token"})
     assert invalid.status_code == 401
     assert invalid.json()["code"] == "UNAUTHENTICATED"
 

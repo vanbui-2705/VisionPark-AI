@@ -1,20 +1,20 @@
 from logging.config import fileConfig
-import os
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.database.base import Base
 import app.database.models  # noqa: F401
-
+from alembic import context
+from app.core.config import Settings
+from app.database.base import Base
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+# Programmatic callers (tests/bootstrap) explicitly select their database. CLI
+# uses exactly the same environment/.env resolution as the application.
+database_url = config.attributes.get("database_url") or Settings().database_url
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 
