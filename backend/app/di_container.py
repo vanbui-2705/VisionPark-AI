@@ -1,17 +1,24 @@
+from typing import Annotated
+
+from fastapi import Depends, Request
+from sqlalchemy.orm import Session
+
 from app.alpr.service import ALPRApplicationService
-from app.alpr.runtime_adapter import ai_runtime
-from app.integrations.storage import get_storage_adapter
-from app.alpr.ports.lane_checker import ActiveLaneChecker
-from app.alpr.ports.detection_recorder import DetectionRecorder
-from app.alpr.ports.lane_checker_impl import DatabaseLaneChecker
-from app.alpr.ports.detection_recorder_impl import DatabaseDetectionRecorder
+from app.core.config import Settings, get_settings
+from app.database.session import get_db
+from app.integrations.persistence.detection_recorder_impl import DatabaseDetectionRecorder
+from app.integrations.persistence.lane_checker_impl import DatabaseLaneChecker
+from app.integrations.storage.local_storage import LocalStorageAdapter
 
 
-def get_alpr_service() -> ALPRApplicationService:
-    """Factory để tạo ALPR service với đầy đủ dependencies."""
+def get_alpr_service(
+    request: Request,
+    session: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ALPRApplicationService:
     return ALPRApplicationService(
-        runtime=ai_runtime,
-        lane_checker=DatabaseLaneChecker(),
-        image_storage=get_storage_adapter(),
-        detection_recorder=DatabaseDetectionRecorder()
+        runtime=request.app.state.alpr_runtime,
+        lane_checker=DatabaseLaneChecker(session),
+        image_storage=LocalStorageAdapter(settings),
+        detection_recorder=DatabaseDetectionRecorder(session),
     )

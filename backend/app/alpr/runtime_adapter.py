@@ -1,26 +1,38 @@
-import time
-import random
-from .schema import ALPRResult, BoundingBox
+"""Deterministic local demo runtime; never claims real recognition."""
 
-class FakeALPRRuntime:
-    def __init__(self):
-        self.version = "v1.0-fake"
-        
-    def detect_and_read(self, image_matrix) -> ALPRResult:
-        start_time = time.time()
-        time.sleep(random.uniform(0.2, 0.5))
-        latency_ms = int((time.time() - start_time) * 1000)
+from app.alpr.errors import ALPRNotReadyError
+from app.alpr.interface import ALPRRuntime
+from app.alpr.schema import ALPRResult, BoundingBox
+from app.alpr.utils import decode_image
 
-        if random.random() < 0.05:
-            raise TimeoutError("Model timeout hoặc quá tải")
 
-        # Trả về đối tượng ALPRResult của Người 1
+class FakeALPRRuntime(ALPRRuntime):
+    version = "mock-alpr-0.1.0"
+
+    def is_ready(self) -> tuple[bool, str]:
+        return True, "DEMO: deterministic mock provider; no real recognition."
+
+    def detect_and_read(self, image_bytes: bytes) -> ALPRResult:
+        height, width = decode_image(image_bytes).shape[:2]
         return ALPRResult(
             plate_number="29A-123.45",
-            bbox=BoundingBox(x1=100, y1=200, x2=400, y2=300),
+            bbox=BoundingBox(x1=0, y1=0, x2=width, y2=height),
             confidence=0.98,
-            processing_time_ms=latency_ms,
-            requires_confirmation=False
+            processing_time_ms=0,
+            requires_confirmation=False,
         )
 
-ai_runtime = FakeALPRRuntime()
+
+class UnavailableRuntime(ALPRRuntime):
+    version = "not-configured"
+
+    def is_ready(self) -> tuple[bool, str]:
+        return False, "Provider is not wired. Configure mock for the local demo."
+
+    def detect_and_read(self, image_bytes: bytes) -> ALPRResult:
+        raise ALPRNotReadyError(self.is_ready()[1])
+
+
+def create_runtime(provider: str) -> ALPRRuntime:
+    # ONNX output decoding is still a placeholder owned by the AI team.
+    return FakeALPRRuntime() if provider == "mock" else UnavailableRuntime()
