@@ -1,106 +1,104 @@
 # VisionPark Backend Core
 
-Backend Core is the shared FastAPI foundation for Phase 1. It owns configuration,
-PostgreSQL sessions, Alembic, User/Role identity, JWT authentication, reusable RBAC,
-request correlation, error responses, and health checks.
+Backend Core owns FastAPI, settings/CORS, PostgreSQL sessions, Alembic,
+User/Role identity, Argon2id/JWT, RBAC, errors, correlation IDs and health.
 
-## Local setup
+## Local setup (Windows PowerShell)
 
-Use Python 3.11 or newer from the `backend` directory:
+Prerequisites: Python 3.11+ and a running PostgreSQL server. This revision was
+verified with Python 3.13 and PostgreSQL 17.11. Create a dedicated local database
+and a user that can migrate it; set their connection URL in `.env`.
+Run from `backend`:
 
-```bash
+```powershell
 python -m venv .venv
-# Windows
-.venv\Scripts\activate
-pip install -e ".[dev]"
-copy .env.example .env
-alembic upgrade head
-python -m app.database.seed
-uvicorn app.main:app --reload
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env
 ```
 
-Set strong local values for `JWT_SECRET_KEY`, `SEED_ADMIN_PASSWORD`, and
-`SEED_OPERATOR_PASSWORD` in `.env`. The seed command is idempotent: running it again
-does not duplicate roles or users.
+Edit `.env`: set `DATABASE_URL`, a unique `JWT_SECRET_KEY` of at least 32 characters,
+`SEED_ADMIN_PASSWORD` and `SEED_OPERATOR_PASSWORD`. Keep `ALPR_PROVIDER=mock` and
+`AUTO_SEED=true` for the demo. The example URL uses port 5432; change it if your
+local PostgreSQL uses a different port. Never use a shared/production DB for tests.
 
-## API contract
-
-- `GET /health/live`: process liveness; it never checks dependencies.
-- `GET /health/ready`: checks database and the ALPR readiness adapter.
-- `POST /api/v1/auth/login`: JSON body with `username` and `password`; returns an
-  HS256 JWT access token and public user data.
-- `GET /api/v1/auth/me`: returns the bearer token's current active user.
-
-Every handled error uses this shape:
-
-```json
-{
-  "code": "FORBIDDEN",
-  "message": "You do not have permission to perform this action.",
-  "details": {},
-  "correlation_id": "7da831eb-0b36-4a25-bb03-9efc8fe45574"
-}
+```powershell
+.\.venv\Scripts\python.exe -m app.database.bootstrap
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-The `X-Correlation-ID` response header contains the same request identifier.
+Bootstrap runs `alembic upgrade head` and then idempotent demo seed. Run it again
+safely: there remain four roles, two demo users (`admin`/`operator`) and two lanes.
+The server listens on port 8000; Swagger is `/docs`. Both Alembic CLI and the app
+read environment variables and `.env` consistently. Explicit test URLs override
+that configuration via Alembic `config.attributes["database_url"]`.
 
-## Protecting another module
+On Linux/macOS use `.venv/bin/python` and `cp .env.example .env`.
+Docker Compose for the complete frontend/backend stack is outside this change.
 
-Use the shared dependencies instead of decoding tokens inside endpoints:
+## Authentication and authorization
 
-```python
-from typing import Annotated
+| Endpoint | Access |
+| --- | --- |
+| `GET /health/live`, `GET /health/ready` | Public |
+| `POST /api/v1/auth/login` | Public; JSON `username` and `password` |
+| `GET /api/v1/auth/me` | Active authenticated user |
+| Lane list, active list, detail | Active authenticated user |
+| Lane create/update/deactivate | ADMIN |
+| `POST /api/v1/alpr/detections` | ADMIN or OPERATOR |
 
-from fastapi import Depends
+Login returns an access token and public user data. Use `Authorization: Bearer
+<token>`. `/auth/me` never returns password hashes. Domain modules must use
+`CurrentUser` or `require_roles`, not their own JWT decoder. User CRUD, registration,
+history and confirmation are not implemented by this change.
 
-from app.modules.auth.dependencies import CurrentUser, require_roles
-from app.modules.users.models import User
-from app.modules.users.schemas import RoleName
+Detection accepts multipart `image` (JPEG/PNG) and a UUID `lane_id` from Lane API.
+The current response names remain `raw_plate`, `normalized_plate`, `bbox`,
+`confidence`, `latency_ms`, `model_version`; a missing plate retains the existing
+zero bbox convention. Broader ALPR contract changes require a separate review.
 
+All handled HTTP/validation/database errors, including route 404/405 and unexpected
+500, use `{code, message, details, correlation_id}`. `X-Correlation-ID` matches the
+body and is exposed to browser clients for ordinary CORS responses. Credentials
+and JWTs are not written by request logging. Keep `DEBUG=false` outside debugging.
 
-def list_lanes(current_user: CurrentUser):
-    ...
+## ALPR and database integration
 
-
-def create_lane(
-    current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
-):
-    ...
-
-
-def create_detection(
-    current_user: Annotated[
-        User,
-        Depends(require_roles(RoleName.ADMIN, RoleName.OPERATOR)),
-    ],
-):
-    ...
-```
-
-Lane listing requires any authenticated user. Lane mutation requires `ADMIN`.
-Detection and confirmation require `ADMIN` or `OPERATOR`.
-
-## ALPR readiness handoff
-
-Backend Core intentionally depends on the `ALPRReadinessProbe` protocol, not on a
-concrete ONNX or mock implementation. The ALPR owner wires an object with a
-`readiness() -> ReadinessStatus` method to `app.state.alpr_readiness_probe`. Existing
-`ALPRRuntime.is_ready()` implementations can be wrapped with `RuntimeALPRProbe`.
-Until that integration happens,
-`/health/ready` returns `503` and explicitly reports the configured `mock` provider
-as `not_ready`; it never claims that inference is available when it is not.
+- One runtime on `app.state.alpr_runtime` serves both detection and readiness.
+- `mock` is deterministic and explicitly reports `mock-alpr-0.1.0`; it does not
+  recognize real plates. Other providers remain `not_ready` (503).
+- ONNX source still has placeholder output decoding. The optional `[onnx]` extra
+  supplies its library, but installing it does not activate a real provider.
+- `/api/v1/alpr/health/*` are aliases of the shared health handlers; ready checks
+  both DB and runtime and never claims DB readiness without checking it.
+- `get_db` provides one request session. The DI factory passes it to both adapters
+  under `app/integrations/persistence/`; there is no `SessionLocal` compatibility
+  engine. AI ports remain free of ORM imports.
+- Detection persistence uses UUID lane IDs. A failed database write rolls back
+  through `get_db` and removes the image created by that attempt.
 
 ## Verification
 
-```bash
-pytest
-ruff check app/core app/database app/modules app/api/v1/router.py \
-  app/api/v1/endpoints/health.py app/main.py tests
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
+# Against the running local server and .env demo account:
+.\.venv\Scripts\python.exe scripts/smoke_core.py
 ```
 
-Migration rollback can be checked separately:
+To also run database-dependent tests on real PostgreSQL:
 
-```bash
-alembic downgrade base
-alembic upgrade head
+```powershell
+$env:TEST_POSTGRES_URL='postgresql+psycopg://YOUR_TEST_USER:YOUR_PASSWORD@127.0.0.1:5432/postgres'
+.\.venv\Scripts\python.exe -m pytest
+Remove-Item Env:TEST_POSTGRES_URL
 ```
+
+The test user must have `CREATEDB`. Tests create and drop their own UUID-named
+`vp_test_*` databases; they do not migrate the database named in that connection URL.
+By default only SQLite runs. No model weights are downloaded.
+
+Run destructive rollback checks only on a disposable local test database:
+`python -m alembic downgrade base`, then `python -m app.database.bootstrap`.
+`python -m alembic check` verifies that migration head matches ORM metadata.
+See [handoff](../docs/backend-core-handoff.md) for evidence and migration notes.
