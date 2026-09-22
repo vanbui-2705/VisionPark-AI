@@ -27,9 +27,7 @@ class Settings(BaseSettings):
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
 
-    database_url: str = (
-        "postgresql+psycopg://visionpark:visionpark@localhost:5432/visionpark"
-    )
+    database_url: str = "postgresql+psycopg://visionpark:visionpark@localhost:5432/visionpark"
     database_echo: bool = False
 
     jwt_secret_key: SecretStr = SecretStr(DEV_JWT_SECRET)

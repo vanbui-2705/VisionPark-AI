@@ -3,10 +3,11 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException
 
 logger = logging.getLogger("visionpark.errors")
 
@@ -36,15 +37,16 @@ def _error_response(
     details: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
 ) -> JSONResponse:
+    correlation_id = _correlation_id(request)
     return JSONResponse(
         status_code=status_code,
         content={
             "code": code,
             "message": message,
             "details": details or {},
-            "correlation_id": _correlation_id(request),
+            "correlation_id": correlation_id,
         },
-        headers=headers,
+        headers={**(headers or {}), "X-Correlation-ID": correlation_id},
     )
 
 
@@ -82,6 +84,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             401: "UNAUTHENTICATED",
             403: "FORBIDDEN",
             404: "NOT_FOUND",
+            405: "METHOD_NOT_ALLOWED",
             409: "CONFLICT",
             422: "VALIDATION_ERROR",
             503: "DEPENDENCY_UNAVAILABLE",

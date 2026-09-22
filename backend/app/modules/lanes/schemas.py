@@ -1,7 +1,8 @@
-from uuid import UUID
-from pydantic import BaseModel, Field
-from typing import Optional, Any
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from .models import LaneDirection
 
 
@@ -10,15 +11,15 @@ class LaneCreate(BaseModel):
     name: str = Field(..., description="Tên của làn xe, ví dụ: LANE_IN_01")
     direction: LaneDirection
     video_source: str = Field(..., description="Đường dẫn camera RTSP hoặc file video")
-    is_active: Optional[bool] = True
+    is_active: bool | None = True
 
 
 # 2. DTO cho trường hợp CẬP NHẬT
 class LaneUpdate(BaseModel):
-    name: Optional[str] = None
-    direction: Optional[LaneDirection] = None
-    video_source: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    direction: LaneDirection | None = None
+    video_source: str | None = None
+    is_active: bool | None = None
 
 
 # 3. DTO TRẢ VỀ
@@ -31,5 +32,4 @@ class LaneResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

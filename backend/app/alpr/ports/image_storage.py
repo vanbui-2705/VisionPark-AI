@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class ImageStorage(ABC):
     """Cổng (Port) để lưu trữ ảnh thô thu thập được trong quá trình nhận diện."""
-    
+
     @abstractmethod
     def save_image(self, image_bytes: bytes, lane_id: str) -> str:
         """
@@ -15,3 +15,8 @@ class ImageStorage(ABC):
             Chuỗi (String) đại diện cho storage key hoặc object ID của ảnh.
         """
         pass
+
+    @abstractmethod
+    def delete_image(self, image_key: str, lane_id: str) -> None:
+        """Remove an image after persistence fails."""
+        raise NotImplementedError

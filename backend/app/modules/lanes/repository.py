@@ -1,4 +1,5 @@
 from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -44,5 +45,5 @@ def update_lane(db: Session, db_lane: Lane, update_data: dict) -> Lane:
 
 def list_active_lanes(db: Session) -> list[Lane]:
     """Lấy danh sách lane đang active."""
-    stmt = select(Lane).where(Lane.is_active == True)
+    stmt = select(Lane).where(Lane.is_active.is_(True))
     return list(db.scalars(stmt).all())
