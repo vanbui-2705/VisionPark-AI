@@ -103,7 +103,7 @@ Phạm vi sở hữu:
 
 ```text
 backend/app/main.py
-backend/app/api/v1/router.py
+backend/app/api/router.py
 backend/app/core/
 backend/app/database/
 backend/app/modules/auth/
@@ -144,7 +144,7 @@ backend/app/modules/pricing/
 backend/app/modules/payments/
 backend/app/modules/reports/
 backend/app/modules/audit_logs/
-backend/app/api/v1/endpoints/
+backend/app/api/endpoints/
 backend/tests/unit/modules/
 ```
 

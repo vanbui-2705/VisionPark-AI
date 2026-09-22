@@ -94,8 +94,8 @@ as `not_ready`; it never claims that inference is available when it is not.
 
 ```bash
 pytest
-ruff check app/core app/database app/modules app/api/v1/router.py \
-  app/api/v1/endpoints/health.py app/main.py tests
+ruff check app/core app/database app/modules app/api/router.py \
+  app/api/endpoints/health.py app/main.py tests
 ```
 
 Migration rollback can be checked separately:
@@ -104,3 +104,29 @@ Migration rollback can be checked separately:
 alembic downgrade base
 alembic upgrade head
 ```
+
+## Docker
+
+Build the backend image from the repository root:
+
+```bash
+docker build -t visionpark-backend ./backend
+```
+
+Run the API on port `8000`:
+
+```bash
+docker run --rm -p 8000:8000 visionpark-backend
+```
+
+When PostgreSQL runs on the host machine, pass a container-accessible database
+URL instead of `localhost`:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e DATABASE_URL=postgresql+psycopg://visionpark:visionpark@host.docker.internal:5432/visionpark \
+  visionpark-backend
+```
+
+The container healthcheck calls `/health/live`. `/health/ready` additionally
+requires PostgreSQL and an initialized ALPR readiness provider.

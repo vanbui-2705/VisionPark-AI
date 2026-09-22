@@ -6,7 +6,7 @@ Backend Core owns application creation, `/api/v1` router composition, identity,
 security, database sessions, global errors, and health endpoints. Domain owners keep
 business rules in their own modules and expose one router for composition.
 
-Add a domain router in `app/api/v1/router.py`:
+Add a domain router in `app/api/router.py`:
 
 ```python
 api_router.include_router(lane_router, prefix="/lanes", tags=["lanes"])

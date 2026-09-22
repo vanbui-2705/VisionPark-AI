@@ -1,0 +1,111 @@
+@startuml VisionPark_Deployment_Diagram
+title VisionPark - Deployment Diagram (Hệ thống hoàn chỉnh)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam ArrowColor #465568
+skinparam node {
+  BackgroundColor #F7FAFC
+  BorderColor #506784
+}
+skinparam artifact {
+  BackgroundColor #EAF2FF
+  BorderColor #376AA6
+}
+skinparam database {
+  BackgroundColor #EAF8EF
+  BorderColor #287A4D
+}
+skinparam cloud {
+  BackgroundColor #FFF4CC
+  BorderColor #A97800
+}
+
+node "Máy trạm vận hành" as OperatorPC {
+  artifact "Web Browser\nStation UI" as StationBrowser
+}
+
+node "Máy quản trị / kế toán" as AdminPC {
+  artifact "Web Browser\nAdmin UI" as AdminBrowser
+}
+
+node "Thiết bị tại làn xe" as LaneDevices {
+  node "IP Camera" as Camera
+  node "Barrier Controller" as Barrier
+}
+
+node "VisionPark Server" as Server {
+  node "Docker / Container Runtime" as Docker {
+    node "nginx container" as Nginx {
+      artifact "Reverse Proxy\nTLS termination" as Proxy
+    }
+
+    node "frontend container" as Frontend {
+      artifact "React Static Application" as ReactApp
+    }
+
+    node "backend container" as Backend {
+      artifact "FastAPI Application" as FastAPI
+      artifact "Business Modules" as Business
+      artifact "ALPR Runtime\nYOLO + OCR" as ALPR
+      artifact "Integration Adapters" as Adapters
+      artifact "Background Jobs" as Jobs
+
+      FastAPI --> Business
+      Business --> ALPR
+      Business --> Adapters
+      Jobs --> Business
+    }
+
+    node "mediamtx container" as MediaNode {
+      artifact "RTSP / HLS / WebRTC Gateway" as MediaMTX
+    }
+
+    node "postgres container" as PostgresNode {
+      database "VisionPark Database" as PostgreSQL
+    }
+
+    node "object-storage container" as StorageNode {
+      database "S3-compatible Image Storage" as ObjectStorage
+    }
+  }
+
+  folder "Persistent Volumes" as Volumes {
+    artifact "PostgreSQL Data" as DBVolume
+    artifact "Image Objects" as ImageVolume
+    artifact "ALPR Model Weights" as ModelVolume
+  }
+}
+
+cloud "VietQR / Ngân hàng" as Bank
+cloud "Monitoring / Log Collection" as Monitoring
+
+StationBrowser --> Proxy : HTTPS
+AdminBrowser --> Proxy : HTTPS
+Proxy --> ReactApp : Static files
+Proxy --> FastAPI : /api, /health
+Proxy --> MediaMTX : Video delivery
+
+Camera --> MediaMTX : RTSP
+Adapters --> MediaMTX : Snapshot / stream control
+Adapters --> Barrier : LAN / device protocol
+Adapters --> Bank : HTTPS API
+Bank --> FastAPI : Payment webhook
+
+Business --> PostgreSQL : SQL / TCP 5432
+Adapters --> ObjectStorage : S3 API
+PostgreSQL --> DBVolume
+ObjectStorage --> ImageVolume
+ALPR --> ModelVolume
+
+FastAPI --> Monitoring : Logs / metrics
+MediaMTX --> Monitoring : Logs / metrics
+PostgreSQL --> Monitoring : Health / metrics
+
+note bottom of Server
+  Local/UAT có thể chạy toàn bộ bằng Docker Compose.
+  Production có thể thay container đơn bằng dịch vụ managed
+  nhưng giữ nguyên ranh giới triển khai và giao tiếp.
+end note
+@enduml

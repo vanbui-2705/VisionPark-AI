@@ -1,0 +1,72 @@
+@startuml VisionPark_Activity_CheckIn
+title VisionPark - Activity Diagram ghi nhận xe vào
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam nodesep 14
+skinparam ranksep 18
+skinparam activity {
+  BackgroundColor #EAF2FF
+  BorderColor #376AA6
+  DiamondBackgroundColor #FFF4CC
+  DiamondBorderColor #A97800
+  StartColor #287A4D
+  EndColor #A33A3A
+  FontSize 11
+}
+skinparam swimlane {
+  BorderColor #A9B7C6
+  TitleBackgroundColor #E8EEF5
+  TitleFontColor #26384A
+  TitleFontSize 12
+}
+
+|Station UI|
+start
+:Xe đến làn IN;
+:Kiểm tra lane và lấy frame;
+if (ALPR đang bận?) then (Có)
+  :Bỏ qua frame;
+  stop
+else (Không)
+  :Gửi frame + lane_id + JWT;
+endif
+
+|Backend API + ALPR|
+:Xác thực, kiểm tra ảnh/lane;
+:Nhận diện biển số và lưu detection;
+if (Xử lý thành công?) then (Không)
+  #FFECEC:Trả lỗi + correlation_id;\ncleanup ảnh nếu cần;
+  stop
+endif
+
+|Station / Nhân viên|
+:Hiển thị bbox, biển số và confidence;
+if (Cần xác nhận?) then (Có)
+  :Nhân viên xác nhận hoặc sửa biển số;
+endif
+if (Biển số hợp lệ?) then (Không)
+  #FFECEC:Thông báo lỗi;\ngiữ barrier đóng;
+  stop
+endif
+
+|Parking Module / DB|
+:Kiểm tra sức chứa và lượt PARKED trùng;
+if (Đủ điều kiện vào?) then (Không)
+  #FFECEC:Từ chối / xử lý override;\nghi audit nếu can thiệp;
+  stop
+endif
+:Xác định vé MONTHLY hoặc CASUAL;
+:Tạo giao dịch PARKED;\nlưu ảnh vào và audit log;
+if (Commit thành công?) then (Không)
+  #FFECEC:Rollback;\ngiữ barrier đóng;
+  stop
+else (Có)
+  :Trả allow_open = true;
+endif
+
+|Barrier|
+:Mở barrier cho xe vào;
+stop
+@enduml

@@ -1,0 +1,78 @@
+@startuml VisionPark_Activity_CheckOut
+title VisionPark - Activity Diagram hoàn tất xe ra
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam nodesep 14
+skinparam ranksep 18
+skinparam activity {
+  BackgroundColor #EAF2FF
+  BorderColor #376AA6
+  DiamondBackgroundColor #FFF4CC
+  DiamondBorderColor #A97800
+  StartColor #287A4D
+  EndColor #A33A3A
+  FontSize 11
+}
+skinparam swimlane {
+  BorderColor #A9B7C6
+  TitleBackgroundColor #E8EEF5
+  TitleFontColor #26384A
+  TitleFontSize 12
+}
+
+|Station UI + ALPR|
+start
+:Xe đến làn OUT;\nlấy frame và nhận diện biển số;
+if (Cần xác nhận?) then (Có)
+  :Nhân viên xác nhận hoặc nhập tay;
+endif
+if (Biển số hợp lệ?) then (Không)
+  #FFECEC:Chuyển xử lý ngoại lệ;\ngiữ barrier đóng;
+  stop
+endif
+:Gửi biển số chuẩn hóa và ảnh ra;
+
+|Parking Module / DB|
+:Tìm giao dịch PARKED theo biển số;
+if (Tìm thấy?) then (Không)
+  #FFECEC:Cảnh báo, xử lý ngoại lệ;\nghi audit nếu can thiệp;
+  stop
+else (Có)
+  :Trả ảnh vào/ra và thông tin giao dịch;
+endif
+
+|Station / Nhân viên|
+:Đối chiếu phương tiện và biển số;
+if (Thông tin khớp?) then (Không)
+  #FFECEC:Chuyển xử lý ngoại lệ;\ngiữ barrier đóng;
+  stop
+endif
+
+|Pricing / Payment|
+if (Vé tháng hợp lệ?) then (Có)
+  :Áp dụng phí 0 hoặc chính sách vé tháng;
+else (Không)
+  :Tính phí theo loại xe, thời gian\nvà phiên bản biểu phí;
+  :Nhận tiền mặt hoặc tạo VietQR\nvới mã tham chiếu duy nhất;
+  if (PAID / WAIVED hợp lệ?) then (Không)
+    #FFECEC:Giữ PAYMENT_PENDING;\nbarrier đóng;
+    stop
+  endif
+endif
+
+|Parking Module / DB|
+:Lưu ảnh ra và thông tin thanh toán;
+:Chuyển giao dịch sang COMPLETED;\nghi audit log;
+if (Commit thành công?) then (Không)
+  #FFECEC:Rollback;\ngiữ barrier đóng;
+  stop
+else (Có)
+  :Trả allow_open = true;
+endif
+
+|Barrier|
+:Mở barrier cho xe ra;
+stop
+@enduml

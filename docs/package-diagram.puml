@@ -1,0 +1,132 @@
+@startuml VisionPark_Package_Diagram
+title VisionPark - Package Diagram (Hệ thống hoàn chỉnh)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment center
+skinparam ArrowColor #465568
+skinparam package {
+  BackgroundColor #F7FAFC
+  BorderColor #506784
+}
+
+package "frontend/src" as FE {
+  folder "app" as FEApp
+  folder "layouts" as FELayouts
+  folder "api" as FEApi
+  folder "components" as FEComponents
+  folder "hooks" as FEHooks
+  folder "stores" as FEStores
+  folder "types" as FETypes
+  folder "utils" as FEUtils
+
+  package "modules" as FEModules {
+    folder "auth" as FEAuth
+    package "station" as FEStation {
+      folder "camera-monitor" as FECamera
+      folder "check-in" as FECheckIn
+      folder "check-out" as FECheckOut
+      folder "plate-confirmation" as FEPlateConfirm
+      folder "payment-confirmation" as FEPaymentConfirm
+    }
+    folder "dashboard" as FEDashboard
+    folder "lanes" as FELanes
+    folder "users" as FEUsers
+    folder "monthly-tickets" as FETickets
+    folder "pricing-rules" as FEPricing
+    folder "transactions" as FETransactions
+    folder "reports" as FEReports
+    folder "audit-logs" as FEAudit
+  }
+
+  FEApp --> FELayouts
+  FEApp --> FEAuth
+  FELayouts --> FEModules
+  FEModules --> FEApi
+  FEModules --> FEComponents
+  FEModules --> FEHooks
+  FEModules --> FEStores
+  FEApi --> FETypes
+  FEComponents --> FEUtils
+}
+
+package "backend/app" as BE {
+  package "api" as BEApi {
+    folder "endpoints" as Endpoints
+  }
+
+  folder "core" as Core
+  folder "database" as Database
+  folder "common" as Common
+  folder "background" as Background
+
+  package "modules" as BEModules {
+    folder "auth" as Auth
+    folder "users" as Users
+    folder "lanes" as Lanes
+    folder "parking" as Parking
+    folder "monthly_tickets" as Tickets
+    folder "pricing" as Pricing
+    folder "payments" as Payments
+    folder "reports" as Reports
+    folder "audit_logs" as Audit
+  }
+
+  package "alpr" as ALPR {
+    folder "detector" as Detector
+    folder "recognition" as Recognition
+    folder "normalization" as Normalization
+    folder "runtime" as Runtime
+    folder "ports" as ALPRPorts
+  }
+
+  package "integrations" as Integrations {
+    folder "cameras" as Cameras
+    folder "barriers" as Barriers
+    folder "payments" as PaymentGateway
+    folder "storage" as Storage
+  }
+
+  Endpoints --> BEModules
+
+  Auth --> Users
+  Parking --> Lanes
+  Parking --> Tickets
+  Parking --> Pricing
+  Parking --> Payments
+  Parking --> ALPRPorts
+  Parking --> Integrations
+  Payments --> PaymentGateway
+
+  BEModules --> Database
+  BEModules --> Core
+  BEModules --> Common
+  Background --> BEModules
+
+  Runtime --> Detector
+  Runtime --> Recognition
+  Runtime --> Normalization
+  Runtime ..|> ALPRPorts
+  Cameras ..|> ALPRPorts
+  Storage ..|> ALPRPorts
+
+  Auth --> Audit
+  Parking --> Audit
+  Payments --> Audit
+}
+
+FEApi --> Endpoints : HTTPS / REST / JSON
+
+note bottom of ALPR
+  ALPR chỉ cung cấp kết quả nhận diện.
+  Không quyết định vé, giá, thanh toán
+  hoặc trạng thái giao dịch gửi xe.
+end note
+
+note bottom of BEModules
+  Service sở hữu use case và transaction.
+  Repository sở hữu truy vấn dữ liệu.
+  Endpoint không chứa business logic.
+end note
+@enduml

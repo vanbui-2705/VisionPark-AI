@@ -40,8 +40,8 @@ VisionPark/
 │   │
 │   ├── app/                              # Parent toàn bộ backend
 │   │   ├── api/
-│   │   │   └── v1/
-│   │   │       └── endpoints/
+│   │   │   ├── endpoints/
+│   │   │   └── router.py
 │   │   │
 │   │   ├── core/                         # Config, DB, security, log, middleware
 │   │   ├── database/                     # Session, base model, seed
@@ -267,7 +267,7 @@ backend/app/modules/parking/
 
 ```mermaid
 flowchart LR
-    Endpoint[api/v1/endpoints] --> ModuleService[modules/*/service]
+    Endpoint[api/endpoints] --> ModuleService[modules/*/service]
     ModuleService --> Repository[modules/*/repository]
     ModuleService --> DomainModel[modules/*/models]
     ModuleService --> ALPR[alpr]
