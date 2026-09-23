@@ -4,13 +4,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.alpr.runtime_adapter import create_runtime
 from app.api.endpoints.health import router as health_router
-from app.api.router import api_router
+from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import CorrelationIdMiddleware
-from app.core.readiness import UnconfiguredALPRProbe
+from app.core.readiness import RuntimeALPRProbe
 from app.database.seed import seed_database
 from app.database.session import database
 
@@ -41,7 +42,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.dependency_overrides[get_settings] = lambda: app_settings
     app.state.settings = app_settings
-    app.state.alpr_readiness_probe = UnconfiguredALPRProbe(app_settings.alpr_provider)
+    runtime = create_runtime(app_settings.alpr_provider)
+    app.state.alpr_runtime = runtime
+    app.state.alpr_readiness_probe = RuntimeALPRProbe(
+        runtime, provider=app_settings.alpr_provider, version=runtime.version
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -49,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Correlation-ID"],
     )
     app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)

@@ -1,5 +1,4 @@
 from uuid import UUID
-from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -176,7 +175,9 @@ class TestUpdateLane:
         )
         assert response.status_code == 404
 
-    def test_update_lane_duplicate_name(self, client: TestClient, admin_token: str, db_session: Session):
+    def test_update_lane_duplicate_name(
+        self, client: TestClient, admin_token: str, db_session: Session
+    ):
         """Cannot update to duplicate name."""
         lane1 = db_session.query(Lane).filter_by(name="LANE_IN_01").first()
         lane2 = db_session.query(Lane).filter_by(name="LANE_OUT_01").first()

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -58,3 +57,6 @@ class LocalStorageAdapter(ImageStorage):
             f.write(image_bytes)
 
         return key
+
+    def delete_image(self, image_key: str, lane_id: str) -> None:
+        (self.base_dir / lane_id / image_key).unlink(missing_ok=True)

@@ -5,7 +5,7 @@ from ..schema import ALPRResult
 
 class DetectionRecorder(ABC):
     """Cổng (Port) dùng để lưu lại kết quả nhận diện xuống database."""
-    
+
     @abstractmethod
     def record_detection(self, lane_id: str, image_key: str, result: ALPRResult) -> str:
         """

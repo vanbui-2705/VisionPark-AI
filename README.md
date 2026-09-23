@@ -147,6 +147,39 @@ Seed mặc định tạo hai tài khoản local theo biến môi trường:
 - `SEED_ADMIN_USERNAME` — vai trò `ADMIN`.
 - `SEED_OPERATOR_USERNAME` — vai trò `OPERATOR`.
 
+#### Tài khoản demo theo role
+
+Môi trường Docker local có thể dùng bộ tài khoản sau (chỉ dành cho phát triển):
+
+| Thứ tự | Username | Password | Role |
+| --- | --- | --- | --- |
+| 1 | `admin` | `change-me-admin` | `ADMIN` |
+| 2 | `operator` | `change-me-operator` | `OPERATOR` |
+| 3 | `accountant` | `VisionPark@Accountant2026` | `ACCOUNTANT` |
+| 4 | `technician` | `VisionPark@Technician2026` | `TECHNICIAN` |
+
+> Đổi toàn bộ mật khẩu mặc định trước khi dùng ngoài môi trường phát triển. Username và mật khẩu
+> của tài khoản seed có thể được ghi đè bằng các biến môi trường trong `docker-compose.yml`.
+
+Script `app.database.create_users` tạo tài khoản mới, gán role và mã hóa mật khẩu bằng Argon2id.
+Chạy wizard để tạo liên tiếp nhiều tài khoản; để trống username khi muốn kết thúc:
+
+```powershell
+docker compose exec backend python -m app.database.create_users
+```
+
+Hoặc tạo một tài khoản cụ thể (mật khẩu vẫn được nhập ẩn, không lưu trong command history):
+
+```powershell
+docker compose exec backend python -m app.database.create_users `
+  --username accountant02 `
+  --display-name "Kế toán 02" `
+  --role ACCOUNTANT
+```
+
+Các role hợp lệ là `ADMIN`, `OPERATOR`, `ACCOUNTANT` và `TECHNICIAN`. Script chuẩn hóa username
+thành chữ thường, kiểm tra tài khoản trùng và không ghi đè tài khoản đã tồn tại.
+
 ### 5. Khởi động API
 
 ```powershell

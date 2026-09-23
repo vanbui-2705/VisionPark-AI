@@ -24,11 +24,11 @@ def test_liveness_does_not_depend_on_database_or_alpr(client: TestClient) -> Non
     assert response.json()["status"] == "alive"
 
 
-def test_readiness_reports_unwired_alpr_as_not_ready(client: TestClient) -> None:
+def test_readiness_reports_wired_mock_as_ready(client: TestClient) -> None:
     response = client.get("/health/ready")
-    assert response.status_code == 503
+    assert response.status_code == 200
     assert response.json()["database"]["status"] == "ready"
-    assert response.json()["alpr"]["status"] == "not_ready"
+    assert response.json()["alpr"]["status"] == "ready"
     assert response.json()["alpr"]["provider"] == "mock"
 
 

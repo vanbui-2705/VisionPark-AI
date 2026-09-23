@@ -1,12 +1,15 @@
+import os
 from collections.abc import Generator
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import pytest
 from alembic.config import Config
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from alembic import command
@@ -26,12 +29,28 @@ def make_alembic_config(database_url: str) -> Config:
     config = Config(str(BACKEND_ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))
     config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+    config.attributes["database_url"] = database_url
     return config
 
 
-@pytest.fixture
-def database_url(tmp_path: Path) -> str:
-    return f"sqlite:///{(tmp_path / 'visionpark-test.db').as_posix()}"
+@pytest.fixture(params=["sqlite"] + (["postgresql"] if os.getenv("TEST_POSTGRES_URL") else []))
+def database_url(tmp_path: Path, request):
+    if request.param == "sqlite":
+        yield f"sqlite:///{(tmp_path / 'visionpark-test.db').as_posix()}"
+        return
+    # Always create our own database; never migrate/drop the supplied database.
+    admin_url = make_url(os.environ["TEST_POSTGRES_URL"])
+    name = "vp_test_" + uuid4().hex
+    admin = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    with admin.connect() as conn:
+        conn.execute(text(f'CREATE DATABASE "{name}"'))
+    try:
+        yield admin_url.set(database=name).render_as_string(hide_password=False)
+    finally:
+        database.dispose()
+        with admin.connect() as conn:
+            conn.execute(text(f'DROP DATABASE "{name}"'))
+        admin.dispose()
 
 
 @pytest.fixture
@@ -43,9 +62,11 @@ def migrated_database_url(database_url: str) -> Generator[str, None, None]:
 
 
 @pytest.fixture
-def settings(migrated_database_url: str) -> Settings:
+def settings(migrated_database_url: str, tmp_path: Path) -> Settings:
     return Settings(
         environment="test",
+        _env_file=None,
+        local_storage_path=str(tmp_path / "media"),
         database_url=migrated_database_url,
         jwt_secret_key=TEST_JWT_SECRET,
         auto_seed=True,
@@ -89,3 +110,9 @@ def login(client: TestClient, username: str, password: str) -> dict[str, object]
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+@pytest.fixture
+def operator_headers(client: TestClient) -> dict[str, str]:
+    token = login(client, "operator", "operator-test-password")["access_token"]
+    return {"Authorization": f"Bearer {token}"}
