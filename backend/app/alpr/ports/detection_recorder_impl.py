@@ -52,6 +52,8 @@ class DatabaseDetectionRecorder(DetectionRecorder):
                 bbox_x2=bbox_data[2],
                 bbox_y2=bbox_data[3],
                 processing_time_ms=result.processing_time_ms,
+                image_content_type="image/jpeg",
+                requires_confirmation=result.requires_confirmation if hasattr(result, "requires_confirmation") else (result.confidence < 0.85)
             )
             
             result_obj = db.execute(stmt)
