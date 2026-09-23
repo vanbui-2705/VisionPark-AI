@@ -138,7 +138,7 @@ Local Gate phải hoàn thành trước khi phát triển sâu các module.
 
 ```text
 backend/app/alpr/
-backend/app/api/v1/endpoints/alpr.py
+backend/app/api/endpoints/alpr.py
 backend/tests/unit/alpr/
 backend/tests/integration/api/test_alpr.py
 backend/models/
@@ -215,7 +215,7 @@ Nguyên tắc thay model: `MockALPRRuntime` và `RealALPRRuntime` cùng implemen
 
 ```text
 backend/app/main.py
-backend/app/api/v1/router.py
+backend/app/api/router.py
 backend/app/core/
 backend/app/database/
 backend/app/modules/auth/
@@ -262,7 +262,7 @@ backend/app/modules/lanes/
 backend/app/modules/alpr_detections/
 backend/app/modules/audit_logs/
 backend/app/integrations/storage/
-backend/app/api/v1/endpoints/lanes.py
+backend/app/api/endpoints/lanes.py
 backend/tests/unit/modules/
 backend/tests/integration/api/
 ```

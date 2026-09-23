@@ -1,0 +1,123 @@
+@startuml VisionPark_Component_Diagram
+title VisionPark - Component Diagram (Hệ thống hoàn chỉnh)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment center
+skinparam ArrowColor #465568
+skinparam component {
+  BackgroundColor #EAF2FF
+  BorderColor #376AA6
+}
+skinparam database {
+  BackgroundColor #EAF8EF
+  BorderColor #287A4D
+}
+skinparam cloud {
+  BackgroundColor #FFF4CC
+  BorderColor #A97800
+}
+skinparam actor {
+  BackgroundColor #F5F5F5
+  BorderColor #555555
+}
+
+actor "Nhân viên\nvận hành" as Operator
+actor "Quản trị viên" as Admin
+actor "Kế toán" as Accountant
+
+package "Web Application - React" as Frontend {
+  [Authentication UI] as FEAuth
+  [Station UI] as Station
+  [Admin Dashboard] as AdminUI
+  [Shared API Client] as APIClient
+
+  FEAuth --> APIClient
+  Station --> APIClient
+  AdminUI --> APIClient
+}
+
+package "Backend Application - FastAPI Modular Monolith" as Backend {
+  [REST API v1] as API
+  [Authentication & RBAC] as Auth
+  [Lane Management] as Lanes
+  [Parking / Check-in / Check-out] as Parking
+  [Monthly Ticket Management] as Tickets
+  [Pricing Engine] as Pricing
+  [Payment Management] as Payments
+  [Reporting] as Reports
+  [Audit Logging] as Audit
+  [ALPR Runtime\nYOLO + OCR + Normalization] as ALPR
+  [Camera Adapter] as CameraAdapter
+  [Barrier Adapter] as BarrierAdapter
+  [Payment Gateway Adapter] as PaymentAdapter
+  [Image Storage Adapter] as StorageAdapter
+  [Background Jobs] as Jobs
+
+  API --> Auth
+  API --> Lanes
+  API --> Parking
+  API --> Tickets
+  API --> Pricing
+  API --> Payments
+  API --> Reports
+
+  Parking --> Lanes
+  Parking --> ALPR
+  Parking --> Tickets
+  Parking --> Pricing
+  Parking --> Payments
+  Parking --> CameraAdapter
+  Parking --> BarrierAdapter
+  Parking --> StorageAdapter
+  Auth --> Audit
+  Parking --> Audit
+  Payments --> Audit
+  Jobs --> Reports
+  Jobs --> StorageAdapter
+}
+
+component "MediaMTX\nVideo Gateway" as MediaMTX #FFF4CC
+component "Camera IP / RTSP" as Camera #FFF4CC
+component "Barrier Controller" as Barrier #FFF4CC
+cloud "VietQR / Ngân hàng" as Bank
+database "PostgreSQL\nSource of Truth" as DB
+database "Object Storage\nẢnh phương tiện" as Images
+
+Operator --> Station
+Admin --> AdminUI
+Accountant --> AdminUI
+Operator --> FEAuth
+Admin --> FEAuth
+Accountant --> FEAuth
+
+APIClient --> API : HTTPS / REST / JSON
+Camera --> MediaMTX : RTSP
+MediaMTX --> Station : HLS / WebRTC
+CameraAdapter --> MediaMTX : Stream / Snapshot
+BarrierAdapter --> Barrier : Device protocol
+PaymentAdapter --> Bank : HTTPS API / Webhook
+
+Auth --> DB
+Lanes --> DB
+Parking --> DB
+Tickets --> DB
+Pricing --> DB
+Payments --> DB
+Reports --> DB
+Audit --> DB
+StorageAdapter --> Images
+
+note right of ALPR
+  ALPR là module nội bộ của backend,
+  không phải microservice riêng.
+  Có thể thay model qua ALPRRuntime.
+end note
+
+note bottom of DB
+  PostgreSQL lưu dữ liệu nghiệp vụ và metadata.
+  Không lưu blob ảnh.
+end note
+@enduml

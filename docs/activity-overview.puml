@@ -1,0 +1,66 @@
+@startuml VisionPark_Activity_Overview
+title VisionPark - Activity Diagram tổng quan
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #EAF2FF
+  BorderColor #376AA6
+  DiamondBackgroundColor #FFF4CC
+  DiamondBorderColor #A97800
+  StartColor #287A4D
+  EndColor #A33A3A
+}
+
+start
+
+partition "Người dùng" {
+  :Mở VisionPark;
+  :Nhập tên đăng nhập và mật khẩu;
+}
+
+partition "Backend Auth/RBAC" {
+  :Xác thực tài khoản đang hoạt động;
+  if (Thông tin hợp lệ?) then (Không)
+    :Trả lỗi 401;
+    stop
+  else (Có)
+    :Cấp JWT và trả thông tin vai trò;
+  endif
+}
+
+partition "Frontend" {
+  :Điều hướng theo quyền;
+  if (Nhóm chức năng?) then (Vận hành làn)
+    :Mở Station;
+    :Chọn làn đang hoạt động;
+    :Chọn nguồn video/camera;
+    if (Hướng làn?) then (IN)
+      :Thực hiện luồng ghi nhận xe vào;
+      note right
+        Chi tiết tại
+        activity-check-in.puml
+      end note
+    else (OUT)
+      :Thực hiện luồng hoàn tất xe ra;
+      note right
+        Chi tiết tại
+        activity-check-out.puml
+      end note
+    endif
+  else (Quản trị/đối soát)
+    if (Vai trò có quyền?) then (Không)
+      :Ẩn chức năng và từ chối tại API;
+    else (Có)
+      :Quản lý tài khoản, làn, vé tháng
+      biểu phí hoặc báo cáo;
+      :Backend kiểm tra quyền và dữ liệu;
+      :Lưu thay đổi và audit log;
+    endif
+  endif
+  :Đăng xuất hoặc hết phiên;
+}
+
+stop
+@enduml
+

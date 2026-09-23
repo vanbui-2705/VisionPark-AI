@@ -9,7 +9,7 @@ from app.alpr.errors import ALPRNotReadyError, ALPRProcessingError
 from app.alpr.schema import ALPRHTTPResponse
 from app.alpr.service import ALPRApplicationService
 from app.alpr.utils import normalize_plate
-from app.api.v1.endpoints.health import liveness, readiness
+from app.api.endpoints.health import liveness, readiness
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.di_container import get_alpr_service

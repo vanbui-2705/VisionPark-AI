@@ -1,3 +1,4 @@
+import os  # Backward-compatible module surface used by existing integrations/tests.
 from pathlib import Path
 
 import numpy as np
