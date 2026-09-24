@@ -208,8 +208,8 @@ Backend Core Definition of Done:
 backend/app/modules/lanes/
 backend/app/alpr/                 # Phan adapter/runtime, khong sua thuat toan cua Nguoi 1
 backend/app/integrations/storage/
-backend/app/api/v1/endpoints/lanes.py
-backend/app/api/v1/endpoints/alpr.py
+backend/app/api/endpoints/lanes.py
+backend/app/api/endpoints/alpr.py
 ```
 
 ### 6.2. Danh sach cong viec

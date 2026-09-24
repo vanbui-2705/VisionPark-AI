@@ -303,3 +303,16 @@ class TestHealthEndpoints:
         # Test lỗi 404 file không tồn tại
         response = client.get('/api/v1/alpr/media/LANE01_fakeuuid.jpg')
         assert response.status_code == 404
+
+def test_health_aliases_check_database(client):
+    from app.integrations.persistence.database_health import get_database_readiness
+    from app.core.health import ReadinessStatus
+    
+    client.app.dependency_overrides[get_database_readiness] = lambda: ReadinessStatus(
+        False, "offline"
+    )
+    for path in ["/health/ready", "/api/v1/alpr/health/ready"]:
+        response = client.get(path)
+        assert response.status_code == 503
+        assert response.json()["database"]["status"] == "not_ready"
+    assert client.get("/api/v1/alpr/health/live").status_code == 200

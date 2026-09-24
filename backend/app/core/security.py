@@ -29,9 +29,7 @@ def create_access_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     now = datetime.now(UTC)
-    expires_at = now + (
-        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
-    )
+    expires_at = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     claims = {
         "sub": str(subject),
         "type": "access",

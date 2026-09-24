@@ -12,8 +12,7 @@ class Detection(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "detections"
     
     # Foreign key đến Lane
-    lane_id = Column(
-        String(50), 
+    lane_id = Column(Uuid, 
         ForeignKey("lanes.id", ondelete="CASCADE"), 
         nullable=False, 
         index=True

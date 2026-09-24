@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.security import hash_password
 from app.database.session import database
+from app.modules.lanes.models import Lane
 from app.modules.users.models import Role, User
 from app.modules.users.schemas import RoleName
-from app.modules.lanes.models import Lane
 
 
 def seed_database(session: Session, settings: Settings) -> None:

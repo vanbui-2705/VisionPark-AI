@@ -1,9 +1,8 @@
 from .interface import ALPRRuntime
-from .schema import ALPRResult
-from .errors import ALPRNotReadyError, ALPRProcessingError
-from .ports.lane_checker import ActiveLaneChecker
-from .ports.image_storage import ImageStorage
 from .ports.detection_recorder import DetectionRecorder
+from .ports.image_storage import ImageStorage
+from .ports.lane_checker import ActiveLaneChecker
+from .schema import ALPRResult
 
 
 class ALPRApplicationService:
@@ -40,6 +39,10 @@ class ALPRApplicationService:
         image_key = self.image_storage.save_image(image_bytes, lane_id)
 
         # 4. Ghi nhận lịch sử (Record Detection)
-        self.detection_recorder.record_detection(lane_id, image_key, result)
+        try:
+            self.detection_recorder.record_detection(lane_id, image_key, result)
+        except Exception:
+            self.image_storage.delete_image(image_key, lane_id)
+            raise
 
         return result
