@@ -1,0 +1,18 @@
+{
+  "model_version": "mock-alpr-0.1.0",
+  "provider": "mock",
+  "contract": {
+    "bbox": "[x1,y1,x2,y2]",
+    "plate_number": "nullable",
+    "requires_confirmation": true
+  },
+  "scenarios": [
+    "success",
+    "low-confidence",
+    "no-plate",
+    "unavailable",
+    "processing-error"
+  ],
+  "weights_required": false,
+  "ocr_required": false
+}

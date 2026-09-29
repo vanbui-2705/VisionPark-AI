@@ -1,15 +1,14 @@
+from typing import Annotated
 from uuid import UUID
-from typing import List, Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError
 from app.database.session import get_db
 from app.modules.auth.dependencies import require_roles
+from app.modules.lanes import schemas, service
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
-from app.modules.lanes import schemas, service
 
 router = APIRouter(prefix="/lanes", tags=["lanes"])
 
@@ -24,7 +23,7 @@ def create_lane(
     return service.create_lane(db, lane, admin_id=current_user.id)
 
 
-@router.get("/", response_model=List[schemas.LaneResponse])
+@router.get("/", response_model=list[schemas.LaneResponse])
 def list_lanes(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
@@ -33,7 +32,7 @@ def list_lanes(
     return service.list_lanes(db)
 
 
-@router.get("/active", response_model=List[schemas.LaneResponse])
+@router.get("/active", response_model=list[schemas.LaneResponse])
 def list_active_lanes(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],

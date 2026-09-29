@@ -13,7 +13,7 @@ VisionPark cần một lát cắt Phase 1 chạy ổn định trên local để 
 - Triển khai Station phát MP4, lấy frame có throttle, hiển thị bbox/kết quả và cho nhân viên xác nhận hoặc sửa biển số.
 - Triển khai Login và Admin Lane UI dùng API thật.
 - Đóng gói frontend, backend và PostgreSQL bằng Docker Compose; bổ sung kiểm thử và hướng dẫn clean setup.
-- Không train hoặc tích hợp YOLO/PaddleOCR trong change này.
+- Không tích hợp OCR trong Phase 1. Model YOLO `.pt` chỉ được chạy tùy chọn ở chế độ detector-only để trả bounding box và confidence; biển số vẫn cần xác nhận thủ công. PaddleOCR được hoãn sang Phase 2.
 
 ## Capabilities
 

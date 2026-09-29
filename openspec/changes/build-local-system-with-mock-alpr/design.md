@@ -1,6 +1,6 @@
 ## Context
 
-Repository đang ở trạng thái tài liệu; ALPR boundary đã được đề xuất trong change `scaffold-alpr-boundary`, nhưng chưa có backend/frontend/database. Kiến trúc chuẩn là FastAPI modular monolith, một React application và PostgreSQL làm source of truth. Mục tiêu change này là lát cắt chạy local thật, chỉ thay model AI bằng provider mock.
+Repository đang ở trạng thái triển khai dở dang; ALPR boundary đã được đề xuất trong change `scaffold-alpr-boundary`, backend/frontend/database đã có các phần nền tảng nhưng còn lỗi migration, fixture và integration. Kiến trúc chuẩn là FastAPI modular monolith, một React application và PostgreSQL làm source of truth. Phase 1 lấy provider mock làm acceptance gate; model YOLO `.pt` chỉ là đường chạy detector-only tùy chọn.
 
 ## Goals / Non-Goals
 
@@ -13,7 +13,7 @@ Repository đang ở trạng thái tài liệu; ALPR boundary đã được đ�
 
 **Non-Goals:**
 
-- Train/tích hợp YOLO hoặc PaddleOCR.
+- OCR/PaddleOCR và việc suy luận chuỗi biển số.
 - Check-in/check-out, phân loại vé, cache, tính phí hoặc điều khiển barrier.
 - Camera stream thật; nguồn video Phase 1 là MP4 local.
 - Giao diện final hoặc dashboard nghiệp vụ đầy đủ.
@@ -72,6 +72,10 @@ Detection request dùng multipart `image` và `lane_id`. Confirmation request d�
 
 `ALPR_PROVIDER=mock` là mặc định local. Mock implement cùng `ALPRRuntime` và trả kết quả tất định với `model_version=mock-alpr-0.1.0`. Health báo ready nhưng công bố provider mock; UI luôn hiện nhãn demo. `ALPR_PROVIDER=unavailable` dùng để test `503`. CI không tải weight hoặc dependency AI nặng.
 
+### 5a. Detector-only là đường tích hợp tùy chọn
+
+`ALPR_PROVIDER=real` được phép chạy model `.pt` đã có trong repository nhưng không được khởi tạo OCR khi `ALPR_OCR_ENABLED=false`. Runtime chỉ trả bounding box, confidence và `plate_number=null`; kết quả luôn đặt `requires_confirmation=true`. Mock provider vẫn là gate bắt buộc của Phase 1 để CI không phụ thuộc weight hoặc dependency AI nặng. Khi Phase 2 bật OCR, chỉ thay implementation phía provider và giữ nguyên HTTP/database/UI contract.
+
 ### 6. Transaction và storage consistency
 
 API validate/decode ảnh và Lane trước, lưu file qua storage adapter, sau đó lưu media/detection trong database transaction. Nếu DB fail sau khi đã ghi file, adapter thực hiện cleanup best-effort. Database không lưu blob và API không trả filesystem path.
@@ -99,4 +103,8 @@ Station lấy frame bằng canvas theo interval mặc định 200 ms nhưng ch�
 3. Người 1 triển khai ALPR boundary/mock và Detection API; Người 3 cung cấp Lane/storage/persistence adapters.
 4. Ghép Station video, request controller và confirmation.
 5. Chạy integration/regression trên clean environment.
-6. Khi model sẵn sàng, thêm provider thật cùng interface và chuyển `ALPR_PROVIDER`; rollback về mock không đổi API/database/UI.
+6. Khi cần kiểm thử model, chuyển `ALPR_PROVIDER=real` và `ALPR_OCR_ENABLED=false`; rollback về mock không đổi API/database/UI. OCR/PaddleOCR chỉ được thêm trong Phase 2 sau khi có bộ ảnh biển số và benchmark riêng.
+
+## Phase 1 Exit Gate
+
+Phase 1 chỉ được đóng khi backend pytest, frontend lint/test/build, migration check và Docker Compose clean boot đều pass; luồng login → lane → upload frame → mock/detector-only result → manual confirmation → history/audit chạy được. Không yêu cầu OCR, nhưng UI và API phải công bố rõ khi plate chưa được đọc và cần xác nhận thủ công.
