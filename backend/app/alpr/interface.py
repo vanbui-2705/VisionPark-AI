@@ -18,6 +18,11 @@ class ALPRRuntime(ABC):
         """
         pass
 
+    @property
+    def model_version(self) -> str:
+        """Stable model version exposed to API and readiness consumers."""
+        return getattr(self, "version", "unknown")
+
     @abstractmethod
     def detect_and_read(self, image_bytes: bytes) -> ALPRResult:
         """

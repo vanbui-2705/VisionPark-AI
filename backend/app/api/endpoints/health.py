@@ -9,7 +9,7 @@ from app.core.readiness import (
     ReadinessStatus,
     get_alpr_readiness_probe,
 )
-from app.database.session import get_database_readiness
+from app.integrations.persistence.database_health import get_database_readiness
 
 router = APIRouter(tags=["health"])
 
@@ -28,11 +28,13 @@ def readiness(
 ) -> JSONResponse:
     alpr_status = alpr_probe.readiness()
     is_ready = database_status.ready and alpr_status.ready
+    alpr_body = alpr_status.to_dict()
+    alpr_body["ocr_enabled"] = settings.alpr_ocr_enabled
     body: dict[str, Any] = {
         "status": "ready" if is_ready else "not_ready",
         "version": settings.app_version,
         "database": database_status.to_dict(),
-        "alpr": alpr_status.to_dict(),
+        "alpr": alpr_body,
         "correlation_id": getattr(request.state, "correlation_id", None),
     }
     return JSONResponse(status_code=200 if is_ready else 503, content=body)

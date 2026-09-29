@@ -1,0 +1,20 @@
+{
+  "model_name": "visionpark-alpr",
+  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "provider": "ultralytics-paddleocr",
+  "detector": {
+    "format": "pytorch",
+    "framework": "ultralytics",
+    "weights_path": "app/alpr/weights/best.pt",
+    "sha256": "C7DBC04262278ED3A422A891E8003DFEA7935C90B8A749DF29539C9FBBA2B999",
+    "plate_class": "plate",
+    "imgsz": 640
+  },
+  "ocr": {
+    "provider": "paddleocr",
+    "language": "en",
+    "pretrained": true
+  },
+  "status": "local-asset",
+  "notes": "YOLO detector finds vehicle and plate regions; PaddleOCR reads the cropped plate."
+}

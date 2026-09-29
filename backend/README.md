@@ -13,6 +13,10 @@ Run from `backend`:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+# For detector-only inference on a machine with the local model asset:
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,real]"
+# OCR is deferred from Phase 1; install the optional OCR extra only for Phase 2:
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,real,ocr]"
 Copy-Item .env.example .env
 ```
 
@@ -68,6 +72,13 @@ and JWTs are not written by request logging. Keep `DEBUG=false` outside debuggin
   recognize real plates. Other providers remain `not_ready` (503).
 - ONNX source still has placeholder output decoding. The optional `[onnx]` extra
   supplies its library, but installing it does not activate a real provider.
+- Trained ALPR weights belong in `app/alpr/weights/` and are excluded from Git;
+  tracked metadata lives in `models/alpr-manifest.json`. Keep `ALPR_PROVIDER=mock`
+  until the real `.pt` provider is verified with the local asset. Phase 1 real
+  mode is detector-only: set `ALPR_PROVIDER=real` and `ALPR_OCR_ENABLED=false`;
+  the API returns a nullable plate and requires manual confirmation.
+- PaddleOCR is not required for Phase 1. Enable it only with
+  `ALPR_OCR_ENABLED=true` after installing the `ocr` extra.
 - `/api/v1/alpr/health/*` are aliases of the shared health handlers; ready checks
   both DB and runtime and never claims DB readiness without checking it.
 - `get_db` provides one request session. The DI factory passes it to both adapters

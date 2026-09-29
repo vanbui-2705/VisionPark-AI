@@ -5,6 +5,7 @@
 
 # Python
 *.onnx
+*.pt
 __pycache__/
 *.pyc
 .venv/
@@ -14,6 +15,10 @@ __pycache__/
 htmlcov/
 backend/var/
 *.egg-info/
+
+# ALPR model assets are provisioned outside Git.
+backend/app/alpr/weights/*
+!backend/app/alpr/weights/.gitkeep
 
 # Database
 *.db

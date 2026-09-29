@@ -27,6 +27,7 @@ class DatabaseDetectionRecorder(DetectionRecorder):
             bbox_y2=bbox[3],
             confidence=result.confidence,
             processing_time_ms=result.processing_time_ms,
+            requires_confirmation=result.requires_confirmation,
         )
         self.session.add(detection)
         self.session.commit()

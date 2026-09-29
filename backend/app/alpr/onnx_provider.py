@@ -1,4 +1,4 @@
-import os  # Backward-compatible module surface used by existing integrations/tests.
+import os  # Backward-compatible patch target used by existing tests/integrations.
 from pathlib import Path
 
 import numpy as np

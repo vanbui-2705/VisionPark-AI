@@ -11,11 +11,13 @@ RUN addgroup --system visionpark \
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY models ./models
 COPY alembic.ini ./
 COPY alembic ./alembic
 
+ARG INSTALL_REAL_ALPR=false
 RUN python -m pip install --upgrade pip \
-    && python -m pip install . \
+    && if [ "$INSTALL_REAL_ALPR" = "true" ]; then python -m pip install ".[real]"; else python -m pip install .; fi \
     && mkdir -p /app/var/media \
     && chown -R visionpark:visionpark /app
 

@@ -6,7 +6,7 @@ from datetime import datetime
 class DetectionResponse(BaseModel):
     """Schema trả về thông tin lịch sử nhận diện cho Frontend"""
     id: UUID
-    lane_id: str
+    lane_id: UUID
     image_key: str
     raw_plate: Optional[str] = None
     normalized_plate: Optional[str] = None

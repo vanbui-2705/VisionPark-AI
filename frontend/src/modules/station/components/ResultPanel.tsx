@@ -12,7 +12,8 @@ export default function ResultPanel({
     borderRadius: 8
   }}>
     <h3>Kết quả</h3>
-    <p>Biển số: <strong>{result.normalized_plate_number ?? "Không nhận diện"}</strong></p>
+    <p>Biển số: <strong>{result.normalized_plate_number ?? "Chưa đọc OCR"}</strong></p>
+    {!result.normalized_plate_number && result.bbox && <p>Đã phát hiện vùng biển số. Vui lòng xác nhận thủ công.</p>}
     <p>Raw: {result.raw_plate_number ?? "-"}</p>
     <p>Confidence: {(result.confidence * 100).toFixed(1)}%</p>
     <p>Latency: {result.processing_time_ms} ms</p>

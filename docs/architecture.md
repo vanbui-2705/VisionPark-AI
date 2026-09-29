@@ -58,7 +58,7 @@ VisionPark/
 │   │   │   └── audit_logs/
 │   │   │
 │   │   ├── alpr/                         # Parent AI/OCR (ONNX Runtime)
-│   │   │   ├── weights/                  # Chứa file YOLO/OCR .onnx (Được gitignore)
+│   │   │   ├── weights/                  # Chứa weight .pt/.onnx runtime (Được gitignore)
 │   │   │   ├── schema.py                 # Định nghĩa ALPRResult, BoundingBox
 │   │   │   ├── interface.py              # Interface chuẩn giao tiếp ALPRRuntime
 │   │   │   ├── onnx_provider.py          # Implement ALPRRuntime bằng onnxruntime

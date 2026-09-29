@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-27
+goal: Deliver real ALPR baseline and authenticated check-in flow without
+  payment, barrier, or CRM scope.

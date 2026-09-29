@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr, model_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_JWT_SECRET = "development-only-change-this-jwt-secret"
@@ -38,12 +38,27 @@ class Settings(BaseSettings):
     upload_max_bytes: int = 5 * 1024 * 1024
     local_storage_path: str = "./var/media"
     alpr_provider: str = "mock"
+    alpr_manifest_path: str = "models/alpr-manifest.json"
+    alpr_device: str = "cpu"
+    alpr_detector_confidence: float = 0.25
+    alpr_confidence_threshold: float = 0.85
+    alpr_ocr_margin: float = 0.08
+    alpr_ocr_enabled: bool = False
+    alpr_mock_scenario: str = "success"
 
     auto_seed: bool = False
     seed_admin_username: str = "admin"
     seed_admin_password: SecretStr | None = None
     seed_operator_username: str = "operator"
     seed_operator_password: SecretStr | None = None
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def parse_debug_mode(cls, value: object) -> object:
+        """Accept common deployment mode values from inherited shell environments."""
+        if isinstance(value, str) and value.strip().casefold() in {"release", "production", "off"}:
+            return False
+        return value
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -53,6 +68,12 @@ class Settings(BaseSettings):
     def validate_security_settings(self) -> "Settings":
         if self.access_token_expire_minutes <= 0:
             raise ValueError("ACCESS_TOKEN_EXPIRE_MINUTES must be greater than zero")
+        if not 0 < self.alpr_detector_confidence <= 1:
+            raise ValueError("ALPR_DETECTOR_CONFIDENCE must be between 0 and 1")
+        if not 0 < self.alpr_confidence_threshold <= 1:
+            raise ValueError("ALPR_CONFIDENCE_THRESHOLD must be between 0 and 1")
+        if not 0 <= self.alpr_ocr_margin <= 1:
+            raise ValueError("ALPR_OCR_MARGIN must be between 0 and 1")
         if len(self.jwt_secret_key.get_secret_value()) < 32:
             raise ValueError("JWT_SECRET_KEY must contain at least 32 characters")
         if self.environment == "production" and (
