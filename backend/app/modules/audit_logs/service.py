@@ -1,7 +1,10 @@
-from sqlalchemy.orm import Session
-from typing import Optional, Any
+from typing import Any
 from uuid import UUID
+
+from sqlalchemy.orm import Session
+
 from .models import AuditLog
+
 
 def log_action(
     db: Session,
@@ -9,8 +12,8 @@ def log_action(
     action: str,
     entity_type: str,
     entity_id: str,
-    old_value: Optional[Any] = None,
-    new_value: Optional[Any] = None
+    old_value: Any | None = None,
+    new_value: Any | None = None,
 ):
     """Hàm tiện ích để lưu vết hệ thống."""
     audit_entry = AuditLog(
@@ -19,6 +22,6 @@ def log_action(
         entity_type=entity_type,
         entity_id=str(entity_id),
         old_value=old_value,
-        new_value=new_value
+        new_value=new_value,
     )
     db.add(audit_entry)

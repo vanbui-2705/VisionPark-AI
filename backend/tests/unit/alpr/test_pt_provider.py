@@ -34,9 +34,7 @@ def test_manifest_and_checksum_are_valid(tmp_path):
 
 
 def test_invalid_checksum_reports_not_ready(tmp_path):
-    runtime = UltralyticsPaddleALPRRuntime(
-        write_manifest(tmp_path, checksum="0" * 64)
-    )
+    runtime = UltralyticsPaddleALPRRuntime(write_manifest(tmp_path, checksum="0" * 64))
 
     ready, message = runtime.is_ready()
 

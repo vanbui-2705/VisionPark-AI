@@ -128,6 +128,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             raise ALPRNotReadyError(str(exc)) from exc
         try:
             from ultralytics import YOLO
+
             paddle_ocr = None
             if self.ocr_enabled:
                 from paddleocr import PaddleOCR
