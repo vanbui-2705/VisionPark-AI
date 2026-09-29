@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, UploadFile, File, Form, Depends, status
+from fastapi import APIRouter, UploadFile, File, Form, Depends, status
 from typing import List, Optional, Annotated
 from app.core.errors import AppError
 import cv2
@@ -30,6 +30,9 @@ from app.modules.alpr.models import Detection
 from app.modules.alpr.schemas import DetectionResponse, DetectionConfirmRequest
 
 from app.modules.audit_logs.service import log_action
+
+import traceback
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -146,20 +149,18 @@ async def alpr_ready_health(alpr_service: ALPRApplicationService = Depends(get_a
 async def get_detection_image(image_key: str):
     """API lấy ảnh (Media Serve) để hiển thị lên UI."""
     settings = get_settings()
-    # Image key có format: {lane_id}_{uuid}.jpg
     try:
         lane_id = image_key.split("_")[0]
-        # Đường dẫn file ảnh thực tế trên server
         file_path = os.path.join(settings.local_storage_path, lane_id, image_key)
-        
-        if not os.path.exists(file_path):
-            from app.core.errors import AppError
-            raise AppError(status_code=404, code="NOT_FOUND", message="Không tìm thấy file ảnh")
-            
-        return FileResponse(file_path, media_type="image/jpeg")
-    except Exception as e:
+    except Exception:
         from app.core.errors import AppError
         raise AppError(status_code=400, code="BAD_REQUEST", message="Image key không hợp lệ")
+        
+    if not os.path.exists(file_path):
+        from app.core.errors import AppError
+        raise AppError(status_code=404, code="NOT_FOUND", message="Không tìm thấy file ảnh")
+        
+    return FileResponse(file_path, media_type="image/jpeg")
 
 @router.get("/detections", response_model=List[DetectionResponse])
 def get_detection_history(
@@ -178,7 +179,6 @@ def get_detection_history(
         
     detections = db.scalars(query.offset(skip).limit(limit)).all()
     return detections
-
 
 @router.post("/detections/{detection_id}/confirm", response_model=DetectionResponse)
 def confirm_detection(

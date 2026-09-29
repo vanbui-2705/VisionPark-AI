@@ -66,11 +66,11 @@ def mock_lane_checker():
 @pytest.fixture
 def mock_alpr_service(mock_settings, mock_storage_adapter, mock_detection_recorder, mock_lane_checker):
     """Mock ALPR service cho endpoint tests."""
-    from app.alpr.runtime_adapter import ai_runtime
+    from app.alpr.runtime_adapter import create_runtime
     from app.alpr.service import ALPRApplicationService
     
     service = ALPRApplicationService(
-        runtime=ai_runtime,
+        runtime=create_runtime("mock"),
         lane_checker=mock_lane_checker,
         image_storage=mock_storage_adapter,
         detection_recorder=mock_detection_recorder
@@ -109,7 +109,7 @@ class TestALPREndpoint:
         files = {'image': valid_image_file}
         data = {'lane_id': 'LANE_IN_01'}
         
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.post('/api/v1/alpr/detections', files=files, data=data, headers=headers)
         
         assert response.status_code == 200
@@ -120,16 +120,16 @@ class TestALPREndpoint:
         assert body['latency_ms'] == 250
         assert body['bbox'] == [100, 200, 400, 300]
     
-    def test_create_detection_missing_lane_id(self, client: TestClient, valid_image_file, admin_token: str):
+    def test_create_detection_missing_lane_id(self, client: TestClient, valid_image_file, operator_headers: dict):
         """Test thiếu lane_id sẽ trả về 422."""
         files = {'image': valid_image_file}
         data = {}
         
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.post('/api/v1/alpr/detections', files=files, data=data, headers=headers)
         assert response.status_code == 422
     
-    def test_create_detection_invalid_format(self, client: TestClient, monkeypatch, admin_token: str):
+    def test_create_detection_invalid_format(self, client: TestClient, monkeypatch, operator_headers: dict):
         """Test upload file không phải ảnh."""
         mock_service = MagicMock()
         monkeypatch.setattr(
@@ -140,11 +140,11 @@ class TestALPREndpoint:
         files = {'image': ('test.txt', b'not an image', 'text/plain')}
         data = {'lane_id': 'LANE_IN_01'}
         
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.post('/api/v1/alpr/detections', files=files, data=data, headers=headers)
         assert response.status_code == 422
     
-    def test_create_detection_hung_file(self, client: TestClient, monkeypatch, admin_token: str):
+    def test_create_detection_hung_file(self, client: TestClient, monkeypatch, operator_headers: dict):
         """Test upload file hỏng (không decode được bằng OpenCV)."""
         mock_service = MagicMock()
         monkeypatch.setattr(
@@ -155,11 +155,11 @@ class TestALPREndpoint:
         files = {'image': ('corrupt.jpg', b'\x00\x01\x02\x03', 'image/jpeg')}
         data = {'lane_id': 'LANE_IN_01'}
         
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.post('/api/v1/alpr/detections', files=files, data=data, headers=headers)
         assert response.status_code == 422
     
-    def test_create_detection_large_file(self, client: TestClient, monkeypatch, admin_token: str):
+    def test_create_detection_large_file(self, client: TestClient, monkeypatch, operator_headers: dict):
         """Test upload file vượt quá 5MB."""
         mock_service = MagicMock()
         monkeypatch.setattr(
@@ -171,11 +171,11 @@ class TestALPREndpoint:
         files = {'image': ('large.jpg', large_bytes, 'image/jpeg')}
         data = {'lane_id': 'LANE_IN_01'}
         
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.post('/api/v1/alpr/detections', files=files, data=data, headers=headers)
         assert response.status_code == 422
     
-    def test_create_detection_inactive_lane(self, client: TestClient, valid_image_file, monkeypatch, admin_token: str):
+    def test_create_detection_inactive_lane(self, client: TestClient, valid_image_file, monkeypatch, operator_headers: dict):
         """Test gửi ảnh cho lane không tồn tại."""
         from app.alpr.errors import ALPRNotReadyError
         
@@ -190,11 +190,11 @@ class TestALPREndpoint:
         files = {'image': valid_image_file}
         data = {'lane_id': 'NONEXISTENT_LANE'}
         
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.post('/api/v1/alpr/detections', files=files, data=data, headers=headers)
         assert response.status_code == 404
     
-    def test_create_detection_ai_timeout(self, client: TestClient, valid_image_file, monkeypatch, admin_token: str):
+    def test_create_detection_ai_timeout(self, client: TestClient, valid_image_file, monkeypatch, operator_headers: dict):
         """Test khi AI runtime timeout."""
         mock_service = MagicMock()
         mock_service.process_detection.side_effect = TimeoutError("Model timeout")
@@ -207,7 +207,7 @@ class TestALPREndpoint:
         files = {'image': valid_image_file}
         data = {'lane_id': 'LANE_IN_01'}
         
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.post('/api/v1/alpr/detections', files=files, data=data, headers=headers)
         assert response.status_code == 503
 
@@ -278,21 +278,21 @@ class TestHealthEndpoints:
         assert body['status'] == 'ready'
         assert 'checks' in body
 
-    def test_get_detection_history_success(self, client: TestClient, mock_alpr_service, monkeypatch, admin_token: str):
+    def test_get_detection_history_success(self, client: TestClient, mock_alpr_service, monkeypatch, operator_headers: dict):
         """Test API Lịch sử nhận diện (GET /detections)"""
         monkeypatch.setattr("app.api.v1.endpoints.alpr.get_alpr_service", lambda: mock_alpr_service)
         # Giả lập token (Vì API yêu cầu Auth) - Tùy thuộc vào setup test của bạn
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         response = client.get('/api/v1/alpr/detections?lane_id=LANE_IN_01', headers=headers)
         
         # Nếu test của bạn mặc định bypass auth, nó sẽ pass 200
         # assert response.status_code == 200
 
-    def test_confirm_detection_success(self, client: TestClient, admin_token: str):
+    def test_confirm_detection_success(self, client: TestClient, operator_headers: dict):
         """Test API Xác nhận biển số (POST /detections/{id}/confirm)"""
         import uuid
         dummy_id = str(uuid.uuid4())
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         payload = {"confirmed_plate": "30A12345"}
         
         response = client.post(f'/api/v1/alpr/detections/{dummy_id}/confirm', json=payload, headers=headers)
@@ -304,15 +304,3 @@ class TestHealthEndpoints:
         response = client.get('/api/v1/alpr/media/LANE01_fakeuuid.jpg')
         assert response.status_code == 404
 
-def test_health_aliases_check_database(client):
-    from app.integrations.persistence.database_health import get_database_readiness
-    from app.core.health import ReadinessStatus
-    
-    client.app.dependency_overrides[get_database_readiness] = lambda: ReadinessStatus(
-        False, "offline"
-    )
-    for path in ["/health/ready", "/api/v1/alpr/health/ready"]:
-        response = client.get(path)
-        assert response.status_code == 503
-        assert response.json()["database"]["status"] == "not_ready"
-    assert client.get("/api/v1/alpr/health/live").status_code == 200

@@ -8,7 +8,12 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from app.core.config import Settings
 from app.core.errors import AppError
 
-password_hasher = PasswordHasher(type=Type.ID)
+password_hasher = PasswordHasher(
+    type=Type.ID,
+    memory_cost=16384,  # Giảm memory cost xuống 16MB để tránh lỗi trên Windows
+    time_cost=2,
+    parallelism=1
+)
 
 
 def hash_password(password: str) -> str:

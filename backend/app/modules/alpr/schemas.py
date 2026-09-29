@@ -6,15 +6,15 @@ from datetime import datetime
 class DetectionResponse(BaseModel):
     """Schema trả về thông tin lịch sử nhận diện cho Frontend"""
     id: UUID
-    lane_id: str
+    lane_id: UUID
     image_key: str
     raw_plate: Optional[str] = None
     normalized_plate: Optional[str] = None
     confidence: Optional[float] = None
     
     # Các trường liên quan đến xác nhận (Confirmation)
-    requires_confirmation: bool
-    is_confirmed: bool
+    requires_confirmation: bool = False
+    is_confirmed: bool = False
     confirmed_plate: Optional[str] = None
     
     created_at: datetime
