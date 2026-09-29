@@ -21,6 +21,8 @@ import { PermissionsPage } from '../modules/permissions/PermissionsPage.tsx'
 import { AlprPage } from '../modules/alpr/AlprPage.tsx'
 import { AlprTestPage } from '../modules/alpr/AlprTestPage.tsx'
 import { AuditLogsPage } from '../modules/audit/AuditLogsPage.tsx'
+import { ParkingDetailPage } from '../modules/parking/ParkingDetailPage.tsx'
+import { ParkingHistoryPage } from '../modules/parking/ParkingHistoryPage.tsx'
 import { ErrorCenterPage } from '../modules/errors/ErrorCenterPage.tsx'
 import { SystemPage } from '../modules/system/SystemPage.tsx'
 import { ProfilePage } from '../modules/profile/ProfilePage.tsx'
@@ -67,11 +69,17 @@ export function AppRoutes() {
         <Route path="/station/scan/fullscreen" element={<ScanFullscreenPage />} />
         <Route path="/station/history" element={<Navigate to="/detections" replace />} />
 
-        {/* Detections — ADMIN + OPERATOR */}
+        {/* Detections / Parking operations — ADMIN + OPERATOR */}
         <Route path="/detections" element={<DetectionHistoryPage />} />
         <Route path="/detections/:id" element={<DetectionDetailPage />} />
+        <Route path="/parking" element={<ParkingHistoryPage />} />
+        <Route path="/parking/:id" element={<ParkingDetailPage />} />
+        <Route path="/operations/transactions" element={<Navigate to="/parking" replace />} />
+        <Route path="/operations/transactions/:id" element={<Navigate to="/parking" replace />} />
         <Route path="/admin/detections" element={<Navigate to="/detections" replace />} />
         <Route path="/admin/detections/:id" element={<Navigate to="/detections" replace />} />
+        <Route path="/admin/parking" element={<Navigate to="/parking" replace />} />
+        <Route path="/admin/parking/:id" element={<Navigate to="/parking" replace />} />
 
         {/* Admin-only */}
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

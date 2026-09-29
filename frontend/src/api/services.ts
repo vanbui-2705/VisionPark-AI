@@ -1,7 +1,7 @@
 import { apiClient } from './client.ts'
 import { ApiError } from './errors.ts'
 import type { CurrentUser } from './types.ts'
-import type { AuditLog, Detection, ManagedUser } from './domain.ts'
+import type { AuditLog, CheckInRequest, CheckInResponse, Detection, ManagedUser, ParkingHistoryFilter, ParkingTransaction } from './domain.ts'
 
 // ponytail: Phase 1 backend chưa có các endpoint dưới; interface đặt sẵn để Person 2/3 implement.
 // Mock fixtures (src/api/mocks/fixtures.ts) chỉ dùng khi VITE_USE_MOCK_FIXTURES=true (dev/test).
@@ -24,6 +24,12 @@ export interface DetectionsApi {
   list(params?: { lane_id?: string; direction?: string; status?: string; q?: string; limit?: number; from?: string; to?: string }): Promise<Detection[]>
   get(id: string): Promise<Detection>
   confirm(id: string, payload: { final_plate: string }): Promise<Detection>
+}
+
+export interface ParkingTransactionsApi {
+  list(params?: ParkingHistoryFilter): Promise<ParkingTransaction[]>
+  get(id: string): Promise<ParkingTransaction>
+  checkIn(payload: CheckInRequest, idempotencyKey?: string): Promise<CheckInResponse>
 }
 
 export interface AuditApi {
@@ -61,9 +67,17 @@ const realUsers: UsersApi = {
 }
 
 const realDetections: DetectionsApi = {
-  list: (p) => apiClient.get<Detection[]>('/api/v1/detections', { params: p }),
-  get: (id) => apiClient.get<Detection>(`/api/v1/detections/${id}`),
-  confirm: (id, b) => apiClient.post<Detection>(`/api/v1/detections/${id}/confirm`, b),
+  list: (p) => apiClient.get<Detection[]>('/api/v1/alpr/detections', { params: p }),
+  get: (id) => apiClient.get<Detection>(`/api/v1/alpr/detections/${id}`),
+  confirm: (id, b) => apiClient.post<Detection>(`/api/v1/alpr/detections/${id}/confirm`, b),
+}
+
+const realParkingTransactions: ParkingTransactionsApi = {
+  list: (p) => apiClient.get<ParkingTransaction[]>('/api/v1/parking/transactions', { params: p }),
+  get: (id) => apiClient.get<ParkingTransaction>(`/api/v1/parking/transactions/${id}`),
+  checkIn: (payload, idempotencyKey) => apiClient.post<CheckInResponse>('/api/v1/parking/check-in', payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  }),
 }
 
 const realAudit: AuditApi = {
@@ -85,6 +99,12 @@ export const detectionsApi: DetectionsApi = {
   list: (p) => call('detectionsList', () => realDetections.list(p)),
   get: (id) => call('detectionsGet', () => realDetections.get(id)),
   confirm: (id, b) => call('detectionsConfirm', () => realDetections.confirm(id, b)),
+}
+
+export const parkingTransactionsApi: ParkingTransactionsApi = {
+  list: (p) => call('parkingTransactionsList', () => realParkingTransactions.list(p)),
+  get: (id) => call('parkingTransactionsGet', () => realParkingTransactions.get(id)),
+  checkIn: (payload, idempotencyKey) => call('parkingTransactionsCheckIn', () => realParkingTransactions.checkIn(payload, idempotencyKey)),
 }
 
 export const auditApi: AuditApi = {

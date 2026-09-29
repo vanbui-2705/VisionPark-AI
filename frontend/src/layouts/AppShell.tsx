@@ -13,6 +13,7 @@ const NAV: NavItem[] = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: '▣', perm: 'dashboard.read' },
   { to: '/station/scan', label: 'Quét biển số', icon: '◎', perm: 'station.use' },
   { to: '/detections', label: 'Lịch sử nhận diện', icon: '≡', perm: 'detections.read' },
+  { to: '/parking', label: 'Lịch sử đỗ xe', icon: '▤', perm: 'transactions.read' },
   { to: '/admin/lanes', label: 'Làn xe', icon: '⇆', perm: 'lanes.read' },
   { to: '/admin/users', label: 'Người dùng', icon: '♙', perm: 'users.manage' },
   { to: '/admin/roles', label: 'Vai trò', icon: '◈', perm: 'roles.read' },

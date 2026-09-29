@@ -6,6 +6,8 @@ export type Permission =
   | 'station.history.read'
   | 'detections.read'
   | 'detections.confirm'
+  | 'checkin.create'
+  | 'transactions.read'
   | 'lanes.read'
   | 'lanes.create'
   | 'lanes.update'
@@ -32,6 +34,8 @@ const ADMIN_ALL: Permission[] = [
   'station.history.read',
   'detections.read',
   'detections.confirm',
+  'checkin.create',
+  'transactions.read',
   'lanes.read',
   'lanes.create',
   'lanes.update',
@@ -60,6 +64,8 @@ const OPERATOR_PERMS: Permission[] = [
   'station.history.read',
   'detections.read',
   'detections.confirm',
+  'checkin.create',
+  'transactions.read',
   'lanes.read',
   'profile.read',
   'profile.update',
@@ -80,6 +86,8 @@ export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolea
   { perm: 'station.history.read', label: 'Lịch sử station', admin: true, operator: true },
   { perm: 'detections.read', label: 'Xem detection', admin: true, operator: true },
   { perm: 'detections.confirm', label: 'Xác nhận / sửa biển số', admin: true, operator: true },
+  { perm: 'checkin.create', label: 'Check-in / đăng ký vào bãi', admin: true, operator: true },
+  { perm: 'transactions.read', label: 'Lịch sử đỗ xe', admin: true, operator: true },
   { perm: 'lanes.read', label: 'Xem làn xe', admin: true, operator: true },
   { perm: 'lanes.create', label: 'Tạo làn xe', admin: true, operator: false },
   { perm: 'lanes.update', label: 'Cập nhật làn xe', admin: true, operator: false },
