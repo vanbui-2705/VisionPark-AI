@@ -42,7 +42,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.dependency_overrides[get_settings] = lambda: app_settings
     app.state.settings = app_settings
-    runtime = create_runtime(app_settings.alpr_provider)
+    runtime = create_runtime(
+        app_settings.alpr_provider,
+        manifest_path=app_settings.alpr_manifest_path,
+        device=app_settings.alpr_device,
+        detector_confidence=app_settings.alpr_detector_confidence,
+        confirmation_threshold=app_settings.alpr_confidence_threshold,
+        ocr_margin=app_settings.alpr_ocr_margin,
+        ocr_enabled=app_settings.alpr_ocr_enabled,
+        mock_scenario=app_settings.alpr_mock_scenario,
+    )
     app.state.alpr_runtime = runtime
     app.state.alpr_readiness_probe = RuntimeALPRProbe(
         runtime, provider=app_settings.alpr_provider, version=runtime.version

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: Docker CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose config
+
+      - name: Build CI and runtime images
+        run: docker compose --profile ci build backend-ci frontend-ci migrate backend frontend
+
+      - name: Run backend checks in Docker
+        run: docker compose --profile ci run --rm backend-ci
+
+      - name: Run frontend checks in Docker
+        run: docker compose --profile ci run --rm frontend-ci
+
+      - name: Start runtime stack
+        run: docker compose up -d backend frontend
+
+      - name: Verify runtime health checks
+        run: |
+          docker compose ps
+          docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"
+          docker compose exec -T frontend wget -qO- http://127.0.0.1/health/live
+
+      - name: Cleanup Docker stack
+        if: always()
+        run: docker compose --profile ci down -v --remove-orphans

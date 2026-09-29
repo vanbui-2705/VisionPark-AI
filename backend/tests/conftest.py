@@ -116,3 +116,9 @@ def login(client: TestClient, username: str, password: str) -> dict[str, object]
 def operator_headers(client: TestClient) -> dict[str, str]:
     token = login(client, "operator", "operator-test-password")["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def admin_token(client: TestClient) -> str:
+    token = login(client, "admin", "admin-test-password")["access_token"]
+    return str(token)

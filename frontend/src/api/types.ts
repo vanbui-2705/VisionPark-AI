@@ -23,7 +23,7 @@ export interface Lane {
 export interface HealthStatus {
   status: string
   database?: { ready: boolean }
-  alpr?: { ready: boolean; provider?: string; model_version?: string }
+  alpr?: { ready: boolean; provider?: string; version?: string; model_version?: string; ocr_enabled?: boolean }
   // allow extra fields
   [k: string]: unknown
 }

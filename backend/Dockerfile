@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,13 +11,28 @@ RUN addgroup --system visionpark \
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY models ./models
 COPY alembic.ini ./
 COPY alembic ./alembic
 
+ARG INSTALL_REAL_ALPR=false
 RUN python -m pip install --upgrade pip \
-    && python -m pip install . \
+    && if [ "$INSTALL_REAL_ALPR" = "true" ]; then python -m pip install ".[real]"; else python -m pip install .; fi \
     && mkdir -p /app/var/media \
     && chown -R visionpark:visionpark /app
+
+FROM base AS ci
+
+ARG INSTALL_DEV=false
+RUN if [ "$INSTALL_DEV" = "true" ]; then python -m pip install ".[dev,onnx]"; fi
+
+COPY tests ./tests
+
+USER visionpark
+
+CMD ["sh", "-c", "python -m pytest && python -m ruff check . && python -m ruff format --check ."]
+
+FROM base AS runtime
 
 USER visionpark
 

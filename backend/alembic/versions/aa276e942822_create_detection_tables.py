@@ -32,6 +32,10 @@ def upgrade() -> None:
             nullable=False,
             comment="Storage key do ImageStorage trả về",
         ),
+        sa.Column(
+            "image_content_type", sa.String(length=50), nullable=False, server_default="image/jpeg"
+        ),
+        sa.Column("image_size_bytes", sa.Integer(), nullable=True),
         sa.Column("raw_plate", sa.String(length=50), nullable=True),
         sa.Column("normalized_plate", sa.String(length=50), nullable=True),
         sa.Column("bbox_x1", sa.Integer(), nullable=True),
@@ -40,6 +44,10 @@ def upgrade() -> None:
         sa.Column("bbox_y2", sa.Integer(), nullable=True),
         sa.Column("confidence", sa.Float(), nullable=True),
         sa.Column("processing_time_ms", sa.Integer(), nullable=True),
+        sa.Column("requires_confirmation", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("is_confirmed", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("confirmed_plate", sa.String(length=50), nullable=True),
+        sa.Column("confirmed_by_id", sa.Uuid(), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
             "created_at",
@@ -54,6 +62,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["lane_id"], ["lanes.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["confirmed_by_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
     with op.batch_alter_table("detections", schema=None) as batch_op:

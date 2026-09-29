@@ -26,6 +26,11 @@ def normalize_plate(plate: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", plate.upper())
 
 
+def requires_confirmation(confidence: float, threshold: float) -> bool:
+    """Return whether a result below the configured confidence needs review."""
+    return confidence < threshold
+
+
 def clamp_bbox(
     bbox: tuple[int, int, int, int], img_width: int, img_height: int
 ) -> tuple[int, int, int, int]:
@@ -33,11 +38,20 @@ def clamp_bbox(
     Giới hạn tọa độ bounding box (kẹp giá trị) để đảm bảo không bị vượt ra khỏi kích thước ảnh.
     Định dạng bbox: (x1, y1, x2, y2)
     """
-    x1, y1, x2, y2 = bbox
+    if img_width <= 0 or img_height <= 0:
+        return 0, 0, 0, 0
+
+    raw_x1, raw_y1, raw_x2, raw_y2 = bbox
+    x1, x2 = sorted((raw_x1, raw_x2))
+    y1, y2 = sorted((raw_y1, raw_y2))
     x1 = max(0, min(x1, img_width - 1))
     y1 = max(0, min(y1, img_height - 1))
     x2 = max(0, min(x2, img_width))
     y2 = max(0, min(y2, img_height))
+    if x2 < x1:
+        x2 = x1
+    if y2 < y1:
+        y2 = y1
     return x1, y1, x2, y2
 
 

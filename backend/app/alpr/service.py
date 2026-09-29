@@ -40,9 +40,9 @@ class ALPRApplicationService:
 
         # 4. Ghi nhận lịch sử (Record Detection)
         try:
-            self.detection_recorder.record_detection(lane_id, image_key, result)
+            detection_id = self.detection_recorder.record_detection(lane_id, image_key, result)
         except Exception:
             self.image_storage.delete_image(image_key, lane_id)
             raise
 
-        return result
+        return result.model_copy(update={"detection_id": detection_id})

@@ -1,4 +1,4 @@
-import os  # Backward-compatible module surface used by existing integrations/tests.
+import os  # noqa: F401 - kept as a compatibility patch target for existing tests
 from pathlib import Path
 
 import numpy as np
