@@ -71,15 +71,19 @@ export function ScanPage() {
   const mock = useMemo(() => isMockProvider(provider), [provider])
 
   return (
-    <div className="scan-page">
+    <div style={{ display: 'grid', gap: 16 }}>
       {mock ? (
         <div className="banner-mock" role="status" title="Hệ thống hiện sử dụng dữ liệu nhận diện mô phỏng. Không phải kết quả từ model AI thực tế.">
           <strong>⚠ MOCK ALPR</strong> — Hệ thống hiện sử dụng dữ liệu nhận diện mô phỏng. Không phải kết quả từ model AI thực tế.
         </div>
       ) : null}
-      <div className="page-head">
-        <h2>Trạm quét biển số</h2>
-        <p className="muted">Hướng xe {laneId ? lanes.find((l) => l.id === laneId)?.name ?? laneId : '—'}</p>
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Station · Duy Anh</div>
+          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Trạm quét biển số</h2>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Hướng xe {laneId ? lanes.find((l) => l.id === laneId)?.name ?? laneId : '—'} · 12 trạng thái demo, video MP4 local</p>
+        </div>
+        <Link to="/station/scan/fullscreen" className="btn" style={{ textDecoration: 'none', background: '#fff', color: '#0f172a', borderColor: '#fff' }}>⛶ Toàn màn hình</Link>
       </div>
       <div className="scan-toolbar">
         <label>

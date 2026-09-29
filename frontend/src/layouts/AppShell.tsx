@@ -127,7 +127,7 @@ function Sidebar({
       </div>
       <nav>
         {group('TỔNG QUAN', visible.filter((x) => x.to === '/admin/dashboard'))}
-        {group('VẬN HÀNH', visible.filter((x) => ['/station/scan', '/detections'].includes(x.to)))}
+        {group('VẬN HÀNH', visible.filter((x) => ['/station/scan', '/detections', '/parking'].includes(x.to)))}
         {group('QUẢN LÝ', visible.filter((x) => ['/admin/lanes', '/admin/users', '/admin/roles', '/admin/permissions'].includes(x.to)))}
         {group('AI & HỆ THỐNG', visible.filter((x) => ['/admin/alpr', '/admin/audit-logs', '/admin/errors', '/admin/system'].includes(x.to)))}
         {group('TÀI KHOẢN', visible.filter((x) => ['/profile', '/settings', '/help'].includes(x.to)))}
