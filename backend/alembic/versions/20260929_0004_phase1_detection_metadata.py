@@ -6,7 +6,6 @@ import sqlalchemy as sa
 
 from alembic import op
 
-
 revision: str = "20260929_0004"
 down_revision: str | None = "20260921_0003"
 branch_labels: str | Sequence[str] | None = None
@@ -20,7 +19,9 @@ def _columns(table_name: str) -> set[str]:
 def upgrade() -> None:
     existing = _columns("detections")
     additions = [
-        sa.Column("image_content_type", sa.String(length=50), nullable=False, server_default="image/jpeg"),
+        sa.Column(
+            "image_content_type", sa.String(length=50), nullable=False, server_default="image/jpeg"
+        ),
         sa.Column("image_size_bytes", sa.Integer(), nullable=True),
         sa.Column("requires_confirmation", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("is_confirmed", sa.Boolean(), nullable=False, server_default=sa.false()),

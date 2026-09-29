@@ -32,7 +32,9 @@ def upgrade() -> None:
             nullable=False,
             comment="Storage key do ImageStorage trả về",
         ),
-        sa.Column("image_content_type", sa.String(length=50), nullable=False, server_default="image/jpeg"),
+        sa.Column(
+            "image_content_type", sa.String(length=50), nullable=False, server_default="image/jpeg"
+        ),
         sa.Column("image_size_bytes", sa.Integer(), nullable=True),
         sa.Column("raw_plate", sa.String(length=50), nullable=True),
         sa.Column("normalized_plate", sa.String(length=50), nullable=True),

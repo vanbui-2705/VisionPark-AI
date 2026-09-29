@@ -7,7 +7,5 @@ __pycache__/
 *.egg-info/
 .coverage
 htmlcov/
-tests/
-scripts/
 models/*.onnx
 var/

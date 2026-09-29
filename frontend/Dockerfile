@@ -1,3 +1,14 @@
+FROM node:24-alpine AS ci
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+CMD ["sh", "-c", "npm run lint -- src tests && npm test -- --run && npm run build"]
+
 FROM node:24-alpine AS build
 
 WORKDIR /app

@@ -1,4 +1,4 @@
-﻿"""Alembic model import registry.
+"""Alembic model import registry.
 
 Domain owners add their model imports here so Alembic can discover metadata without placing
 business models inside the database package.

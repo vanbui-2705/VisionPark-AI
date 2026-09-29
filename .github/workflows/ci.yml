@@ -14,64 +14,35 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Backend tests
+  docker:
+    name: Docker CI
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: pip
-          cache-dependency-path: backend/pyproject.toml
+      - name: Validate Compose configuration
+        run: docker compose config
 
-      - name: Install backend dependencies
-        run: python -m pip install -e ".[dev]"
+      - name: Build CI and runtime images
+        run: docker compose --profile ci build backend-ci frontend-ci migrate backend frontend
 
-      - name: Run tests
-        run: python -m pytest
+      - name: Run backend checks in Docker
+        run: docker compose --profile ci run --rm backend-ci
 
-      - name: Check lint
-        run: python -m ruff check .
+      - name: Run frontend checks in Docker
+        run: docker compose --profile ci run --rm frontend-ci
 
-      - name: Check format
-        run: python -m ruff format --check .
+      - name: Start runtime stack
+        run: docker compose up -d backend frontend
 
-  frontend:
-    name: Frontend tests
-    runs-on: ubuntu-latest
+      - name: Verify runtime health checks
+        run: |
+          docker compose ps
+          docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"
+          docker compose exec -T frontend wget -qO- http://127.0.0.1/health/live
 
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Run lint
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build frontend
-        run: npm run build
+      - name: Cleanup Docker stack
+        if: always()
+        run: docker compose --profile ci down -v --remove-orphans

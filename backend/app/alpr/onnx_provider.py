@@ -1,4 +1,4 @@
-import os  # Backward-compatible patch target used by existing tests/integrations.
+import os  # noqa: F401 - kept as a compatibility patch target for existing tests
 from pathlib import Path
 
 import numpy as np
