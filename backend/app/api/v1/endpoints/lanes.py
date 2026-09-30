@@ -70,3 +70,4 @@ def deactivate_lane(
 ):
     """Inactive lane (chỉ Admin)."""
     return service.deactivate_lane(db, lane_id, admin_id=current_user.id)
+
