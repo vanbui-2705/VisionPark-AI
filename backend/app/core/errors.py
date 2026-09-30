@@ -132,4 +132,3 @@ def register_exception_handlers(app: FastAPI) -> None:
             code="INTERNAL_SERVER_ERROR",
             message="An unexpected error occurred.",
         )
-   

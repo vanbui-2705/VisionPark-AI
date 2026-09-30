@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
-from typing import List, Optional
+
 
 class DetectionResponse(BaseModel):
     """Schema trả về thông tin lịch sử nhận diện cho Frontend"""
@@ -17,8 +17,8 @@ class DetectionResponse(BaseModel):
     # Các trường liên quan đến xác nhận (Confirmation)
     requires_confirmation: bool = False
     is_confirmed: bool = False
-    confirmed_plate: Optional[str] = None
-    
+    confirmed_plate: str | None = None
+
     created_at: datetime
 
     class Config:

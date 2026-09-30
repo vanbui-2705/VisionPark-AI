@@ -219,6 +219,7 @@ def get_detection_history(
     detections = db.scalars(query.offset(skip).limit(limit)).all()
     return detections
 
+
 @router.post("/detections/{detection_id}/confirm", response_model=DetectionResponse)
 def confirm_detection(
     detection_id: UUID,

@@ -12,7 +12,7 @@ password_hasher = PasswordHasher(
     type=Type.ID,
     memory_cost=16384,  # Giảm memory cost xuống 16MB để tránh lỗi trên Windows
     time_cost=2,
-    parallelism=1
+    parallelism=1,
 )
 
 
