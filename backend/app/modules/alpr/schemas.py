@@ -15,8 +15,8 @@ class DetectionResponse(BaseModel):
     confidence: float | None = None
 
     # Các trường liên quan đến xác nhận (Confirmation)
-    requires_confirmation: bool
-    is_confirmed: bool
+    requires_confirmation: bool = False
+    is_confirmed: bool = False
     confirmed_plate: str | None = None
 
     created_at: datetime

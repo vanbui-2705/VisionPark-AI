@@ -68,11 +68,11 @@ def mock_alpr_service(
     mock_settings, mock_storage_adapter, mock_detection_recorder, mock_lane_checker
 ):
     """Mock ALPR service cho endpoint tests."""
-    from app.alpr.runtime_adapter import ai_runtime
+    from app.alpr.runtime_adapter import create_runtime
     from app.alpr.service import ALPRApplicationService
 
     service = ALPRApplicationService(
-        runtime=ai_runtime,
+        runtime=create_runtime("mock"),
         lane_checker=mock_lane_checker,
         image_storage=mock_storage_adapter,
         detection_recorder=mock_detection_recorder,
@@ -275,12 +275,12 @@ class TestHealthEndpoints:
         # Nếu test của bạn mặc định bypass auth, nó sẽ pass 200
         # assert response.status_code == 200
 
-    def test_confirm_detection_success(self, client: TestClient, admin_token: str):
+    def test_confirm_detection_success(self, client: TestClient, operator_headers: dict):
         """Test API Xác nhận biển số (POST /detections/{id}/confirm)"""
         import uuid
 
         dummy_id = str(uuid.uuid4())
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = operator_headers
         payload = {"confirmed_plate": "30A12345"}
 
         client.post(f"/api/v1/alpr/detections/{dummy_id}/confirm", json=payload, headers=headers)

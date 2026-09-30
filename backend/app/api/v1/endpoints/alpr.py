@@ -179,10 +179,8 @@ async def alpr_ready_health(
 async def get_detection_image(image_key: str):
     """API lấy ảnh (Media Serve) để hiển thị lên UI."""
     settings = get_settings()
-    # Image key có format: {lane_id}_{uuid}.jpg
     try:
         lane_id = image_key.split("_")[0]
-        # Đường dẫn file ảnh thực tế trên server
         file_path = os.path.join(settings.local_storage_path, lane_id, image_key)
 
         if not os.path.exists(file_path):
