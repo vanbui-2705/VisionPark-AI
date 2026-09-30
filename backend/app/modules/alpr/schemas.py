@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
-
+from typing import List, Optional
 
 class DetectionResponse(BaseModel):
     """Schema trả về thông tin lịch sử nhận diện cho Frontend"""
