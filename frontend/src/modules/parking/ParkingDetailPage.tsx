@@ -37,10 +37,10 @@ export function ParkingDetailPage() {
   const statusVariant = tx.status === 'PARKED' ? 'success' : tx.status === 'COMPLETED' ? 'neutral' : 'danger'
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div className="data-page parking-detail-page">
       <Breadcrumb items={[{ label: 'Lịch sử đỗ xe', to: '/parking' }, { label: tx.license_plate }]} />
 
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <section className="data-hero data-hero--forest parking-detail-hero">
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', display: 'grid', placeItems: 'center', fontSize: 22 }}>P</div>
           <div>
@@ -56,10 +56,10 @@ export function ParkingDetailPage() {
           {tx.detection_id ? <Link to={`/detections/${tx.detection_id}`} className="btn btn-sm" style={{ textDecoration: 'none', background: '#fff', color: '#0f172a', borderColor: '#fff' }}>Xem detection</Link> : null}
           <Link to="/parking" className="btn btn-sm" style={{ textDecoration: 'none', background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,0.35)' }}>Quay lại</Link>
         </div>
-      </div>
+      </section>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px,1fr))', gap: 14 }}>
-        <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+      <div className="parking-detail-grid">
+        <section className="data-table-card parking-detail-card">
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, marginBottom: 10 }}>Biển số & nguồn</div>
           <div style={{ display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)', fontSize: 13 }}>Final plate</span><strong style={{ fontFamily: 'ui-monospace, monospace' }}>{tx.license_plate}</strong></div>
@@ -70,7 +70,7 @@ export function ParkingDetailPage() {
           </div>
         </section>
 
-        <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+        <section className="data-table-card parking-detail-card">
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, marginBottom: 10 }}>Vận hành</div>
           <div style={{ display: 'grid', gap: 10, fontSize: 13 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Làn</span><strong>{tx.lane_name ?? tx.lane_id}</strong></div>
@@ -83,7 +83,7 @@ export function ParkingDetailPage() {
         </section>
       </div>
 
-      <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+      <section className="data-table-card parking-audit-card">
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontWeight: 800 }}>Audit — AI plate / Final plate / Actor / Source / Timestamp</div>
