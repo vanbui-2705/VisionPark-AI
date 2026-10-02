@@ -2,10 +2,10 @@ from pydantic import BaseModel, Field
 
 
 class BoundingBox(BaseModel):
-    x1: int = Field(..., description="Tọa độ X góc trên cùng bên trái")
-    y1: int = Field(..., description="Tọa độ Y góc trên cùng bên trái")
-    x2: int = Field(..., description="Tọa độ X góc dưới cùng bên phải")
-    y2: int = Field(..., description="Tọa độ Y góc dưới cùng bên phải")
+    x1: int
+    y1: int
+    x2: int
+    y2: int
 
     @property
     def as_tuple(self) -> tuple[int, int, int, int]:
@@ -13,26 +13,29 @@ class BoundingBox(BaseModel):
 
 
 class ALPRResult(BaseModel):
-    plate_number: str | None = Field(None, description="Chuỗi biển số xe đọc được")
-    bbox: BoundingBox | None = Field(None, description="Hộp bao quanh biển số xe (Bounding Box)")
-    confidence: float = Field(
-        0.0,
-        ge=0.0,
-        le=1.0,
-        description="Độ tin cậy tổng thể của kết quả nhận diện (0.0 đến 1.0)",
-    )
-    processing_time_ms: int = Field(..., description="Thời gian xử lý ảnh tính bằng mili-giây")
-    requires_confirmation: bool = Field(
-        ..., description="True nếu độ tin cậy thấp hơn ngưỡng quy định, cần nhân viên xác nhận"
-    )
-    model_version: str = Field("unknown", description="Phiên bản model/provider đang chạy")
-    detection_id: str | None = Field(None, description="ID detection sau khi persistence hoàn tất")
+    # ``plate_number`` and ``confidence`` remain for compatibility with the
+    # existing service and frontend contracts.
+    plate_number: str | None = None
+    raw_plate: str | None = None
+    normalized_plate: str | None = None
+    bbox: BoundingBox | None = None
+    confidence: float = Field(0.0, ge=0.0, le=1.0)
+    processing_time_ms: int
+    requires_confirmation: bool
+    model_version: str = "unknown"
+    detection_id: str | None = None
+    detector_confidence: float | None = Field(None, ge=0.0, le=1.0)
+    ocr_confidence: float | None = Field(None, ge=0.0, le=1.0)
+    combined_confidence: float | None = Field(None, ge=0.0, le=1.0)
+    quality_flags: list[str] = Field(default_factory=list)
+    provider: str = "unknown"
+    provider_status: str = "ready"
 
 
 class ALPRHTTPResponse(BaseModel):
-    raw_plate: str | None = Field(None, description="Biển số thô chưa xử lý")
-    normalized_plate: str | None = Field(None, description="Biển số đã loại bỏ ký tự thừa")
-    bbox: list[int] = Field(..., description="Tọa độ [x1, y1, x2, y2]")
+    raw_plate: str | None = None
+    normalized_plate: str | None = None
+    bbox: list[int]
     confidence: float
     latency_ms: float
     model_version: str
@@ -43,3 +46,9 @@ class ALPRHTTPResponse(BaseModel):
     raw_plate_number: str | None = None
     normalized_plate_number: str | None = None
     processing_time_ms: int | None = None
+    detector_confidence: float | None = None
+    ocr_confidence: float | None = None
+    combined_confidence: float | None = None
+    quality_flags: list[str] = Field(default_factory=list)
+    provider: str = "unknown"
+    provider_status: str = "ready"

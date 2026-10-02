@@ -13,6 +13,7 @@
   "ocr": {
     "provider": "paddleocr",
     "language": "en",
+    "model_name": "latin_PP-OCRv5_mobile_rec",
     "pretrained": true
   },
   "status": "local-asset",

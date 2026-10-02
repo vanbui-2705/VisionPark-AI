@@ -91,3 +91,27 @@ def test_process_detection_runtime_error():
 
     with pytest.raises(ALPRNotReadyError):
         service.process_detection(b"fake_image_bytes", "lane_1")
+
+
+def test_process_detection_preview_skips_persistence():
+    runtime = MockALPRRuntime()
+
+    class FailingStorage(MockImageStorage):
+        def save_image(self, image_bytes: bytes, lane_id: str) -> str:
+            raise AssertionError("preview must not save image")
+
+    class FailingRecorder(MockDetectionRecorder):
+        def record_detection(self, lane_id: str, image_key: str, result: ALPRResult) -> str:
+            raise AssertionError("preview must not record detection")
+
+    service = ALPRApplicationService(
+        runtime, MockLaneChecker(), FailingStorage(), FailingRecorder()
+    )
+
+    results = [
+        service.process_detection(b"fake_image_bytes", "lane_1", persist=False)
+        for _ in range(10)
+    ]
+
+    assert all(result.plate_number == "30A12345" for result in results)
+    assert all(result.detection_id is None for result in results)

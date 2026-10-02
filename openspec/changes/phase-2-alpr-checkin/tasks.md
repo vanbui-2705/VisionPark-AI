@@ -1,56 +1,186 @@
-## 1. Phase 1 gate và contract chung
+## 0. Agent execution rules
 
-- [ ] 1.1 [Người 1] Chạy Phase 1 clean-install/CI gate và lập danh sách Critical/High carry-over trước khi bắt đầu Phase 2.
-- [ ] 1.2 [Cả đội, Người 1 chủ trì] Chốt request/response contract cho check-in, lỗi duplicate, idempotency và manual confirmation; cập nhật OpenAPI/schema fixture.
-- [ ] 1.3 [Người 1] Chốt policy dataset/model ngoài Git, manifest format, provider config và benchmark command.
-- [ ] 1.4 [Người 2, 3, 4, 5] Tạo branch theo task và thêm test fixture chung cho plate, lane IN, no-plate và confidence thấp.
+- [x] 0.1 Đọc `docs/phase-2-ocr-checkin-plan.md` trước khi sửa code.
+- [x] 0.2 Chỉ làm một module active tại một thời điểm.
+- [x] 0.3 Viết/chỉnh test cùng module rồi chạy test module đó.
+- [x] 0.4 Chỉ chuyển module kế tiếp khi exit gate của module hiện tại pass.
+- [ ] 0.5 Sau mỗi milestone chạy backend/frontend regression.
+- [x] 0.6 Không dùng ONNX provider placeholder cho real demo.
+- [x] 0.7 Không train model mới trong luồng chính Phase 2.
 
-## 2. Real ALPR provider — Người 1
+## 1. M0 — Contract, asset và route gate
 
-- [x] 2.1 Tạo provider adapter/config để chọn `mock` hoặc `real` mà không thay đổi caller của runtime boundary.
-- [x] 2.2 Bổ sung model manifest, kiểm tra path/checksum/version và readiness `not_ready` khi asset không hợp lệ.
-- [ ] 2.3 Kết nối detector/OCR baseline thật theo interface hiện có; trả đúng plate, bbox, confidence, latency và model version.
-- [ ] 2.4 Viết contract tests cho success, no-plate, confidence thấp, model thiếu và inference error.
-- [ ] 2.5 Tạo benchmark script/report với dataset split cố định; ghi model version, số mẫu, detection/OCR result và latency summary.
+- [ ] 1.1 Chạy Phase 1 clean-install/regression gate và ghi carry-over Critical/High.
+- [ ] 1.2 Chốt `/station/scan` là route Station canonical; loại bỏ duplicate flow hoặc chuyển component về một flow duy nhất.
+- [ ] 1.3 Chốt input demo là MP4 local, một lane `IN`, một xe/lane tại một thời điểm.
+- [ ] 1.4 Chốt ALPR response có raw/normalized plate, bbox, detector/OCR/combined confidence, quality flags, model version và latency.
+- [ ] 1.5 Chốt preview không persist và confirm mới tạo transaction.
+- [ ] 1.6 Sửa frontend dùng endpoint canonical `/api/v1/alpr/detections/{id}/confirm`.
+- [ ] 1.7 Chốt manifest/checksum/model distribution ngoài Git.
+- [ ] 1.8 Tạo fixture lane `IN`, user Operator và video/ảnh smoke không nhạy cảm.
 
-## 3. Backend Core và persistence — Người 2
+**Exit gate M0:** mock flow và contract fixture chạy được; route canonical không còn mơ hồ.
 
-- [ ] 3.1 Thiết kế model/migration additive cho parking transaction `PARKED`, detection link, source confirmation và audit fields.
-- [ ] 3.2 Bổ sung cơ chế lưu idempotency key và payload fingerprint theo transaction/check-in scope.
-- [ ] 3.3 Gắn check-in dependency với auth, DB session, error contract và correlation ID hiện có.
-- [ ] 3.4 Viết migration upgrade/downgrade và test trên SQLite/PostgreSQL disposable; xác nhận không làm mất detection Phase 1.
-- [ ] 3.5 Cập nhật seed/fixture lane IN và tài liệu vận hành migration.
+## 2. M1 — Real ALPR provider, làm tuần tự theo submodule
 
-## 4. Check-in domain/API — Người 3
+### 2.1 M1.1 — Image input và decode
 
-- [ ] 4.1 Implement request/response schema và application service tạo check-in từ ALPR result đã xác nhận hoặc biển số nhập tay.
-- [ ] 4.2 Implement validation lane IN active, plate normalization, auth/role và reject input rỗng/không hợp lệ.
-- [ ] 4.3 Implement duplicate protection cho plate đang `PARKED` và idempotency retry/conflict.
-- [ ] 4.4 Implement audit cho AI plate, final plate, nguồn xác nhận, actor, lane và timestamp.
-- [ ] 4.5 Implement history endpoint với filter plate, lane, time range và status.
-- [ ] 4.6 Viết unit/integration tests cho happy path, manual fallback, duplicate, retry, unauthorized và inactive lane.
+- [x] 2.1.1 Validate JPEG/PNG content type và kích thước file.
+- [x] 2.1.2 Decode bytes thành OpenCV image.
+- [x] 2.1.3 Trả typed error cho bytes rỗng, file hỏng và file quá lớn.
+- [x] 2.1.4 Viết unit test ảnh hợp lệ, ảnh hỏng, ảnh rỗng và vượt kích thước.
 
-## 5. Station check-in UI — Người 4
+**Exit gate:** decode test pass; lỗi decode không gọi detector/OCR.
 
-- [ ] 5.1 Tích hợp Station với check-in contract và state machine loading/success/error/manual confirmation.
-- [ ] 5.2 Hiển thị plate, bbox, confidence, latency, model version và cảnh báo `requires_confirmation`.
-- [ ] 5.3 Implement confirm/edit plate trước khi submit; khóa submit lặp trong cùng request.
-- [ ] 5.4 Implement UI cho provider not ready, duplicate, timeout, lỗi mạng và retry/fallback.
-- [ ] 5.5 Viết component/integration tests cho kết quả tốt, no-plate, sửa biển số và check-in thành công/thất bại.
+### 2.2 M1.2 — YOLO detector adapter
 
-## 6. Operations/Admin UI — Người 5
+- [x] 2.2.1 Load `backend/app/alpr/weights/best.pt` một lần.
+- [x] 2.2.2 Validate manifest, path, checksum và `plate_class`.
+- [x] 2.2.3 Trả bbox biển số và `detector_confidence`.
+- [x] 2.2.4 Clamp bbox vào kích thước ảnh.
+- [x] 2.2.5 Xử lý no-plate không exception.
+- [x] 2.2.6 Đo detector latency.
+- [x] 2.2.7 Phân biệt model missing, checksum mismatch, dependency error và inference error.
+- [x] 2.2.8 Viết unit/contract test một biển, nhiều biển, no-plate, bbox biên, confidence thấp và model lỗi.
 
-- [ ] 6.1 Cập nhật API client/types cho check-in, history, audit và lỗi typed; không tạo HTTP client thứ hai.
-- [ ] 6.2 Implement trang/danh sách lịch sử check-in với filter plate, lane, khoảng thời gian và trạng thái.
-- [ ] 6.3 Áp dụng quyền Operator/Admin cho thao tác check-in, xem lịch sử và xem audit theo contract backend.
-- [ ] 6.4 Hiển thị nguồn xác nhận, AI plate/final plate, actor và timestamp để hỗ trợ truy vết.
-- [ ] 6.5 Viết UI tests cho filter, permission và empty/error states.
+**Exit gate:** detector chạy trên fixture thật, bbox hợp lệ và readiness đúng.
 
-## 7. Integration, CI và nghiệm thu — Người 1 chủ trì
+### 2.3 M1.3 — Crop và quality gate
 
-- [ ] 7.1 [Cả đội] Ghép flow mock end-to-end: Station frame → ALPR → confirm/edit → check-in `PARKED` → history/audit.
-- [ ] 7.2 [Người 1, 2, 3] Chạy real provider trên môi trường có model asset; xác nhận readiness, benchmark và rollback về mock.
-- [ ] 7.3 [Người 1] Cập nhật CI để chạy backend/frontend tests, migration checks và mock E2E không cần GPU/model weight.
-- [ ] 7.4 [Cả đội] Chạy regression, security/role checks, duplicate race/idempotency checks và clean setup trên DB rỗng.
-- [ ] 7.5 [Người 1] Hoàn tất QA report, benchmark report, API/docs/README và video hoặc screenshot evidence.
-- [ ] 7.6 [Cả đội] Demo theo acceptance checklist; chỉ đóng Phase 2 khi CI xanh, migration pass, không còn Critical/High và manual fallback hoạt động.
+- [x] 2.3.1 Mở rộng bbox 8–12% rồi clamp lại.
+- [x] 2.3.2 Kiểm tra crop min width/height và aspect ratio.
+- [x] 2.3.3 Đo blur, brightness và contrast.
+- [x] 2.3.4 Trả quality flags `bbox_too_small`, `crop_blurry`, `crop_dark`, `crop_low_contrast`, `crop_invalid_ratio`.
+- [x] 2.3.5 Bỏ qua OCR khi crop không đạt gate.
+- [x] 2.3.6 Viết unit test crop bình thường, sát biên, quá nhỏ, mờ, tối và sai tỷ lệ.
+
+**Exit gate:** crop rõ không mất ký tự; crop xấu bị chặn deterministic.
+
+### 2.4 M1.4 — PaddleOCR recognition adapter
+
+- [x] 2.4.1 Cài extra OCR và pin version tương thích môi trường demo.
+- [x] 2.4.2 Dùng `TextRecognition` với `latin_PP-OCRv5_mobile_rec`.
+- [x] 2.4.3 Không chạy text detection trên crop biển số.
+- [x] 2.4.4 Warm/load OCR một lần, không load theo request.
+- [x] 2.4.5 Parse raw text và OCR score thành `raw_plate`, `ocr_confidence`.
+- [x] 2.4.6 Trả typed error cho OCR model/dependency/inference/timeout.
+- [x] 2.4.7 Viết test adapter bằng mock OCR để CI không cần tải model.
+- [x] 2.4.8 Chạy real smoke OCR với model cache; fixture biển số thực sẽ bổ sung ở M4.
+
+**Exit gate:** OCR recognition-only chạy được trên crop fixture; warm call không tải lại model.
+
+### 2.5 M1.5 — Normalize và confidence
+
+- [x] 2.5.1 Normalize uppercase và loại separator để so sánh.
+- [x] 2.5.2 Giữ raw OCR text để audit.
+- [x] 2.5.3 Tách detector/OCR/combined confidence trong schema.
+- [x] 2.5.4 Dùng combined conservative `min(detector, ocr)` ban đầu.
+- [x] 2.5.5 Cấu hình threshold qua settings.
+- [x] 2.5.6 Không tự sửa ký tự mạnh tay trước Operator confirmation.
+- [x] 2.5.7 Viết unit test normalize, confidence bounds và requires_confirmation.
+
+**Exit gate:** output deterministic và UI/API không phụ thuộc confidence chung cũ.
+
+### 2.6 M1.6 — Ghép real provider
+
+- [x] 2.6.1 Ghép decode → detector → crop → quality gate → OCR → normalize.
+- [x] 2.6.2 Giữ `ALPRRuntime` boundary và caller không biết implementation.
+- [x] 2.6.3 Lock inference nếu runtime chưa hỗ trợ concurrent calls.
+- [x] 2.6.4 Trả no-plate/quality-fail với `requires_confirmation=true`.
+- [x] 2.6.5 Readiness chỉ ready khi detector và OCR cùng sẵn sàng.
+- [x] 2.6.6 Trả detector/OCR/full latency.
+- [x] 2.6.7 Viết contract tests success, no-plate, low-confidence, quality-fail, dependency missing và processing error.
+
+**Exit gate:** real provider trả đúng contract mock provider trên một ảnh fixture.
+
+### 2.7 M1.7 — Preview API và persistence boundary
+
+- [x] 2.7.1 Thêm mode preview/final nếu cần cho API hiện tại.
+- [x] 2.7.2 Preview mặc định không tạo parking transaction.
+- [x] 2.7.3 Không persist mọi frame video.
+- [x] 2.7.4 Persist detection metadata/ảnh chỉ khi policy final yêu cầu.
+- [x] 2.7.5 Trả HTTP 503 khi provider chưa ready.
+- [x] 2.7.6 Trả HTTP 200 no-plate với confirmation flag.
+- [x] 2.7.7 Test 10 preview liên tiếp không tạo 10 transaction.
+
+**Exit gate M1:** toàn bộ `backend/tests/unit/alpr` pass; real smoke chạy được trên máy có model; mock vẫn pass.
+
+## 3. M2 — Check-in domain và database
+
+- [ ] 3.1 Thiết kế additive migration cho transaction `PARKED`, detection link, source, actor, audit và idempotency.
+- [ ] 3.2 Tạo repository/service check-in tách khỏi ALPR provider.
+- [ ] 3.3 Validate lane `IN` active và normalized plate.
+- [ ] 3.4 Chặn duplicate active `PARKED`.
+- [ ] 3.5 Hỗ trợ `AI_ACCEPTED`, `OPERATOR_CORRECTED`, `MANUAL_ENTRY`.
+- [ ] 3.6 Implement idempotency cùng payload/cùng key và conflict khác payload.
+- [ ] 3.7 Ghi audit AI plate, final plate, source, actor, lane và timestamp.
+- [ ] 3.8 Implement history/filter endpoint cần cho demo.
+- [ ] 3.9 Viết unit/integration test happy path, manual, duplicate, retry, unauthorized, inactive lane và race.
+
+**Exit gate M2:** mock detection → confirm → `PARKED` → history/audit end-to-end.
+
+## 4. M3 — Video Station UI
+
+- [ ] 4.1 Đưa VideoPlayer/canvas thật vào `/station/scan` canonical flow.
+- [ ] 4.2 Chọn MP4 local, tạo/revoke object URL đúng lifecycle.
+- [ ] 4.3 Play/pause/replay/capture thủ công.
+- [ ] 4.4 Sampling mặc định 1000ms; có thể tăng lên 500ms sau benchmark.
+- [ ] 4.5 Không gửi request song song và không queue vô hạn.
+- [ ] 4.6 Overlay bbox theo tọa độ video.
+- [ ] 4.7 Hiển thị plate, detector/OCR/combined confidence, latency, model version và quality flags.
+- [ ] 4.8 Implement state `idle`, `detecting`, `reading`, `stable`, `needs_confirmation`, `confirming`, `success`, `error`.
+- [ ] 4.9 Implement buffer 3–5 candidate và consensus 2/3.
+- [ ] 4.10 Reset buffer khi bbox đổi lớn hoặc chuyển xe.
+- [ ] 4.11 Implement confirm đúng, edit plate và manual entry.
+- [ ] 4.12 Khóa double-click, retry timeout/network/provider error.
+- [ ] 4.13 Sau confirm hiển thị transaction id và history mới nhất.
+- [ ] 4.14 Viết component/integration tests cho video selection, throttle, bbox, consensus, confirmation và error.
+
+**Exit gate M3:** Operator chạy video demo và tạo được một check-in thật từ UI.
+
+## 5. M4 — Benchmark, hardening và demo
+
+- [ ] 5.1 Tạo split `smoke`, `validation`, `demo`, `edge_cases` theo video/xe, không random frame liền nhau.
+- [ ] 5.2 Viết benchmark JSON/CSV cho detector, OCR và full pipeline.
+- [ ] 5.3 Đo exact match, character accuracy, no-result, false positive, p50/p95 latency.
+- [ ] 5.4 Đo time-to-stable, OCR calls/vehicle, candidate flip rate và provider error rate.
+- [ ] 5.5 Chạy cold/warm benchmark CPU demo.
+- [ ] 5.6 Chạy restart/model missing/OCR disabled/timeout/duplicate/idempotency checks.
+- [ ] 5.7 Viết runbook bật real provider và rollback về mock.
+- [ ] 5.8 Chụp screenshot/video evidence cho flow thành công, low-confidence, no-plate, sửa tay, duplicate và retry.
+- [ ] 5.9 Chạy backend pytest/ruff và frontend test/lint/build.
+- [ ] 5.10 Chỉ đóng Phase 2 khi release gate pass.
+
+## 6. Lệnh kiểm tra
+
+```powershell
+cd backend
+py -3 -m pytest tests/unit/alpr -q
+py -3 -m pytest tests -q
+py -3 -m ruff check .
+```
+
+```powershell
+cd frontend
+npm run test
+npm run lint
+npm run build
+```
+
+Real provider smoke/benchmark chạy riêng trên môi trường có model asset và OCR
+cache. CI không tải model thật và không yêu cầu GPU.
+
+## 7. Release gate
+
+- [ ] `/station/scan` chạy video MP4 local.
+- [ ] Real readiness hợp lệ.
+- [ ] YOLO + OCR đọc được video demo chính.
+- [ ] Bbox overlay đúng.
+- [ ] Consensus 2/3 hoạt động.
+- [ ] Operator xác nhận/sửa/manual entry được.
+- [ ] Confirm tạo đúng một `PARKED`.
+- [ ] Duplicate/idempotency/audit pass.
+- [ ] Preview không tạo transaction rác.
+- [ ] Mock CI xanh.
+- [ ] Warm p95 mục tiêu dưới 1 giây hoặc có benchmark ghi rõ giới hạn phần cứng.
+- [ ] Có benchmark report, runbook và evidence.

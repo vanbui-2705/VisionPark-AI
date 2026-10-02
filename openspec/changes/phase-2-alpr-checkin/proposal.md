@@ -1,17 +1,19 @@
 ## Why
 
-Phase 1 đã tạo được nền tảng, mock ALPR và contract chung nhưng hệ thống chưa có model ALPR thật hoặc luồng nghiệp vụ ghi nhận xe vào bãi. Phase 2 cần biến baseline đó thành một vertical slice có thể đo được: ALPR thật ở chế độ tùy chọn và check-in có xác nhận, vẫn giữ mock provider để CI và local development ổn định.
+Phase 1 đã tạo được nền tảng, mock ALPR và contract chung nhưng hệ thống chưa có model ALPR thật hoặc luồng nghiệp vụ ghi nhận xe vào bãi. Phase 2 cần biến baseline đó thành một vertical slice có thể demo thật trên video MP4 local: ALPR thật ở chế độ tùy chọn, consensus nhiều frame và check-in có xác nhận, vẫn giữ mock provider để CI và local development ổn định.
 
 ## What Changes
 
-- Bổ sung dataset/benchmark và real ALPR provider theo runtime boundary hiện có.
+- Bổ sung dataset/benchmark và real ALPR provider theo runtime boundary hiện có; input demo là video MP4 local, chưa tích hợp camera/RTSP.
+- Giữ YOLO detector hiện tại và ghép PaddleOCR recognition-only `latin_PP-OCRv5_mobile_rec`; chưa train model mới trong luồng chính Phase 2.
+- Chia provider thành các module có test độc lập: decode, detector, crop/quality gate, OCR, normalize/confidence và provider composition.
 - Giữ mock provider làm mặc định cho CI; real provider được bật bằng cấu hình và model manifest, không commit model weight.
 - Bổ sung nghiệp vụ check-in: chọn lane IN, nhận kết quả ALPR, xác nhận hoặc sửa biển số, tạo parking transaction trạng thái `PARKED`.
 - Chống tạo giao dịch trùng cho cùng biển số đang `PARKED` và hỗ trợ idempotency cho request check-in.
 - Bổ sung API/UI xem lịch sử check-in, trạng thái xử lý, lỗi và thao tác xác nhận thủ công.
 - Bổ sung audit cho xác nhận/sửa biển số và các quyết định check-in.
 - Bổ sung integration/E2E tests, CI checks và báo cáo benchmark cho Phase 2.
-- Không đưa payment, VietQR, tính phí, vé tháng, barrier thật, RTSP, CRM, slot map, Redis hoặc WebSocket vào phase này.
+- Không đưa payment, VietQR, tính phí, vé tháng, barrier thật, camera/RTSP, multi-camera/tracking, CRM, slot map, Redis hoặc WebSocket vào phase này.
 
 ## Capabilities
 

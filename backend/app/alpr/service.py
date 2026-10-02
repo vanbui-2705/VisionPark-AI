@@ -26,7 +26,9 @@ class ALPRApplicationService:
         self.image_storage = image_storage
         self.detection_recorder = detection_recorder
 
-    def process_detection(self, image_bytes: bytes, lane_id: str) -> ALPRResult:
+    def process_detection(
+        self, image_bytes: bytes, lane_id: str, *, persist: bool = True
+    ) -> ALPRResult:
         # 1. Xác thực làn xe (Validate lane)
         if not self.lane_checker.check_active_lane(lane_id):
             raise ValueError(f"Làn xe {lane_id} không tồn tại hoặc đang không hoạt động.")
@@ -34,6 +36,9 @@ class ALPRApplicationService:
         # 2. Gọi AI Runtime
         # Sẽ văng ra lỗi ALPRNotReadyError hoặc ALPRProcessingError nếu AI có vấn đề
         result = self.runtime.detect_and_read(image_bytes)
+
+        if not persist:
+            return result.model_copy(update={"detection_id": None})
 
         # 3. Lưu ảnh (Persist Image)
         image_key = self.image_storage.save_image(image_bytes, lane_id)

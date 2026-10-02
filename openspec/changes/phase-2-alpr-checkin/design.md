@@ -1,77 +1,138 @@
 ## Context
 
-Phase 1 đã có modular monolith FastAPI, PostgreSQL/Alembic, JWT/RBAC, ALPR runtime boundary với mock provider, Station UI và CI. Backend handoff còn yêu cầu giữ mock làm đường chạy ổn định; real provider và check-in phải được thêm mà không kéo business logic vào module ALPR.
+Phase 2 cần đưa VisionPark từ mock ALPR sang một vertical slice chạy thật trên
+video MP4 local: YOLO detector hiện tại, OCR pretrained, Operator xác nhận, rồi
+tạo parking transaction `PARKED`. Phase này chưa tích hợp camera vật lý/RTSP.
 
-Phase 2 được tổ chức cho 5 người trong 3 tuần làm việc, theo một vertical slice duy nhất: real ALPR tùy chọn → xác nhận biển số → check-in `PARKED` → xem lịch sử. Mỗi người giữ owner cũ và mọi thay đổi contract đi qua Người 1 review.
+Repository đã có runtime boundary, mock provider, model manifest, Station video
+components và các endpoint ALPR cơ bản. Tuy nhiên real OCR, temporal consensus,
+preview persistence boundary và check-in end-to-end chưa được chứng minh.
 
-## Goals / Non-Goals
+## Goals
 
-**Goals:**
+- Chạy real detector + OCR trên video MP4 local.
+- Tách và test độc lập từng module AI trước khi ghép.
+- Giữ mock provider deterministic cho CI.
+- Không ghi database rác từ preview frame.
+- Cho Operator xác nhận/sửa biển số.
+- Tạo đúng một transaction `PARKED` với duplicate protection và idempotency.
+- Có benchmark latency/accuracy và runbook chạy lại được.
 
-- Có real ALPR provider chạy qua interface hiện có, có manifest, readiness, benchmark và version.
-- Có check-in API có auth, lane validation, duplicate protection, idempotency và audit.
-- Có Station/Operations UI dùng được end-to-end với manual fallback.
-- CI vẫn chạy được không cần GPU, model weight hoặc dataset nhạy cảm.
-- Có migration, integration/E2E tests và evidence cho demo.
+## Non-goals
 
-**Non-Goals:**
-
-- Không triển khai check-out, fee calculation, monthly ticket, payment/VietQR.
-- Không kết nối camera RTSP, barrier thật hoặc thiết bị I/O.
-- Không triển khai CRM, slot map, Redis, WebSocket hoặc production MLOps.
-- Không đưa model weight hay dữ liệu biển số thật vào Git.
+- Camera thật, RTSP, WebSocket, Redis.
+- Tracking nhiều xe/multi-camera.
+- Barrier, payment, pricing, ticketing.
+- Train YOLO/OCR mới trong luồng Phase 2 chính.
+- ONNX production path khi output decoder chưa được chứng minh.
 
 ## Decisions
 
-### 1. Giữ runtime boundary và tách provider
+### 1. Video MP4 là input duy nhất của demo
 
-Real provider implement cùng interface với mock provider. Config chọn provider; mock là mặc định trong local/CI, real provider chỉ bật khi manifest và model path hợp lệ. Cách này giữ test deterministic và cho phép rollback bằng một biến cấu hình.
+Browser dùng HTML video + canvas để capture frame. Sampling ban đầu là 1 FPS,
+sau benchmark có thể tăng lên 2 FPS. Một lane chỉ có một request đang xử lý;
+không tạo queue frame vô hạn.
 
-**Alternative considered:** gọi YOLO/OCR trực tiếp từ endpoint. Không chọn vì phá boundary hiện có và làm backend phụ thuộc implementation AI.
+### 2. Giữ YOLO `.pt` hiện tại làm detector
 
-### 2. Check-in thuộc domain parking, không thuộc ALPR
+Không train lại trước benchmark. Nếu recall detector không đạt trên validation
+thật, fine-tune là một nhánh riêng sau khi vertical slice đã chạy ổn định.
 
-ALPR chỉ trả dữ liệu nhận diện. Parking/check-in chịu trách nhiệm lane, transaction, duplicate, idempotency và audit. Detection có thể được liên kết với transaction nhưng không quyết định trạng thái bãi xe.
+### 3. Dùng PaddleOCR recognition-only
 
-**Alternative considered:** để ALPR tự tạo parking transaction. Không chọn vì khó test, sai ownership và cản trở payment/check-out về sau.
+Dùng `latin_PP-OCRv5_mobile_rec` qua `TextRecognition` trên crop biển số.
+Không chạy text detection vì YOLO đã trả bbox. OCR model phải được cache/mount
+trước runtime, không tải ngầm từ Internet trong request.
 
-### 3. Confirm-before-create
+### 4. Quality gate trước OCR
 
-API chỉ tạo `PARKED` sau khi người vận hành xác nhận biển số. Confidence cao vẫn được phép xác nhận nhanh; confidence thấp/no-plate bắt buộc nhập tay. Điều này giữ manual fallback và tránh tạo giao dịch từ kết quả AI chưa kiểm chứng.
+Crop phải được mở rộng 8–12%, clamp và kiểm tra kích thước, aspect ratio, blur,
+brightness và contrast. Crop không đạt gate trả quality flag và yêu cầu Operator
+xác nhận/manual entry, không cố OCR vô hạn.
 
-### 4. Idempotency ở application boundary
+### 5. Tách confidence
 
-Check-in nhận `Idempotency-Key`, lưu fingerprint payload và transaction result. Retry cùng payload trả kết quả cũ; payload khác với cùng key trả conflict. Unique rule trên active parked plate là lớp bảo vệ thứ hai.
+Contract trả riêng `detector_confidence`, `ocr_confidence` và
+`combined_confidence`. Combined ban đầu dùng giá trị conservative `min` của hai
+score; threshold phải cấu hình được.
 
-### 5. Dataset và model ngoài Git
+### 6. Temporal consensus ở Station session
 
-Repository chỉ lưu manifest, schema, fixture nhỏ không nhạy cảm và script benchmark. Dataset thật/model weight đặt ngoài repository; CI dùng mock và fixture tổng hợp. Benchmark phải ghi rõ dataset version, model version và môi trường chạy.
+Frontend giữ tối đa 3–5 candidate gần nhất. Candidate stable khi cùng
+`normalized_plate` xuất hiện ít nhất 2/3 kết quả. Consensus chỉ quyết định UI
+candidate; confirm mới được phép tạo transaction.
 
-### 6. Kế hoạch 5 người và nhịp triển khai
+### 7. Preview và final tách biệt
 
-| Người | Owner Phase 2 | Đầu ra chính |
-|---|---|---|
-| 1 | AI Lead, PM, DevOps, QA | contract, provider, manifest/benchmark, CI, E2E và release gate |
-| 2 | Backend Core | transaction schema/migration, idempotency infrastructure, auth/error wiring |
-| 3 | Backend Domain | check-in service/API, duplicate/lane rules, audit/history |
-| 4 | Station Frontend | capture, result display, confirm/edit/manual fallback, check-in state |
-| 5 | Admin/Operations Frontend | API types/client, history/filter, permissions, UI integration tests |
+Preview phục vụ hiển thị/consensus và mặc định không persist detection/ảnh.
+Confirm/final mới persist metadata nghiệp vụ cần thiết. Raw AI result phải được
+giữ lại khi Operator sửa biển số.
 
-Các task bắt đầu bằng contract/schema chung trong ngày 1; backend/API hoàn thiện skeleton trong tuần 1; UI và real provider tích hợp trong tuần 2; tuần 3 dành cho integration, regression, benchmark và demo.
+### 8. Check-in thuộc parking domain
 
-## Risks / Trade-offs
+ALPR chỉ trả kết quả nhận diện. Check-in service chịu trách nhiệm lane `IN`,
+duplicate active `PARKED`, transaction, audit và idempotency.
 
-- **[Model accuracy chưa đủ] →** báo cáo baseline trước khi đặt ngưỡng; giữ manual confirmation và mock fallback, không tuyên bố production accuracy.
-- **[Model weight làm CI nặng hoặc lộ dữ liệu] →** không commit weight/dataset; real-provider test chạy riêng có asset được cấp quyền, CI chỉ chạy contract/mock tests.
-- **[Migration làm hỏng DB Phase 1] →** migration additive, backup trước khi áp dụng, test upgrade/downgrade trên DB disposable.
-- **[Duplicate do retry hoặc race condition] →** idempotency fingerprint kết hợp unique constraint/transaction ở database.
-- **[Scope bị kéo sang payment/barrier] →** các hạng mục đó ghi backlog Phase 3+, không nhận vào PR Phase 2.
-- **[Phase 1 còn hạng mục chưa hoàn tất] →** chạy Phase 1 exit gate trước; blocker Critical/High phải được đóng hoặc ghi nhận rõ là carry-over trước khi demo Phase 2.
+### 9. Không dùng ONNX provider hiện tại trong demo
 
-## Migration Plan
+`onnx_provider.py` còn placeholder output decoding. Phase 2 dùng provider
+Ultralytics `.pt`; ONNX chỉ được mở sau benchmark nếu cần tối ưu latency và phải
+có task decoder/test riêng.
 
-1. Chạy CI và clean-install gate của Phase 1.
-2. Thêm bảng/field check-in theo migration additive, seed lane IN fixture và kiểm tra upgrade/downgrade trên DB test.
-3. Deploy với mock provider mặc định; xác nhận API/UI check-in hoạt động end-to-end.
-4. Bật real provider ở môi trường có model manifest hợp lệ; kiểm tra readiness và benchmark trước demo.
-5. Nếu real provider lỗi, chuyển config về mock; dữ liệu transaction/check-in không bị xóa.
+## Module boundaries
+
+```text
+M0 contract/asset/route gate
+M1.1 image decode
+M1.2 YOLO detector
+M1.3 crop + quality gate
+M1.4 PaddleOCR recognizer
+M1.5 normalize + confidence
+M1.6 real provider composition
+M1.7 preview/persistence boundary
+M2 check-in/database
+M3 video Station/consensus
+M4 benchmark/demo hardening
+```
+
+Mỗi module phải có test và exit gate trước khi chuyển sang module tiếp theo.
+
+## Error and fallback policy
+
+- Model missing/checksum/dependency error: readiness `not_ready`, HTTP 503.
+- Ảnh hỏng: HTTP 422, không gọi inference.
+- Không có biển: kết quả hợp lệ với `requires_confirmation=true`.
+- Crop kém chất lượng: quality flags + manual fallback.
+- OCR timeout/error: typed error + retry/manual fallback.
+- Confidence thấp: không auto-confirm.
+- Duplicate plate: conflict, không tạo transaction mới.
+- Confirm retry cùng key: trả lại transaction cũ.
+
+## Distribution
+
+Model weights và OCR model cache không commit vào Git. Manifest phải ghi provider,
+model version, path, checksum và trạng thái artifact. CI dùng mock/fixture nhỏ;
+real benchmark chạy ở môi trường có asset được cấp quyền.
+
+## Migration and rollout
+
+1. Chạy Phase 1 regression gate.
+2. Hoàn thành M0 và M1 bằng fixture.
+3. Hoàn thành mock check-in vertical slice.
+4. Bật real provider trên máy demo có model asset.
+5. Chạy video benchmark.
+6. Chỉ demo khi readiness, latency, consensus, confirm và fallback đều pass.
+7. Nếu real provider lỗi, chuyển config về mock; không xóa dữ liệu nghiệp vụ.
+
+## Acceptance gate
+
+- `/station/scan` chạy video MP4 local.
+- Real provider đọc được video demo chính.
+- Bbox hiển thị đúng trên video.
+- Candidate stable bằng consensus 2/3.
+- Operator xác nhận/sửa được biển số.
+- Confirm tạo đúng một `PARKED`.
+- Duplicate/idempotency/audit pass.
+- Mock CI xanh không cần GPU/model thật.
+- Có benchmark report và runbook.
