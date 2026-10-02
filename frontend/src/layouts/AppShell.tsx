@@ -13,6 +13,7 @@ const NAV: NavItem[] = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: '▣', perm: 'dashboard.read' },
   { to: '/station/scan', label: 'Quét biển số', icon: '◎', perm: 'station.use' },
   { to: '/detections', label: 'Lịch sử nhận diện', icon: '≡', perm: 'detections.read' },
+  { to: '/parking', label: 'Lịch sử đỗ xe', icon: '▤', perm: 'transactions.read' },
   { to: '/admin/lanes', label: 'Làn xe', icon: '⇆', perm: 'lanes.read' },
   { to: '/admin/users', label: 'Người dùng', icon: '♙', perm: 'users.manage' },
   { to: '/admin/roles', label: 'Vai trò', icon: '◈', perm: 'roles.read' },
@@ -126,7 +127,7 @@ function Sidebar({
       </div>
       <nav>
         {group('TỔNG QUAN', visible.filter((x) => x.to === '/admin/dashboard'))}
-        {group('VẬN HÀNH', visible.filter((x) => ['/station/scan', '/detections'].includes(x.to)))}
+        {group('VẬN HÀNH', visible.filter((x) => ['/station/scan', '/detections', '/parking'].includes(x.to)))}
         {group('QUẢN LÝ', visible.filter((x) => ['/admin/lanes', '/admin/users', '/admin/roles', '/admin/permissions'].includes(x.to)))}
         {group('AI & HỆ THỐNG', visible.filter((x) => ['/admin/alpr', '/admin/audit-logs', '/admin/errors', '/admin/system'].includes(x.to)))}
         {group('TÀI KHOẢN', visible.filter((x) => ['/profile', '/settings', '/help'].includes(x.to)))}
