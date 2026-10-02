@@ -39,53 +39,76 @@ export function ScanFullscreenPage() {
 
   return (
     <div className="fs-shell">
-      <div className="fs-bar">
-        <div>◎ Trạm quét — toàn màn hình <span className="muted" style={{ color: '#94a3b8', fontSize: 12, marginLeft: 12 }}><span className="kbd">Enter</span> Xác nhận · <span className="kbd">E</span> Sửa · <span className="kbd">R</span> Thử lại · <span className="kbd">Space</span> Play/Pause · <span className="kbd">Esc</span> Thoát</span></div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="button" onClick={() => fileRef.current?.click()}>Chọn video</Button>
+      <header className="fs-bar">
+        <div className="fs-bar-heading">
+          <span className="fs-brand-mark" aria-hidden="true">◎</span>
+          <div className="fs-bar-copy">
+            <span className="fs-kicker">TRẠM KIỂM SOÁT · VISIONPARK</span>
+            <h1>Vận hành toàn màn hình</h1>
+          </div>
+          <div className="fs-shortcuts" aria-label="Phím tắt">
+            <span><kbd className="kbd">Enter</kbd> Xác nhận</span>
+            <span><kbd className="kbd">E</kbd> Sửa</span>
+            <span><kbd className="kbd">R</kbd> Thử lại</span>
+            <span><kbd className="kbd">Space</kbd> Phát / tạm dừng</span>
+            <span><kbd className="kbd">Esc</kbd> Thoát</span>
+          </div>
+        </div>
+        <div className="fs-bar-actions">
+          <Button type="button" className="fs-upload-action" onClick={() => fileRef.current?.click()}>Chọn video</Button>
           <input ref={fileRef} type="file" accept="video/mp4" style={{ display: 'none' }} aria-label="Chọn video MP4" />
-          <Link to="/station/scan" className="btn btn-sm">Thu nhỏ</Link>
+          <Link to="/station/scan" className="btn btn-sm fs-minimize-action">Thu nhỏ</Link>
         </div>
-      </div>
-      <div className="fs-main">
+      </header>
+      <main className="fs-main">
         <div className="fs-video" data-testid="fs-video">
-          <span style={{ color: '#94a3b8' }}>{playing ? '▶ ĐANG PHÁT' : '⏸ TẠM DỪNG'} — video area (player Người 4)</span>
+          <span className="fs-video-state">{playing ? '▶ ĐANG PHÁT' : '⏸ TẠM DỪNG'}</span>
+          <span className="fs-video-placeholder">Khu vực hiển thị luồng camera · Player</span>
         </div>
-        <div className="fs-panel">
-          <div>
-            <div style={{ color: '#94a3b8', fontSize: 13 }}>BIỂN SỐ</div>
+        <aside className="fs-panel" aria-label="Kết quả nhận diện">
+          <div className="fs-panel-heading">
+            <span className="fs-kicker">NHẬN DIỆN GẦN NHẤT</span>
+            <h2>Thông tin phương tiện</h2>
+          </div>
+          <div className="fs-primary-result">
+            <div className="fs-data-label">Biển số</div>
             {editing ? (
               <input
                 value={finalPlate}
                 autoFocus
                 onChange={(e) => setFinalPlate(e.target.value.toUpperCase())}
-                style={{ width: '100%', fontSize: 32, fontWeight: 800, background: '#1e293b', color: '#fff', border: '1px solid #475569', borderRadius: 8, padding: 8, letterSpacing: '0.08em' }}
+                className="fs-plate-input"
                 aria-label="Sửa biển số"
               />
             ) : (
               <div className="fs-plate">{finalPlate}</div>
             )}
           </div>
-          <div>
-            <div style={{ color: '#94a3b8', fontSize: 13 }}>CONFIDENCE</div>
-            <div className="fs-conf" style={{ color: confidence < 0.7 ? '#fbbf24' : '#4ade80' }}>{Math.round(confidence * 100)}%</div>
+          <div className="fs-metric-grid">
+            <div className="fs-metric">
+              <span className="fs-data-label">Độ tin cậy</span>
+              <strong className={`fs-metric-value ${confidence < 0.7 ? 'is-warning' : 'is-positive'}`}>{Math.round(confidence * 100)}%</strong>
+            </div>
+            <div className="fs-metric">
+              <span className="fs-data-label">Hướng di chuyển</span>
+              <strong className="fs-metric-value">{direction === 'IN' ? 'Vào' : 'Ra'}</strong>
+            </div>
           </div>
-          <div>
-            <div style={{ color: '#94a3b8', fontSize: 13 }}>HƯỚNG</div>
-            <div className="fs-conf">{direction}</div>
+          <div className={`fs-review-state ${status === 'CONFIRMED' ? 'is-confirmed' : 'is-pending'}`} role="status">
+            <span className="fs-review-dot" aria-hidden="true" />
+            {status === 'CONFIRMED' ? 'Đã xác nhận' : 'Chờ xác nhận'}
           </div>
-          <div>
-            {status === 'CONFIRMED' ? <div style={{ color: '#4ade80', fontWeight: 700 }}>✓ Đã xác nhận</div> : <div style={{ color: '#fbbf24', fontWeight: 700 }}>Chờ xác nhận</div>}
+          <div className="fs-actions">
+            <Button type="button" onClick={() => setStatus('CONFIRMED')} disabled={status === 'CONFIRMED'}>✓ Xác nhận <kbd className="fs-action-key">Enter</kbd></Button>
+            <Button type="button" variant="secondary" onClick={() => setEditing((v) => !v)}>✎ Sửa <kbd className="fs-action-key">E</kbd></Button>
+            <div className="fs-actions-secondary">
+              <Button type="button" variant="secondary" onClick={() => { setStatus('WAITING_CONFIRMATION'); setEditing(false) }}>⟳ Thử lại <kbd className="fs-action-key">R</kbd></Button>
+              <Button type="button" variant="secondary" onClick={() => setPlaying((v) => !v)}>{playing ? '⏸ Tạm dừng' : '▶ Phát'} <kbd className="fs-action-key">Space</kbd></Button>
+            </div>
+            <Button type="button" variant="ghost" className="fs-exit-action" onClick={() => nav('/station/scan')}>Thoát toàn màn hình <kbd className="fs-action-key">Esc</kbd></Button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Button type="button" onClick={() => setStatus('CONFIRMED')} disabled={status === 'CONFIRMED'}>✓ Xác nhận (Enter)</Button>
-            <Button type="button" variant="secondary" onClick={() => setEditing((v) => !v)}>✎ Sửa (E)</Button>
-            <Button type="button" variant="secondary" onClick={() => { setStatus('WAITING_CONFIRMATION'); setEditing(false) }}>⟳ Thử lại (R)</Button>
-            <Button type="button" variant="secondary" onClick={() => setPlaying((v) => !v)}>{playing ? '⏸ Pause (Space)' : '▶ Play (Space)'}</Button>
-            <Button type="button" onClick={() => nav('/station/scan')}>Thoát (Esc)</Button>
-          </div>
-        </div>
-      </div>
+        </aside>
+      </main>
     </div>
   )
 }

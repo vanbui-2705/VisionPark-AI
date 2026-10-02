@@ -31,6 +31,47 @@ type ScanState =
 
 const STATES: ScanState[] = ['NO_VIDEO','READY','PLAYING','PROCESSING','DETECTED','LOW_CONFIDENCE','NO_PLATE','WAITING_CONFIRMATION','CONFIRMED','CORRECTED','ERROR','OFFLINE']
 
+const SCAN_STATE_LABEL: Record<ScanState, string> = {
+  NO_VIDEO: 'Chưa có video',
+  READY: 'Sẵn sàng',
+  PLAYING: 'Đang phát',
+  PROCESSING: 'Đang xử lý',
+  DETECTED: 'Đã nhận diện',
+  LOW_CONFIDENCE: 'Độ tin cậy thấp',
+  NO_PLATE: 'Không có biển số',
+  WAITING_CONFIRMATION: 'Chờ xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  CORRECTED: 'Đã sửa',
+  ERROR: 'Lỗi xử lý',
+  OFFLINE: 'Ngoại tuyến',
+}
+
+const DETECTION_STATUS_LABEL: Record<string, string> = {
+  DETECTED: 'Đã nhận diện',
+  NEEDS_CONFIRMATION: 'Cần xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  CORRECTED: 'Đã sửa',
+  NO_PLATE: 'Không có biển số',
+  ERROR: 'Lỗi',
+}
+
+const DETECTION_STATUS_TONE: Record<string, string> = {
+  DETECTED: 'info',
+  NEEDS_CONFIRMATION: 'warning',
+  CONFIRMED: 'success',
+  CORRECTED: 'success',
+  NO_PLATE: 'neutral',
+  ERROR: 'danger',
+}
+
+function detectionStatusLabel(status: string): string {
+  return DETECTION_STATUS_LABEL[status] ?? status
+}
+
+function detectionStatusTone(status: string): string {
+  return DETECTION_STATUS_TONE[status] ?? 'neutral'
+}
+
 function isMockProvider(p?: string): boolean { const v = (p ?? '').toLowerCase(); return v.includes('mock') || v === 'mock-alpr' }
 
 export function ScanPage() {
@@ -41,142 +82,188 @@ export function ScanPage() {
   const [provider, setProvider] = useState<string | undefined>(undefined)
   const [lanes, setLanes] = useState<{ id: string; name: string }[]>([])
   const [laneId, setLaneId] = useState('')
-  const [plate, setPlate] = useState('29A-123.45')
-  const [confidence] = useState(0.91)
   const [editOpen, setEditOpen] = useState(false)
-  const [finalPlate, setFinalPlate] = useState('29A12345')
+  const [finalPlate, setFinalPlate] = useState('')
   const [recent, setRecent] = useState<Detection[]>([])
+  const [recentLoading, setRecentLoading] = useState(true)
   const [videoName, setVideoName] = useState<string | null>(null)
   const videoRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     healthApi.ready().then((h) => setProvider((h as { alpr?: { provider?: string } })?.alpr?.provider)).catch(() => {})
     lanesApi.getLanes().then((ls) => { setLanes(ls.map((l) => ({ id: l.id, name: l.name }))); if (ls[0]) setLaneId(ls[0].id) }).catch(() => {})
-    detectionsApi.list({ limit: 5 }).then(setRecent).catch(() => setRecent([]))
+    detectionsApi.list({ limit: 5 }).then(setRecent).catch(() => setRecent([])).finally(() => setRecentLoading(false))
   }, [])
 
-  const confirm = async (final: string) => {
+  const confirm = async (detectionId: string, final: string) => {
     try {
-      await detectionsApi.confirm('d-1', { final_plate: final })
+      const updated = await detectionsApi.confirm(detectionId, { final_plate: final })
+      setRecent((items) => items.map((item) => item.id === detectionId ? { ...item, ...updated, id: item.id } : item))
       pushNotification({ title: 'Đã xác nhận biển số', message: final, to: '/detections' })
       toast.push('Đã xác nhận ' + final, 'success')
+      setState('CONFIRMED')
     } catch {
-      // backend pending / mock — vẫn chuyển UI state nhưng không fake thành công API
+      // Keep the UI pending when the API has not confirmed the update.
       toast.push('UI confirmed (API pending)', 'warning')
       pushNotification({ title: 'Xác nhận (API pending)', message: final, to: '/detections' })
     }
-    setState('CONFIRMED')
   }
 
   const mock = useMemo(() => isMockProvider(provider), [provider])
+  const currentDetection = recent[0] ?? null
+  const currentPlate = currentDetection?.final_plate ?? currentDetection?.normalized_plate ?? currentDetection?.ai_plate ?? ''
+  const displayPlate = state === 'CORRECTED' && finalPlate.trim() ? finalPlate.trim() : currentPlate
+  const confidencePercent = currentDetection?.confidence != null ? Math.round(currentDetection.confidence * 100) : null
+  const hasResultState = ['DETECTED', 'LOW_CONFIDENCE', 'WAITING_CONFIRMATION', 'CONFIRMED', 'CORRECTED', 'READY', 'PLAYING'].includes(state)
+  const hasManualCorrection = state === 'CORRECTED' && Boolean(finalPlate.trim())
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div className="scan-page">
       {mock ? (
         <div className="banner-mock" role="status" title="Hệ thống hiện sử dụng dữ liệu nhận diện mô phỏng. Không phải kết quả từ model AI thực tế.">
           <strong>⚠ MOCK ALPR</strong> — Hệ thống hiện sử dụng dữ liệu nhận diện mô phỏng. Không phải kết quả từ model AI thực tế.
         </div>
       ) : null}
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Station · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Trạm quét biển số</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Hướng xe {laneId ? lanes.find((l) => l.id === laneId)?.name ?? laneId : '—'} · 12 trạng thái demo, video MP4 local</p>
+      <section className="scan-hero">
+        <div className="scan-hero-copy">
+          <div className="scan-kicker">Trạm kiểm soát · VisionPark</div>
+          <h2>Trạm quét biển số</h2>
+          <p>Giám sát camera làn xe {laneId ? lanes.find((l) => l.id === laneId)?.name ?? laneId : '—'} · Hỗ trợ nhận dạng AI tự động</p>
         </div>
-        <Link to="/station/scan/fullscreen" className="btn" style={{ textDecoration: 'none', background: '#fff', color: '#0f172a', borderColor: '#fff' }}>⛶ Toàn màn hình</Link>
-      </div>
-      <div className="scan-toolbar">
-        <label>
-          Trạng thái demo{' '}
-          <select value={state} onChange={(e) => setState(e.target.value as ScanState)}>
-            {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </label>
-        <label>
-          Lane{' '}
-          <select value={laneId} onChange={(e) => setLaneId(e.target.value)}>
-            {lanes.length === 0 ? <option value="">(chưa có làn)</option> : lanes.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-        </label>
+        <div className="scan-hero-actions">
+          <Link to="/station/scan/fullscreen" className="btn btn-secondary">⛶ Toàn màn hình</Link>
+        </div>
+      </section>
+
+      <section className="scan-toolbar" aria-label="Điều khiển trạm quét">
+        <div className="scan-control-group">
+          <label htmlFor="scan-demo-state">Trạng thái demo</label>
+          <span className="scan-select-wrap">
+            <select id="scan-demo-state" className="scan-select" value={state} onChange={(e) => setState(e.target.value as ScanState)}>
+              {STATES.map((s) => <option key={s} value={s}>{SCAN_STATE_LABEL[s]}</option>)}
+            </select>
+          </span>
+        </div>
+        <div className="scan-control-group">
+          <label htmlFor="scan-lane">Làn xe</label>
+          <span className="scan-select-wrap">
+            <select id="scan-lane" className="scan-select" value={laneId} onChange={(e) => setLaneId(e.target.value)}>
+              {lanes.length === 0 ? <option value="">(chưa có làn)</option> : lanes.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </span>
+        </div>
         <input ref={videoRef} type="file" accept="video/mp4" style={{ display: 'none' }} aria-label="Chọn video MP4" onChange={(e) => setVideoName(e.target.files?.[0]?.name ?? null)} />
-        <Button type="button" onClick={() => videoRef.current?.click()}>Chọn video (MP4)</Button>
-        <Link to="/station/scan/fullscreen" className="btn btn-primary">⛶ Toàn màn hình</Link>
-      </div>
+        <div className="scan-toolbar-actions">
+          <Button type="button" variant="secondary" className="scan-upload-button" onClick={() => videoRef.current?.click()}>Chọn video (MP4)</Button>
+          {videoName ? <span className="scan-file-name" title={videoName}>{videoName}</span> : <span className="scan-file-name scan-file-name--empty">Chưa chọn tệp</span>}
+        </div>
+      </section>
 
       <div className="scan-grid">
         <section className="scan-video card">
+          <div className="scan-card-head">
+            <div>
+              <span className="card-kicker">VIDEO INPUT</span>
+              <h3>Camera làn xe</h3>
+              <p className="muted">Khung hình phân tích nhận diện biển số</p>
+            </div>
+            <span className="scan-state">{SCAN_STATE_LABEL[state]}</span>
+          </div>
           <div className="video-placeholder">
-            <div className="bbox">BBOX</div>
-            <span>VIDEO / CAMERA VIEW</span>
+            <div className="bbox"><span>KHUNG NHẬN DIỆN</span></div>
+            <span className="video-placeholder-caption">CAMERA TRỰC TIẾP / VIDEO PHÂN TÍCH</span>
             {state === 'PROCESSING' ? <Spinner label="Đang nhận diện biển số..." /> : null}
           </div>
           <div className="scan-controls">
-            <Button type="button">▶ Play</Button>
-            <Button type="button">⏸ Pause</Button>
-            <Button type="button">⟳ Replay</Button>
+            <Button type="button">▶ Phát</Button>
+            <Button type="button" variant="secondary">⏸ Tạm dừng</Button>
+            <Button type="button" variant="secondary">⟳ Phát lại</Button>
           </div>
-          <p className="muted">{videoName ? `Đã chọn: ${videoName}` : 'Video: parking_test.mp4 — ghép player của Người 4 tại đây (canvas + throttle + bbox).'}</p>
+          <p className="muted">{videoName ? `Đã chọn: ${videoName}` : 'Hỗ trợ phát video mẫu MP4 hoặc nguồn luồng camera RTSP trực tiếp.'}</p>
         </section>
 
         <section className="scan-result card">
-          <h3>Kết quả nhận diện</h3>
-          {state === 'OFFLINE' ? <Alert variant="error">Mất kết nối ALPR.</Alert> : null}
-          {state === 'ERROR' ? <Alert variant="error">Lỗi xử lý — thử lại.</Alert> : null}
-          {state === 'NO_VIDEO' ? <Alert variant="info">Chưa có video.</Alert> : null}
-          {state === 'NO_PLATE' ? (
+          <div className="scan-card-head">
             <div>
-              <Alert variant="warning">Không phát hiện biển số.</Alert>
-              <div style={{ display: 'flex', gap: 8 }}><Button onClick={() => setEditOpen(true)}>Nhập biển số thủ công</Button><Button variant="secondary" onClick={() => setState('READY')}>Quét lại</Button></div>
+              <span className="card-kicker">AI / ALPR</span>
+              <h3>Kết quả nhận diện</h3>
+              <p className="muted">Dữ liệu mới nhất từ detection API</p>
+            </div>
+            <span className="scan-state">{SCAN_STATE_LABEL[state]}</span>
+          </div>
+          {state === 'OFFLINE' ? <Alert variant="error">Mất kết nối ALPR.</Alert> : null}
+          {state === 'ERROR' ? <Alert variant="error">Lỗi xử lý — vui lòng thử lại.</Alert> : null}
+          {state === 'NO_VIDEO' ? <Alert variant="info">Chưa có tín hiệu video.</Alert> : null}
+          {state === 'NO_PLATE' ? (
+            <div className="scan-result-message">
+              <Alert variant="warning">Không phát hiện thấy biển số xe.</Alert>
+              <div className="scan-result-actions"><Button onClick={() => { setFinalPlate(''); setEditOpen(true) }}>Nhập biển số thủ công</Button><Button variant="secondary" onClick={() => setState('READY')}>Quét lại</Button></div>
             </div>
           ) : null}
-          {state === 'LOW_CONFIDENCE' ? <Alert variant="warning">Độ tin cậy thấp: {Math.round(confidence * 100)}% — vui lòng kiểm tra trước khi xác nhận.</Alert> : null}
+          {state === 'LOW_CONFIDENCE' ? <Alert variant="warning">Độ tin cậy thấp{confidencePercent != null ? `: ${confidencePercent}%` : ''} — vui lòng kiểm tra trước khi xác nhận.</Alert> : null}
           {state === 'PROCESSING' ? <p>Đang nhận diện biển số...</p> : null}
-          {['DETECTED','LOW_CONFIDENCE','WAITING_CONFIRMATION','CONFIRMED','CORRECTED','READY','PLAYING'].includes(state) ? (
+          {hasResultState && currentDetection ? (
             <div className="result-fields">
-              <div><span className="muted">Biển số</span><div className="plate">{plate}</div></div>
-              <div><span className="muted">Confidence</span><div>{Math.round(confidence * 100)}%</div></div>
-              <div><span className="muted">Model</span><div>{provider ?? '—'}</div></div>
-              <div><span className="muted">Latency</span><div>25 ms</div></div>
+              <div className="result-metric result-metric--plate"><span className="muted">Biển số</span><div className="plate">{displayPlate || '—'}</div></div>
+              <div className="result-metric"><span className="muted">Độ tin cậy</span><div>{confidencePercent != null ? `${confidencePercent}%` : '—'}</div></div>
+              <div className="result-metric"><span className="muted">Mô hình AI</span><div>{currentDetection.model_version ?? provider ?? '—'}</div></div>
+              <div className="result-metric"><span className="muted">Độ trễ xử lý</span><div>{currentDetection.processing_ms != null ? `${currentDetection.processing_ms} ms` : '—'}</div></div>
               {state === 'WAITING_CONFIRMATION' || state === 'LOW_CONFIDENCE' || state === 'DETECTED' ? (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <Button onClick={() => confirm(finalPlate)}>✓ Biển số đúng</Button>
-                  <Button variant="secondary" onClick={() => setEditOpen(true)}>✎ Sửa biển số</Button>
+                <div className="scan-result-actions">
+                  <Button onClick={() => confirm(currentDetection.id, finalPlate || currentPlate)} disabled={!currentDetection.id || !(finalPlate || currentPlate).trim()}>✓ Biển số đúng</Button>
+                  <Button variant="secondary" onClick={() => { setFinalPlate(currentPlate); setEditOpen(true) }}>✎ Sửa biển số</Button>
                 </div>
               ) : null}
-              {state === 'CONFIRMED' ? <Alert variant="success">Đã xác nhận.</Alert> : null}
-              {state === 'CORRECTED' ? <Alert variant="success">Đã sửa: {finalPlate}</Alert> : null}
+              {currentDetection.status === 'CONFIRMED' ? <Alert variant="success">Đã xác nhận thành công.</Alert> : null}
+              {state === 'CORRECTED' ? <Alert variant="success">Đã sửa: {finalPlate || currentPlate}</Alert> : null}
             </div>
+          ) : hasManualCorrection ? (
+            <div className="result-fields">
+              <div className="result-metric result-metric--plate"><span className="muted">Biển số nhập thủ công</span><div className="plate">{finalPlate.trim()}</div></div>
+              <p className="muted scan-manual-note">Chưa có detection tương ứng từ API.</p>
+            </div>
+          ) : hasResultState ? (
+            <div className="scan-result-empty"><strong>{recentLoading ? 'Đang tải kết quả' : 'Chưa có kết quả'}</strong><span>{recentLoading ? 'Đang chờ detection API phản hồi.' : 'Chưa nhận được detection từ API.'}</span></div>
           ) : null}
         </section>
       </div>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h3>Nhận diện gần đây</h3>
-        <table className="table">
-          <thead><tr><th>Time</th><th>Lane</th><th>Plate</th><th>Confidence</th><th>Status</th></tr></thead>
-          <tbody>
-            {recent.length === 0 ? (
-              <tr><td colSpan={5} className="muted">Chưa có dữ liệu detection (API pending).</td></tr>
-            ) : recent.map((d) => (
-              <tr key={d.id}>
-                <td>{new Date(d.created_at).toLocaleTimeString('vi-VN')}</td>
-                <td>{d.lane_name ?? d.lane_id}</td>
-                <td>{d.final_plate ?? d.normalized_plate ?? d.ai_plate ?? '—'}</td>
-                <td>{d.confidence != null ? `${Math.round(d.confidence * 100)}%` : '—'}</td>
-                <td>{d.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="muted">Nguồn: GET /api/v1/detections?limit=5 — shell chỉ render table.</p>
+      <section className="scan-history card">
+        <div className="scan-card-head">
+          <div>
+            <span className="card-kicker">ACTIVITY LOG</span>
+            <h3>Nhận diện gần đây</h3>
+            <p className="muted">Lịch sử detection mới nhất từ API</p>
+          </div>
+          <span className="scan-count">{recentLoading ? 'Đang tải' : `${recent.length} bản ghi`}</span>
+        </div>
+        <div className="table-wrap scan-history-table">
+          <table className="table">
+            <thead><tr><th>Thời gian</th><th>Làn xe</th><th>Biển số</th><th>Độ tin cậy</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+              {recent.length === 0 ? (
+                <tr><td colSpan={5} className="muted scan-table-empty">{recentLoading ? 'Đang tải dữ liệu detection…' : 'Chưa có dữ liệu detection từ API.'}</td></tr>
+              ) : recent.map((d) => (
+                <tr key={d.id}>
+                  <td>{new Date(d.created_at).toLocaleTimeString('vi-VN')}</td>
+                  <td>{d.lane_name ?? d.lane_id}</td>
+                  <td><span className="scan-plate-cell">{d.final_plate ?? d.normalized_plate ?? d.ai_plate ?? '—'}</span></td>
+                  <td>{d.confidence != null ? `${Math.round(d.confidence * 100)}%` : '—'}</td>
+                  <td><span className={`scan-status scan-status--${detectionStatusTone(d.status)}`}><span className="scan-status-dot" />{detectionStatusLabel(d.status)}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted scan-source-note">Nguồn: GET /api/v1/alpr/detections?limit=5</p>
       </section>
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} title="Sửa kết quả nhận diện">
-        <p className="muted">AI nhận diện: {plate} (confidence {Math.round(confidence * 100)}%)</p>
+        <p className="muted">AI nhận diện: {currentPlate || '—'}{confidencePercent != null ? ` (confidence ${confidencePercent}%)` : ''}</p>
         <Input label="Biển số chính xác" value={finalPlate} onChange={(e) => setFinalPlate(e.target.value)} />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+        <div className="scan-dialog-actions">
           <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>Hủy</Button>
-          <Button type="button" onClick={() => { setPlate(finalPlate); setState('CORRECTED'); setEditOpen(false) }}>Xác nhận</Button>
+          <Button type="button" onClick={() => { setState('CORRECTED'); setEditOpen(false) }} disabled={!finalPlate.trim()}>Xác nhận</Button>
         </div>
       </Dialog>
     </div>
