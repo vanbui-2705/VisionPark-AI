@@ -107,15 +107,15 @@
 
 ## 3. M2 — Check-in domain và database
 
-- [ ] 3.1 Thiết kế additive migration cho transaction `PARKED`, detection link, source, actor, audit và idempotency.
-- [ ] 3.2 Tạo repository/service check-in tách khỏi ALPR provider.
-- [ ] 3.3 Validate lane `IN` active và normalized plate.
-- [ ] 3.4 Chặn duplicate active `PARKED`.
-- [ ] 3.5 Hỗ trợ `AI_ACCEPTED`, `OPERATOR_CORRECTED`, `MANUAL_ENTRY`.
-- [ ] 3.6 Implement idempotency cùng payload/cùng key và conflict khác payload.
-- [ ] 3.7 Ghi audit AI plate, final plate, source, actor, lane và timestamp.
-- [ ] 3.8 Implement history/filter endpoint cần cho demo.
-- [ ] 3.9 Viết unit/integration test happy path, manual, duplicate, retry, unauthorized, inactive lane và race.
+- [x] 3.1 Thiết kế additive migration cho transaction `PARKED`, detection link, source, actor, audit và idempotency.
+- [x] 3.2 Tạo repository/service check-in tách khỏi ALPR provider.
+- [x] 3.3 Validate lane `IN` active và normalized plate.
+- [x] 3.4 Chặn duplicate active `PARKED`.
+- [x] 3.5 Hỗ trợ `AI_ACCEPTED`, `OPERATOR_CORRECTED`, `MANUAL_ENTRY`.
+- [x] 3.6 Implement idempotency cùng payload/cùng key và conflict khác payload.
+- [x] 3.7 Ghi audit AI plate, final plate, source, actor, lane và timestamp.
+- [x] 3.8 Implement history/filter endpoint cần cho demo.
+- [x] 3.9 Viết unit/integration test happy path, manual, duplicate, retry, unauthorized, inactive lane và race.
 
 **Exit gate M2:** mock detection → confirm → `PARKED` → history/audit end-to-end.
 
