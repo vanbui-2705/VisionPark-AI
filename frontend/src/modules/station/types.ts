@@ -1,4 +1,12 @@
-export type StationState = "idle" | "processing" | "detected" | "confirm" | "error";
+export type StationState =
+  | "idle"
+  | "detecting"
+  | "reading"
+  | "stable"
+  | "needs_confirmation"
+  | "confirming"
+  | "success"
+  | "error";
 export type LaneDirection = "IN" | "OUT";
 export type Lane = {
   id: string;
@@ -29,6 +37,7 @@ export type ApiError = {
 };
 export type ConfirmationPayload = {
   accepted: true;
+  confirmed_plate_number?: string;
 } | {
   accepted: false;
   confirmed_plate_number: string;
@@ -40,4 +49,5 @@ export type RecentHistoryItem = {
   plateNumber: string;
   accepted: boolean;
   confirmedAt: string;
+  transactionId?: string;
 };

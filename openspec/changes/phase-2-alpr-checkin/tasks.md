@@ -121,20 +121,20 @@
 
 ## 4. M3 — Video Station UI
 
-- [ ] 4.1 Đưa VideoPlayer/canvas thật vào `/station/scan` canonical flow.
-- [ ] 4.2 Chọn MP4 local, tạo/revoke object URL đúng lifecycle.
-- [ ] 4.3 Play/pause/replay/capture thủ công.
-- [ ] 4.4 Sampling mặc định 1000ms; có thể tăng lên 500ms sau benchmark.
-- [ ] 4.5 Không gửi request song song và không queue vô hạn.
-- [ ] 4.6 Overlay bbox theo tọa độ video.
-- [ ] 4.7 Hiển thị plate, detector/OCR/combined confidence, latency, model version và quality flags.
-- [ ] 4.8 Implement state `idle`, `detecting`, `reading`, `stable`, `needs_confirmation`, `confirming`, `success`, `error`.
-- [ ] 4.9 Implement buffer 3–5 candidate và consensus 2/3.
-- [ ] 4.10 Reset buffer khi bbox đổi lớn hoặc chuyển xe.
-- [ ] 4.11 Implement confirm đúng, edit plate và manual entry.
-- [ ] 4.12 Khóa double-click, retry timeout/network/provider error.
-- [ ] 4.13 Sau confirm hiển thị transaction id và history mới nhất.
-- [ ] 4.14 Viết component/integration tests cho video selection, throttle, bbox, consensus, confirmation và error.
+- [x] 4.1 Đưa VideoPlayer/canvas thật vào `/station/scan` canonical flow.
+- [x] 4.2 Chọn MP4 local, tạo/revoke object URL đúng lifecycle.
+- [x] 4.3 Play/pause/replay/capture thủ công.
+- [x] 4.4 Sampling mặc định 1000ms; có thể tăng lên 500ms sau benchmark.
+- [x] 4.5 Không gửi request song song và không queue vô hạn.
+- [x] 4.6 Overlay bbox theo tọa độ video.
+- [x] 4.7 Hiển thị plate, detector/OCR/combined confidence, latency, model version và quality flags.
+- [x] 4.8 Implement state `idle`, `detecting`, `reading`, `stable`, `needs_confirmation`, `confirming`, `success`, `error`.
+- [x] 4.9 Implement buffer 3–5 candidate và consensus 2/3.
+- [x] 4.10 Reset buffer khi bbox đổi lớn hoặc chuyển xe.
+- [x] 4.11 Implement confirm đúng, edit plate và manual entry.
+- [x] 4.12 Khóa double-click, retry timeout/network/provider error.
+- [x] 4.13 Sau confirm hiển thị transaction id và history mới nhất.
+- [x] 4.14 Viết component/integration tests cho video selection, throttle, bbox, consensus, confirmation và error.
 
 **Exit gate M3:** Operator chạy video demo và tạo được một check-in thật từ UI.
 

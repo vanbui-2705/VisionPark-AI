@@ -16,13 +16,17 @@ export default function StationPage() {
   const [videoName, setVideoName] = useState("");
   const [history, setHistory] = useState<RecentHistoryItem[]>([]);
   const [actionError, setActionError] = useState<ApiError | null>(null);
+  const [transactionId, setTransactionId] = useState<string | null>(null);
   const {
     state,
     result,
     error: detectionError,
     detect,
     retry,
-    reset
+    reset,
+    beginConfirm,
+    completeConfirm,
+    failConfirm
   } = useAlprDetection();
   const refreshHistory = useCallback(async () => {
     try {
@@ -46,9 +50,10 @@ export default function StationPage() {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl(url);
     setVideoName(file.name);
+    setTransactionId(null);
     reset();
   };
-  const onFrame = async (image: Blob) => {
+  const onFrame = useCallback(async (image: Blob) => {
     if (!selectedLaneId) {
       setActionError({
         status: 422,
@@ -59,22 +64,37 @@ export default function StationPage() {
     }
     setActionError(null);
     await detect(image, selectedLaneId);
-  };
+  }, [detect, selectedLaneId]);
   const confirm = async (detectionId: string, plate?: string) => {
     setActionError(null);
+    beginConfirm();
     try {
-      await confirmDetection(detectionId, selectedLaneId, plate ? {
+      const outcome = await confirmDetection(detectionId, selectedLaneId, plate ? {
         accepted: false,
         confirmed_plate_number: plate
       } : {
-        accepted: true
+        accepted: true,
+        confirmed_plate_number: result?.normalized_plate_number ?? result?.raw_plate_number ?? undefined
       });
+      setTransactionId(outcome.transactionId);
+      completeConfirm();
       await refreshHistory();
     } catch (e) {
       const value = e as ApiError;
       setActionError(value);
+      failConfirm();
       throw value;
     }
+  };
+  const statusLabel: Record<typeof state, string> = {
+    idle: "Đang chờ frame...",
+    detecting: "Đang gửi frame...",
+    reading: "Đang đọc biển số...",
+    stable: "Kết quả ổn định.",
+    needs_confirmation: "Cần Operator xác nhận.",
+    confirming: "Đang tạo check-in...",
+    success: "Check-in thành công.",
+    error: "Xử lý thất bại."
   };
   const error = actionError ?? detectionError;
   return <section style={{
@@ -109,9 +129,9 @@ export default function StationPage() {
         <div style={{
           display: "grid",
           gap: 14
-        }}><LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={setSelectedLaneId} disabled={state === "processing"} />
+        }}><LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={setSelectedLaneId} disabled={state === "detecting" || state === "reading" || state === "confirming"} />
           <VideoSelector onVideoSelected={onVideo} />{videoName && <div>Video: <strong>{videoName}</strong></div>}</div>
-        <VideoPlayer key={videoUrl || "empty"} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} />
+          <VideoPlayer key={videoUrl || "empty"} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} />
       </div>
       <aside style={{
         border: "2px solid #555",
@@ -124,7 +144,7 @@ export default function StationPage() {
           border: "1px solid #666",
           borderRadius: 8
         }}><strong>Status: {state.toUpperCase()}</strong>
-          <p>{state === "idle" ? "Đang chờ frame..." : state === "processing" ? "Đang nhận diện biển số..." : state === "detected" ? "Đã nhận diện biển số." : state === "confirm" ? "Cần Operator xác nhận." : "Xử lý thất bại."}</p></div>
+          <p>{statusLabel[state]}</p>{transactionId && <p role="status">Transaction: <strong>{transactionId}</strong></p>}</div>
         <ResultPanel result={result} />
         <ConfirmationPanel key={result?.detection_id ?? "none"} result={result} onConfirmCorrect={id => confirm(id)} onConfirmCorrection={(id, plate) => confirm(id, plate)} />
         <ErrorPanel error={error} onRetry={() => {
