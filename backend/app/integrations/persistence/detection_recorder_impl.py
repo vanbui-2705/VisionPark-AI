@@ -19,8 +19,13 @@ class DatabaseDetectionRecorder(DetectionRecorder):
         detection = Detection(
             lane_id=UUID(lane_id),
             image_key=image_key,
-            raw_plate=result.plate_number,
-            normalized_plate=normalize_plate(result.plate_number) if result.plate_number else None,
+            raw_plate=result.raw_plate or result.plate_number,
+            normalized_plate=(
+                result.normalized_plate
+                or normalize_plate(result.raw_plate or result.plate_number)
+                if result.raw_plate or result.plate_number
+                else None
+            ),
             bbox_x1=bbox[0],
             bbox_y1=bbox[1],
             bbox_x2=bbox[2],

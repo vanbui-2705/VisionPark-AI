@@ -47,3 +47,23 @@ def test_alpr_result_creation():
     )
     assert res2.plate_number is None
     assert res2.requires_confirmation is True
+
+
+def test_alpr_result_exposes_detector_ocr_and_quality_fields():
+    result = ALPRResult(
+        raw_plate="29A-123.45",
+        normalized_plate="29A12345",
+        bbox=BoundingBox(x1=0, y1=0, x2=100, y2=30),
+        confidence=0.88,
+        detector_confidence=0.94,
+        ocr_confidence=0.88,
+        combined_confidence=0.88,
+        quality_flags=["crop_blurry"],
+        provider="ultralytics-paddleocr",
+        processing_time_ms=12,
+        requires_confirmation=False,
+    )
+
+    assert result.normalized_plate == "29A12345"
+    assert result.quality_flags == ["crop_blurry"]
+    assert result.provider_status == "ready"

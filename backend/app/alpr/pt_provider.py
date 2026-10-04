@@ -9,10 +9,21 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .errors import ALPRNotReadyError, ALPRProcessingError
+from .errors import (
+    ALPRChecksumMismatchError,
+    ALPRDependencyError,
+    ALPRInferenceError,
+    ALPRInvalidImageError,
+    ALPRManifestError,
+    ALPRModelLoadError,
+    ALPRModelMissingError,
+    ALPRNotReadyError,
+    ALPRProcessingError,
+)
 from .interface import ALPRRuntime
+from .ocr_provider import OCRReadResult, PaddleOCRTextRecognition
 from .schema import ALPRResult, BoundingBox
-from .utils import clamp_bbox, crop_plate, decode_image, normalize_plate, requires_confirmation
+from .utils import clamp_bbox, crop_with_quality, decode_image, requires_confirmation
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -44,14 +55,16 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
         self._manifest: dict[str, Any] | None = None
         self._model: Any = None
         self._ocr: Any = None
-        self._load_error: str | None = None
+        self._load_error: ALPRNotReadyError | None = None
         self._inference_lock = threading.Lock()
 
         try:
             self._manifest = self._read_manifest()
             self.version = str(self._manifest.get("model_version", self.version))
+        except ALPRNotReadyError as exc:
+            self._load_error = exc
         except Exception as exc:
-            self._load_error = str(exc)
+            self._load_error = ALPRManifestError(str(exc))
 
     @property
     def model_version(self) -> str:
@@ -67,20 +80,23 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
 
     def _read_manifest(self) -> dict[str, Any]:
         if not self.manifest_path.is_file():
-            raise FileNotFoundError(f"Model manifest not found: {self.manifest_path}")
-        with self.manifest_path.open("r", encoding="utf-8") as manifest_file:
-            manifest = json.load(manifest_file)
+            raise ALPRModelMissingError(f"Model manifest not found: {self.manifest_path}")
+        try:
+            with self.manifest_path.open("r", encoding="utf-8") as manifest_file:
+                manifest = json.load(manifest_file)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ALPRManifestError(f"Could not read model manifest: {exc}") from exc
         if not isinstance(manifest, dict):
-            raise ValueError("Model manifest must be a JSON object")
+            raise ALPRManifestError("Model manifest must be a JSON object")
         if not manifest.get("model_version"):
-            raise ValueError("Model manifest is missing model_version")
+            raise ALPRManifestError("Model manifest is missing model_version")
         return manifest
 
     def _resolve_weights_path(self, manifest: dict[str, Any]) -> Path:
         detector = manifest.get("detector", {})
         raw_path = detector.get("weights_path") or manifest.get("weights_path")
         if not raw_path:
-            raise ValueError("Model manifest is missing detector weights_path")
+            raise ALPRManifestError("Model manifest is missing detector weights_path")
         path = Path(raw_path)
         if path.is_absolute():
             return path
@@ -95,58 +111,67 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
         manifest = self._manifest or self._read_manifest()
         weights_path = self._resolve_weights_path(manifest)
         if not weights_path.is_file():
-            raise FileNotFoundError(f"Model weights not found: {weights_path}")
+            raise ALPRModelMissingError(f"Model weights not found: {weights_path}")
 
         expected_hash = manifest.get("detector", {}).get("sha256") or manifest.get("sha256")
         if expected_hash:
             digest = hashlib.sha256(weights_path.read_bytes()).hexdigest().upper()
             if digest != str(expected_hash).upper():
-                raise ValueError("Model weights checksum does not match the manifest")
+                raise ALPRChecksumMismatchError(
+                    "Model weights checksum does not match the manifest"
+                )
         return manifest, weights_path
 
-    def _create_ocr(self, paddle_ocr: Any) -> Any:
-        try:
-            return paddle_ocr(
-                lang="en",
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                use_textline_orientation=False,
-            )
-        except TypeError:
-            # PaddleOCR 2.x compatibility.
-            return paddle_ocr(use_angle_cls=False, lang="en", show_log=False)
+    def _create_ocr(self, manifest: dict[str, Any]) -> PaddleOCRTextRecognition:
+        config = manifest.get("ocr", {})
+        return PaddleOCRTextRecognition(
+            model_name=str(config.get("model_name", "latin_PP-OCRv5_mobile_rec")),
+            device=self.device,
+            model_dir=config.get("model_dir"),
+        )
 
     def _ensure_loaded(self) -> None:
         if self._model is not None and (not self.ocr_enabled or self._ocr is not None):
             return
         if self._load_error:
-            raise ALPRNotReadyError(self._load_error)
+            raise self._load_error
 
         try:
             manifest, weights_path = self._validate_manifest_and_weights()
+        except ALPRNotReadyError:
+            raise
         except Exception as exc:
-            raise ALPRNotReadyError(str(exc)) from exc
+            raise ALPRManifestError(str(exc)) from exc
         try:
             from ultralytics import YOLO
+<<<<<<< HEAD
 
             paddle_ocr = None
             if self.ocr_enabled:
                 from paddleocr import PaddleOCR
 
                 paddle_ocr = PaddleOCR
+=======
+>>>>>>> main
         except ImportError as exc:
-            raise ALPRNotReadyError(
+            raise ALPRDependencyError(
                 "Real detector dependency is missing; install backend[real]."
             ) from exc
 
         try:
             self._model = YOLO(str(weights_path))
-            self._ocr = self._create_ocr(paddle_ocr) if self.ocr_enabled else None
+            self._ocr = self._create_ocr(manifest) if self.ocr_enabled else None
+            if self._ocr is not None:
+                self._ocr.ensure_loaded()
             self.version = str(manifest["model_version"])
+        except ALPRNotReadyError:
+            self._model = None
+            self._ocr = None
+            raise
         except Exception as exc:
             self._model = None
             self._ocr = None
-            raise ALPRNotReadyError(f"Could not load real ALPR models: {exc}") from exc
+            raise ALPRModelLoadError(f"Could not load real ALPR models: {exc}") from exc
 
     def is_ready(self) -> tuple[bool, str]:
         try:
@@ -167,7 +192,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
     def _find_plate(self, prediction: Any) -> tuple[BoundingBox | None, float]:
         boxes = getattr(prediction, "boxes", None)
         names = getattr(self._model, "names", {})
-        if boxes is None:
+        if boxes is None or len(boxes) == 0:
             return None, 0.0
 
         best: tuple[BoundingBox | None, float] = (None, 0.0)
@@ -182,7 +207,14 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             if str(label).casefold() != plate_class_name.casefold():
                 continue
             confidence = self._scalar(boxes.conf[index])
-            coordinates = boxes.xyxy[index].tolist()
+            raw_coordinates = boxes.xyxy[index]
+            coordinates = (
+                raw_coordinates.tolist()
+                if hasattr(raw_coordinates, "tolist")
+                else list(raw_coordinates)
+            )
+            if len(coordinates) != 4:
+                continue
             bbox = BoundingBox(
                 x1=int(coordinates[0]),
                 y1=int(coordinates[1]),
@@ -193,78 +225,36 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 best = (bbox, confidence)
         return best
 
-    def _crop_with_margin(self, image: Any, bbox: BoundingBox) -> Any:
-        height, width = image.shape[:2]
-        x1, y1, x2, y2 = bbox.as_tuple
-        margin_x = int((x2 - x1) * self.ocr_margin)
-        margin_y = int((y2 - y1) * self.ocr_margin)
-        expanded = clamp_bbox(
-            (x1 - margin_x, y1 - margin_y, x2 + margin_x, y2 + margin_y),
-            width,
-            height,
-        )
-        return crop_plate(image, expanded)
-
     @classmethod
     def _collect_ocr_candidates(cls, value: Any, output: list[tuple[str, float]]) -> None:
-        if value is None:
-            return
-        if hasattr(value, "json"):
-            payload = value.json
-            payload = payload() if callable(payload) else payload
-            if isinstance(payload, str):
-                payload = json.loads(payload)
-            cls._collect_ocr_candidates(payload, output)
-            return
-        if isinstance(value, dict):
-            texts = value.get("rec_texts") or value.get("texts")
-            scores = value.get("rec_scores") or value.get("scores") or []
-            if texts:
-                for index, text in enumerate(texts):
-                    score = scores[index] if index < len(scores) else 0.0
-                    output.append((str(text), float(score)))
-                return
-            for item in value.values():
-                cls._collect_ocr_candidates(item, output)
-            return
-        if isinstance(value, (list, tuple)):
-            if len(value) == 2 and isinstance(value[0], str):
-                output.append((value[0], float(value[1])))
-                return
-            for item in value:
-                cls._collect_ocr_candidates(item, output)
+        PaddleOCRTextRecognition.collect_candidates(value, output)
 
-    def _run_ocr(self, crop: Any) -> tuple[str | None, float]:
-        if crop is None or getattr(crop, "size", 0) == 0:
-            return None, 0.0
-        if hasattr(self._ocr, "predict"):
-            raw_result = list(self._ocr.predict(crop))
-        else:
-            raw_result = self._ocr.ocr(crop, cls=False)
-        candidates: list[tuple[str, float]] = []
-        self._collect_ocr_candidates(raw_result, candidates)
-        if not candidates:
-            return None, 0.0
-        text, confidence = max(candidates, key=lambda item: item[1])
-        normalized = normalize_plate(text)
-        return (normalized or None), max(0.0, min(1.0, confidence))
+    def _run_ocr(self, crop: Any) -> OCRReadResult:
+        if self._ocr is None:
+            return OCRReadResult(None, None, 0.0)
+        return self._ocr.recognize(crop)
 
     def detect_and_read(self, image_bytes: bytes) -> ALPRResult:
         started = time.perf_counter()
         try:
             self._ensure_loaded()
             image = decode_image(image_bytes)
-            if image is None:
-                raise ValueError("Could not decode input frame")
             with self._inference_lock:
-                predictions = self._model.predict(
-                    source=image,
-                    imgsz=int(self._manifest.get("detector", {}).get("imgsz", 640)),
-                    conf=self.detector_confidence,
-                    device=self.device,
-                    verbose=False,
-                )
-                bbox, detector_confidence = self._find_plate(predictions[0])
+                detector_started = time.perf_counter()
+                try:
+                    predictions = self._model.predict(
+                        source=image,
+                        imgsz=int(self._manifest.get("detector", {}).get("imgsz", 640)),
+                        conf=self.detector_confidence,
+                        device=self.device,
+                        verbose=False,
+                    )
+                except Exception as exc:
+                    raise ALPRInferenceError(f"Detector inference failed: {exc}") from exc
+
+                prediction = predictions[0] if predictions else None
+                bbox, detector_confidence = self._find_plate(prediction)
+                detector_latency_ms = (time.perf_counter() - detector_started) * 1000
                 if bbox is None:
                     return ALPRResult(
                         plate_number=None,
@@ -273,6 +263,10 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                         processing_time_ms=int((time.perf_counter() - started) * 1000),
                         requires_confirmation=True,
                         model_version=self.model_version,
+                        detector_confidence=0.0,
+                        combined_confidence=0.0,
+                        provider="ultralytics-paddleocr",
+                        detector_latency_ms=detector_latency_ms,
                     )
                 x1, y1, x2, y2 = clamp_bbox(bbox.as_tuple, image.shape[1], image.shape[0])
                 if x2 <= x1 or y2 <= y1:
@@ -283,27 +277,56 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                         processing_time_ms=int((time.perf_counter() - started) * 1000),
                         requires_confirmation=True,
                         model_version=self.model_version,
+                        detector_confidence=detector_confidence,
+                        combined_confidence=0.0,
+                        provider="ultralytics-paddleocr",
+                        detector_latency_ms=detector_latency_ms,
                     )
                 bbox = BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2)
+                quality_flags: list[str] = []
+                ocr_latency_ms: float | None = None
                 if self.ocr_enabled:
-                    plate, ocr_confidence = self._run_ocr(self._crop_with_margin(image, bbox))
+                    ocr_started = time.perf_counter()
+                    crop, _, quality_flags = crop_with_quality(
+                        image, bbox.as_tuple, margin=self.ocr_margin
+                    )
+                    if quality_flags:
+                        quality_flags.append("ocr_skipped_quality")
+                        plate_result = OCRReadResult(None, None, 0.0)
+                    else:
+                        plate_result = self._run_ocr(crop)
+                    ocr_latency_ms = (time.perf_counter() - ocr_started) * 1000
+                    plate = plate_result.normalized_text
+                    raw_plate = plate_result.raw_text
+                    ocr_confidence = plate_result.confidence
                 else:
-                    plate, ocr_confidence = None, 0.0
+                    plate, raw_plate, ocr_confidence = None, None, None
 
             if not plate:
-                confidence = detector_confidence
+                confidence = detector_confidence if not self.ocr_enabled else 0.0
                 return ALPRResult(
                     plate_number=None,
+                    raw_plate=raw_plate,
+                    normalized_plate=None,
                     bbox=bbox,
                     confidence=confidence,
                     processing_time_ms=int((time.perf_counter() - started) * 1000),
                     requires_confirmation=True,
                     model_version=self.model_version,
+                    detector_confidence=detector_confidence,
+                    ocr_confidence=ocr_confidence,
+                    combined_confidence=confidence,
+                    quality_flags=quality_flags,
+                    provider="ultralytics-paddleocr",
+                    detector_latency_ms=detector_latency_ms,
+                    ocr_latency_ms=ocr_latency_ms,
                 )
 
             confidence = min(detector_confidence, ocr_confidence)
             return ALPRResult(
                 plate_number=plate,
+                raw_plate=raw_plate,
+                normalized_plate=plate,
                 bbox=bbox,
                 confidence=confidence,
                 processing_time_ms=int((time.perf_counter() - started) * 1000),
@@ -311,8 +334,15 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                     confidence, self.confirmation_threshold
                 ),
                 model_version=self.model_version,
+                detector_confidence=detector_confidence,
+                ocr_confidence=ocr_confidence,
+                combined_confidence=confidence,
+                quality_flags=quality_flags,
+                provider="ultralytics-paddleocr",
+                detector_latency_ms=detector_latency_ms,
+                ocr_latency_ms=ocr_latency_ms,
             )
-        except (ALPRNotReadyError, ALPRProcessingError):
+        except (ALPRInvalidImageError, ALPRNotReadyError, ALPRProcessingError):
             raise
         except Exception as exc:
             raise ALPRProcessingError(f"Real ALPR inference failed: {exc}") from exc

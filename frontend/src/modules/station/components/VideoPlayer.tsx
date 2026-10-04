@@ -74,7 +74,7 @@ export default function VideoPlayer({
       }} onEnded={() => {
         setEnded(true);
         setAuto(false);
-      }} onPlay={() => setEnded(false)} />
+      }} onPlay={() => setEnded(false)} onPause={() => setAuto(false)} />
       <BBoxOverlay bbox={bbox} sourceWidth={size.width} sourceHeight={size.height} />
     </div>
     <div style={{

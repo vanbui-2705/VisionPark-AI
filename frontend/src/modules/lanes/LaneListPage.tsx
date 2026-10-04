@@ -39,9 +39,13 @@ export function LaneListPage() {
   }
 
   return (
-    <div>
-      <div className="admin-topbar">
-        <h2>Quản lý làn</h2>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Lane Management · Duy Anh</div>
+          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Quản lý làn</h2>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Cấu hình làn IN/OUT, nguồn video và trạng thái vận hành.</p>
+        </div>
         <Button variant="primary" onClick={() => setOpenCreate(true)}>Tạo làn</Button>
       </div>
 

@@ -51,9 +51,13 @@ export function UserListPage() {
   if (err) return <div><Alert variant="error">{err}</Alert><Button onClick={() => void load()}>Thử lại</Button></div>
 
   return (
-    <div>
-      <div className="page-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Người dùng</h2>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>User Management · Duy Anh</div>
+          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Người dùng</h2>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Quản lý tài khoản ADMIN/OPERATOR, trạng thái hoạt động và hồ sơ vận hành.</p>
+        </div>
         <Link to="/admin/users/new" className="btn btn-primary">+ Tạo tài khoản</Link>
       </div>
       <div className="filters">

@@ -1,5 +1,9 @@
 import os
+<<<<<<< HEAD
 from typing import Annotated
+=======
+from typing import Annotated, Literal
+>>>>>>> main
 from uuid import UUID
 
 import cv2
@@ -9,12 +13,13 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.alpr.errors import ALPRNotReadyError, ALPRProcessingError
+from app.alpr.errors import ALPRInvalidImageError, ALPRNotReadyError, ALPRProcessingError
 
 # Giữ nguyên import của Người 1
 # Import thêm HTTP DTO của Người 3
 from app.alpr.schema import ALPRHTTPResponse, ALPRResult
 from app.alpr.service import ALPRApplicationService
+from app.alpr.utils import normalize_plate
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.database.session import get_db
@@ -49,6 +54,8 @@ def resolve_alpr_service(
 async def create_detection(
     lane_id: str = Form(...),
     image: UploadFile = File(...),
+    mode: Literal["preview", "final"] = Form("preview"),
+    persist: bool | None = Form(None),
     alpr_service: ALPRApplicationService = Depends(resolve_alpr_service),
     current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
 ):
@@ -85,6 +92,7 @@ async def create_detection(
         ) from None
 
     try:
+<<<<<<< HEAD
         result: ALPRResult = alpr_service.process_detection(image_bytes, lane_id)
 
         # P1-BE2-10: Mapping dữ liệu trước khi trả về
@@ -92,10 +100,34 @@ async def create_detection(
         normalized = None
         if raw_plate:
             normalized = raw_plate.replace("-", "").replace(".", "").replace(" ", "").strip()
+=======
+        should_persist = mode != "preview" if persist is None else persist
+        if should_persist is True and mode == "final" and persist is None:
+            # Keep compatibility with lightweight service doubles used by the
+            # existing API tests and integrations.
+            result: ALPRResult = alpr_service.process_detection(image_bytes, lane_id)
+        else:
+            result = alpr_service.process_detection(
+                image_bytes, lane_id, persist=should_persist
+            )
+
+        # P1-BE2-10: Mapping dữ liệu trước khi trả về
+        raw_plate = result.raw_plate if isinstance(result.raw_plate, str) else result.plate_number
+        normalized = (
+            result.normalized_plate
+            if isinstance(result.normalized_plate, str)
+            else normalize_plate(raw_plate) if raw_plate else None
+        )
+>>>>>>> main
 
         bbox_list = list(result.bbox.as_tuple) if result.bbox else [0, 0, 0, 0]
         model_version = result.model_version if isinstance(result.model_version, str) else "unknown"
         detection_id = result.detection_id if isinstance(result.detection_id, str) else None
+        combined_confidence = (
+            result.combined_confidence
+            if result.combined_confidence is not None
+            else result.confidence
+        )
 
         return ALPRHTTPResponse(
             raw_plate=raw_plate,
@@ -109,8 +141,25 @@ async def create_detection(
             raw_plate_number=raw_plate,
             normalized_plate_number=normalized,
             processing_time_ms=result.processing_time_ms,
+            detector_confidence=result.detector_confidence,
+            ocr_confidence=result.ocr_confidence,
+            combined_confidence=combined_confidence,
+            quality_flags=result.quality_flags,
+            provider=result.provider if isinstance(result.provider, str) else "unknown",
+            provider_status=(
+                result.provider_status
+                if isinstance(result.provider_status, str)
+                else "ready"
+            ),
+            detector_latency_ms=result.detector_latency_ms,
+            ocr_latency_ms=result.ocr_latency_ms,
         )
 
+<<<<<<< HEAD
+=======
+    except ALPRInvalidImageError as e:
+        raise AppError(status_code=422, code="CORRUPTED_IMAGE", message=str(e)) from e
+>>>>>>> main
     except ValueError as ve:
         raise AppError(status_code=404, code="NOT_FOUND", message=str(ve)) from ve
     except ALPRNotReadyError as e:
@@ -179,10 +228,8 @@ async def alpr_ready_health(
 async def get_detection_image(image_key: str):
     """API lấy ảnh (Media Serve) để hiển thị lên UI."""
     settings = get_settings()
-    # Image key có format: {lane_id}_{uuid}.jpg
     try:
         lane_id = image_key.split("_")[0]
-        # Đường dẫn file ảnh thực tế trên server
         file_path = os.path.join(settings.local_storage_path, lane_id, image_key)
 
         if not os.path.exists(file_path):

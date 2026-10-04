@@ -16,7 +16,11 @@ export default function ResultPanel({
     {!result.normalized_plate_number && result.bbox && <p>Đã phát hiện vùng biển số. Vui lòng xác nhận thủ công.</p>}
     <p>Raw: {result.raw_plate_number ?? "-"}</p>
     <p>Confidence: {(result.confidence * 100).toFixed(1)}%</p>
+    <p>Detector: {result.detector_confidence == null ? "-" : `${(result.detector_confidence * 100).toFixed(1)}%`}</p>
+    <p>OCR: {result.ocr_confidence == null ? "-" : `${(result.ocr_confidence * 100).toFixed(1)}%`}</p>
+    <p>Combined: {result.combined_confidence == null ? "-" : `${(result.combined_confidence * 100).toFixed(1)}%`}</p>
+    <p>Quality: {result.quality_flags?.length ? result.quality_flags.join(", ") : "OK"}</p>
     <p>Latency: {result.processing_time_ms} ms</p>
-    <p>Model: {result.model_version}</p>
+    <p>Model: {result.model_version} · Provider: {result.provider ?? "-"}</p>
   </div>;
 }

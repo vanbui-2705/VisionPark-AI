@@ -8,8 +8,7 @@ import { LaneCreatePage, LaneEditPage, LaneDetailPage } from '../modules/lanes/L
 import { AppShell } from '../layouts/AppShell.tsx'
 import { ForbiddenPage, NotFoundPage } from '../modules/error/ErrorPages.tsx'
 import { DashboardPage } from '../modules/dashboard/DashboardPage.tsx'
-import { ScanPage } from '../modules/station/ScanPage.tsx'
-import { ScanFullscreenPage } from '../modules/station/ScanFullscreenPage.tsx'
+import StationPage from '../modules/station/StationPage.tsx'
 import { DetectionHistoryPage } from '../modules/detections/DetectionHistoryPage.tsx'
 import { DetectionDetailPage } from '../modules/detections/DetectionDetailPage.tsx'
 import { UserListPage } from '../modules/users/UserListPage.tsx'
@@ -21,6 +20,8 @@ import { PermissionsPage } from '../modules/permissions/PermissionsPage.tsx'
 import { AlprPage } from '../modules/alpr/AlprPage.tsx'
 import { AlprTestPage } from '../modules/alpr/AlprTestPage.tsx'
 import { AuditLogsPage } from '../modules/audit/AuditLogsPage.tsx'
+import { ParkingDetailPage } from '../modules/parking/ParkingDetailPage.tsx'
+import { ParkingHistoryPage } from '../modules/parking/ParkingHistoryPage.tsx'
 import { ErrorCenterPage } from '../modules/errors/ErrorCenterPage.tsx'
 import { SystemPage } from '../modules/system/SystemPage.tsx'
 import { ProfilePage } from '../modules/profile/ProfilePage.tsx'
@@ -54,7 +55,7 @@ export function AppRoutes() {
       <Route path="/403" element={<ForbiddenPage />} />
       <Route path="/404" element={<NotFoundPage />} />
 
-      {/* Scan fullscreen — shell ẩn sidebar/header (xử lý trong AppShell) */}
+      {/* Station has one canonical flow; legacy fullscreen URLs redirect to it. */}
       <Route
         element={
           <ProtectedRoute>
@@ -63,15 +64,21 @@ export function AppRoutes() {
         }
       >
         <Route path="/station" element={<Navigate to="/station/scan" replace />} />
-        <Route path="/station/scan" element={<ScanPage />} />
-        <Route path="/station/scan/fullscreen" element={<ScanFullscreenPage />} />
+        <Route path="/station/scan" element={<StationPage />} />
+        <Route path="/station/scan/fullscreen" element={<Navigate to="/station/scan" replace />} />
         <Route path="/station/history" element={<Navigate to="/detections" replace />} />
 
-        {/* Detections — ADMIN + OPERATOR */}
+        {/* Detections / Parking operations — ADMIN + OPERATOR */}
         <Route path="/detections" element={<DetectionHistoryPage />} />
         <Route path="/detections/:id" element={<DetectionDetailPage />} />
+        <Route path="/parking" element={<ParkingHistoryPage />} />
+        <Route path="/parking/:id" element={<ParkingDetailPage />} />
+        <Route path="/operations/transactions" element={<Navigate to="/parking" replace />} />
+        <Route path="/operations/transactions/:id" element={<Navigate to="/parking" replace />} />
         <Route path="/admin/detections" element={<Navigate to="/detections" replace />} />
         <Route path="/admin/detections/:id" element={<Navigate to="/detections" replace />} />
+        <Route path="/admin/parking" element={<Navigate to="/parking" replace />} />
+        <Route path="/admin/parking/:id" element={<Navigate to="/parking" replace />} />
 
         {/* Admin-only */}
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

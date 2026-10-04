@@ -197,9 +197,10 @@ class TestDeactivateLane:
         """Admin can deactivate a lane."""
         lane = db_session.query(Lane).filter_by(name="LANE_IN_01").first()
         assert lane and lane.is_active
-
+        db_session.commit()
         headers = {"Authorization": f"Bearer {admin_token}"}
         response = client.post(f"/api/v1/lanes/{lane.id}/deactivate", headers=headers)
+
         assert response.status_code == 200
         data = response.json()
         assert data["is_active"] is False

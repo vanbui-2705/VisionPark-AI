@@ -1,6 +1,89 @@
+<<<<<<< HEAD
 import numpy as np
 
 from app.alpr.utils import clamp_bbox, crop_plate, normalize_plate, requires_confirmation
+=======
+import cv2
+import numpy as np
+import pytest
+
+from app.alpr.errors import ALPRInvalidImageError
+from app.alpr.utils import (
+    clamp_bbox,
+    crop_plate,
+    crop_with_quality,
+    decode_image,
+    normalize_plate,
+    requires_confirmation,
+    validate_image_input,
+)
+
+
+def encoded_image(extension: str) -> bytes:
+    image = np.full((8, 12, 3), 220, dtype=np.uint8)
+    ok, encoded = cv2.imencode(extension, image)
+    assert ok
+    return encoded.tobytes()
+
+
+def test_validate_and_decode_jpeg_and_png():
+    for content_type, extension in (("image/jpeg", ".jpg"), ("image/png", ".png")):
+        image_bytes = encoded_image(extension)
+
+        validate_image_input(image_bytes, content_type=content_type)
+        decoded = decode_image(image_bytes)
+
+        assert decoded.shape == (8, 12, 3)
+
+
+def test_invalid_image_payloads_raise_typed_error():
+    with pytest.raises(ALPRInvalidImageError, match="empty"):
+        validate_image_input(b"")
+
+    with pytest.raises(ALPRInvalidImageError, match="could not be decoded"):
+        decode_image(b"not-an-image")
+
+    with pytest.raises(ALPRInvalidImageError, match="exceeds"):
+        validate_image_input(b"12345", max_bytes=4)
+
+
+def test_validate_image_content_type():
+    with pytest.raises(ALPRInvalidImageError, match="Unsupported image content type"):
+        validate_image_input(encoded_image(".jpg"), content_type="text/plain")
+
+
+def test_crop_with_quality_expands_and_clamps_bbox():
+    image = np.zeros((100, 200, 3), dtype=np.uint8)
+    image[20:60, 40:160] = 255
+
+    crop, bbox, flags = crop_with_quality(image, (40, 20, 160, 60), margin=0.1)
+
+    assert bbox == (28, 16, 172, 64)
+    assert crop.shape == (48, 144, 3)
+    assert "bbox_out_of_bounds" not in flags
+
+
+def test_crop_with_quality_reports_small_dark_blurry_crop():
+    image = np.zeros((20, 20, 3), dtype=np.uint8)
+
+    crop, bbox, flags = crop_with_quality(image, (2, 2, 10, 8))
+
+    assert crop.shape == (6, 8, 3)
+    assert bbox[0] >= 0
+    assert {"bbox_too_small", "crop_blurry"}.issubset(flags)
+    assert "crop_dark" in flags
+
+
+def test_crop_with_quality_reports_out_of_bounds_and_invalid_margin():
+    image = np.full((80, 160, 3), 128, dtype=np.uint8)
+
+    _, _, flags = crop_with_quality(image, (-10, 10, 190, 30))
+
+    assert "bbox_out_of_bounds" in flags
+    with pytest.raises(ValueError, match="margin"):
+        crop_with_quality(image, (1, 1, 30, 15), margin=1.5)
+
+>>>>>>> main
 
 
 def test_normalize_plate():

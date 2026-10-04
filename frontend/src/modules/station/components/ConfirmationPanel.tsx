@@ -29,6 +29,7 @@ export default function ConfirmationPanel({
     }
   };
   const normalized = plate.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const canAccept = Boolean(result.normalized_plate_number);
   return <div style={{
     marginTop: 16,
     padding: 14,
@@ -41,7 +42,7 @@ export default function ConfirmationPanel({
       gap: 8,
       flexWrap: "wrap"
     }}>
-      <button type="button" disabled={submitting} onClick={() => void run(() => onConfirmCorrect(result.detection_id), "Đã xác nhận biển số.")}>✓ Biển số đúng</button>
+      <button type="button" disabled={submitting || !canAccept} onClick={() => void run(() => onConfirmCorrect(result.detection_id), "Đã xác nhận biển số.")}>✓ Biển số đúng</button>
       <button type="button" disabled={submitting} onClick={() => setEditing(true)}>✎ Sai / Không có biển</button>
     </div>
     {editing && <div style={{
