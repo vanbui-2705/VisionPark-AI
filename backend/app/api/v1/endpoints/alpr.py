@@ -94,16 +94,16 @@ async def create_detection(
             # existing API tests and integrations.
             result: ALPRResult = alpr_service.process_detection(image_bytes, lane_id)
         else:
-            result = alpr_service.process_detection(
-                image_bytes, lane_id, persist=should_persist
-            )
+            result = alpr_service.process_detection(image_bytes, lane_id, persist=should_persist)
 
         # P1-BE2-10: Mapping dữ liệu trước khi trả về
         raw_plate = result.raw_plate if isinstance(result.raw_plate, str) else result.plate_number
         normalized = (
             result.normalized_plate
             if isinstance(result.normalized_plate, str)
-            else normalize_plate(raw_plate) if raw_plate else None
+            else normalize_plate(raw_plate)
+            if raw_plate
+            else None
         )
 
         bbox_list = list(result.bbox.as_tuple) if result.bbox else [0, 0, 0, 0]
@@ -133,9 +133,7 @@ async def create_detection(
             quality_flags=result.quality_flags,
             provider=result.provider if isinstance(result.provider, str) else "unknown",
             provider_status=(
-                result.provider_status
-                if isinstance(result.provider_status, str)
-                else "ready"
+                result.provider_status if isinstance(result.provider_status, str) else "ready"
             ),
             detector_latency_ms=result.detector_latency_ms,
             ocr_latency_ms=result.ocr_latency_ms,

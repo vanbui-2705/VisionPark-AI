@@ -109,8 +109,7 @@ def test_process_detection_preview_skips_persistence():
     )
 
     results = [
-        service.process_detection(b"fake_image_bytes", "lane_1", persist=False)
-        for _ in range(10)
+        service.process_detection(b"fake_image_bytes", "lane_1", persist=False) for _ in range(10)
     ]
 
     assert all(result.plate_number == "30A12345" for result in results)
