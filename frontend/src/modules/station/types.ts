@@ -15,6 +15,12 @@ export type DetectionResult = {
   processing_time_ms: number;
   model_version: string;
   requires_confirmation: boolean;
+  detector_confidence?: number | null;
+  ocr_confidence?: number | null;
+  combined_confidence?: number | null;
+  quality_flags?: string[];
+  provider?: string;
+  provider_status?: string;
 };
 export type ApiError = {
   status: number;

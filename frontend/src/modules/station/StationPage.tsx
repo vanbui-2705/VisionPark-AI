@@ -89,7 +89,7 @@ export default function StationPage() {
       justifyContent: "space-between",
       alignItems: "center",
       gap: 12
-    }}><h2>VisionPark Station</h2>{isMockMode() && <span style={{
+    }}><h2>Trạm quét biển số</h2>{isMockMode() && <span style={{
         padding: "6px 10px",
         border: "1px solid #777",
         borderRadius: 999

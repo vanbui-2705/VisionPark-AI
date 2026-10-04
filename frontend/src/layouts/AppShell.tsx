@@ -32,7 +32,6 @@ const NAV: NavItem[] = [
 const TITLE_MAP: Record<string, string> = {
   '/admin/dashboard': 'Dashboard',
   '/station/scan': 'Quét biển số',
-  '/station/scan/fullscreen': 'Toàn màn hình',
   '/detections': 'Lịch sử nhận diện',
   '/admin/lanes': 'Làn xe',
   '/admin/lanes/new': 'Tạo làn xe',
@@ -201,9 +200,6 @@ export function AppShell() {
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
-
-  // Hide shell on fullscreen route
-  if (loc.pathname === '/station/scan/fullscreen') return <Outlet />
 
   const initial = user ? (user.display_name?.[0] ?? user.username[0]).toUpperCase() : '?'
 

@@ -82,12 +82,20 @@ export async function createDetection(image: Blob, laneId: string): Promise<Dete
       confidence: 0.91,
       processing_time_ms: 25,
       model_version: "mock-alpr-0.1.0",
-      requires_confirmation: false
+      requires_confirmation: false,
+      detector_confidence: 0.91,
+      ocr_confidence: 0.91,
+      combined_confidence: 0.91,
+      quality_flags: [],
+      provider: "mock",
+      provider_status: "ready"
     };
   }
   const form = new FormData();
   form.append("image", image, "station-frame.jpg");
   form.append("lane_id", laneId);
+  form.append("mode", "preview");
+  form.append("persist", "false");
   return request<DetectionResult>(`${API_BASE_URL}/alpr/detections`, {
     method: "POST",
     headers: tokenHeader(),
@@ -108,13 +116,15 @@ export async function confirmDetection(detectionId: string, laneId: string, payl
     }, ...mockHistory].slice(0, 10);
     return;
   }
-  await request<void>(`${API_BASE_URL}/alpr/detections/${detectionId}/confirmation`, {
+  await request<void>(`${API_BASE_URL}/alpr/detections/${detectionId}/confirm`, {
     method: "POST",
     headers: {
       ...tokenHeader(),
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      confirmed_plate: payload.accepted ? "29A12345" : payload.confirmed_plate_number
+    })
   });
 }
 export async function getRecentHistory(): Promise<RecentHistoryItem[]> {

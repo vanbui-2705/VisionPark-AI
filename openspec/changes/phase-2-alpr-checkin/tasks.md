@@ -4,20 +4,20 @@
 - [x] 0.2 Chỉ làm một module active tại một thời điểm.
 - [x] 0.3 Viết/chỉnh test cùng module rồi chạy test module đó.
 - [x] 0.4 Chỉ chuyển module kế tiếp khi exit gate của module hiện tại pass.
-- [ ] 0.5 Sau mỗi milestone chạy backend/frontend regression.
+- [x] 0.5 Sau mỗi milestone chạy backend/frontend regression.
 - [x] 0.6 Không dùng ONNX provider placeholder cho real demo.
 - [x] 0.7 Không train model mới trong luồng chính Phase 2.
 
 ## 1. M0 — Contract, asset và route gate
 
-- [ ] 1.1 Chạy Phase 1 clean-install/regression gate và ghi carry-over Critical/High.
-- [ ] 1.2 Chốt `/station/scan` là route Station canonical; loại bỏ duplicate flow hoặc chuyển component về một flow duy nhất.
-- [ ] 1.3 Chốt input demo là MP4 local, một lane `IN`, một xe/lane tại một thời điểm.
-- [ ] 1.4 Chốt ALPR response có raw/normalized plate, bbox, detector/OCR/combined confidence, quality flags, model version và latency.
-- [ ] 1.5 Chốt preview không persist và confirm mới tạo transaction.
-- [ ] 1.6 Sửa frontend dùng endpoint canonical `/api/v1/alpr/detections/{id}/confirm`.
-- [ ] 1.7 Chốt manifest/checksum/model distribution ngoài Git.
-- [ ] 1.8 Tạo fixture lane `IN`, user Operator và video/ảnh smoke không nhạy cảm.
+- [x] 1.1 Chạy Phase 1 clean-install/regression gate và ghi carry-over Critical/High.
+- [x] 1.2 Chốt `/station/scan` là route Station canonical; loại bỏ duplicate flow hoặc chuyển component về một flow duy nhất.
+- [x] 1.3 Chốt input demo là MP4 local, một lane `IN`, một xe/lane tại một thời điểm.
+- [x] 1.4 Chốt ALPR response có raw/normalized plate, bbox, detector/OCR/combined confidence, quality flags, model version và latency.
+- [x] 1.5 Chốt preview không persist và confirm mới tạo transaction.
+- [x] 1.6 Sửa frontend dùng endpoint canonical `/api/v1/alpr/detections/{id}/confirm`.
+- [x] 1.7 Chốt manifest/checksum/model distribution ngoài Git.
+- [x] 1.8 Tạo fixture lane `IN`, user Operator và video/ảnh smoke không nhạy cảm.
 
 **Exit gate M0:** mock flow và contract fixture chạy được; route canonical không còn mơ hồ.
 
