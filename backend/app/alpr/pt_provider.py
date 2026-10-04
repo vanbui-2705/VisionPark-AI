@@ -231,6 +231,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             self._ensure_loaded()
             image = decode_image(image_bytes)
             with self._inference_lock:
+                detector_started = time.perf_counter()
                 try:
                     predictions = self._model.predict(
                         source=image,
@@ -244,6 +245,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
 
                 prediction = predictions[0] if predictions else None
                 bbox, detector_confidence = self._find_plate(prediction)
+                detector_latency_ms = (time.perf_counter() - detector_started) * 1000
                 if bbox is None:
                     return ALPRResult(
                         plate_number=None,
@@ -255,6 +257,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                         detector_confidence=0.0,
                         combined_confidence=0.0,
                         provider="ultralytics-paddleocr",
+                        detector_latency_ms=detector_latency_ms,
                     )
                 x1, y1, x2, y2 = clamp_bbox(bbox.as_tuple, image.shape[1], image.shape[0])
                 if x2 <= x1 or y2 <= y1:
@@ -268,10 +271,13 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                         detector_confidence=detector_confidence,
                         combined_confidence=0.0,
                         provider="ultralytics-paddleocr",
+                        detector_latency_ms=detector_latency_ms,
                     )
                 bbox = BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2)
                 quality_flags: list[str] = []
+                ocr_latency_ms: float | None = None
                 if self.ocr_enabled:
+                    ocr_started = time.perf_counter()
                     crop, _, quality_flags = crop_with_quality(
                         image, bbox.as_tuple, margin=self.ocr_margin
                     )
@@ -280,6 +286,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                         plate_result = OCRReadResult(None, None, 0.0)
                     else:
                         plate_result = self._run_ocr(crop)
+                    ocr_latency_ms = (time.perf_counter() - ocr_started) * 1000
                     plate = plate_result.normalized_text
                     raw_plate = plate_result.raw_text
                     ocr_confidence = plate_result.confidence
@@ -302,6 +309,8 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                     combined_confidence=confidence,
                     quality_flags=quality_flags,
                     provider="ultralytics-paddleocr",
+                    detector_latency_ms=detector_latency_ms,
+                    ocr_latency_ms=ocr_latency_ms,
                 )
 
             confidence = min(detector_confidence, ocr_confidence)
@@ -321,6 +330,8 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 combined_confidence=confidence,
                 quality_flags=quality_flags,
                 provider="ultralytics-paddleocr",
+                detector_latency_ms=detector_latency_ms,
+                ocr_latency_ms=ocr_latency_ms,
             )
         except (ALPRInvalidImageError, ALPRNotReadyError, ALPRProcessingError):
             raise

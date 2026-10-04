@@ -30,6 +30,8 @@ class ALPRResult(BaseModel):
     quality_flags: list[str] = Field(default_factory=list)
     provider: str = "unknown"
     provider_status: str = "ready"
+    detector_latency_ms: float | None = None
+    ocr_latency_ms: float | None = None
 
 
 class ALPRHTTPResponse(BaseModel):
@@ -52,3 +54,5 @@ class ALPRHTTPResponse(BaseModel):
     quality_flags: list[str] = Field(default_factory=list)
     provider: str = "unknown"
     provider_status: str = "ready"
+    detector_latency_ms: float | None = None
+    ocr_latency_ms: float | None = None

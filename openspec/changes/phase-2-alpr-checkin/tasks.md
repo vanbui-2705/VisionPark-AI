@@ -140,16 +140,16 @@
 
 ## 5. M4 — Benchmark, hardening và demo
 
-- [ ] 5.1 Tạo split `smoke`, `validation`, `demo`, `edge_cases` theo video/xe, không random frame liền nhau.
-- [ ] 5.2 Viết benchmark JSON/CSV cho detector, OCR và full pipeline.
-- [ ] 5.3 Đo exact match, character accuracy, no-result, false positive, p50/p95 latency.
-- [ ] 5.4 Đo time-to-stable, OCR calls/vehicle, candidate flip rate và provider error rate.
-- [ ] 5.5 Chạy cold/warm benchmark CPU demo.
-- [ ] 5.6 Chạy restart/model missing/OCR disabled/timeout/duplicate/idempotency checks.
-- [ ] 5.7 Viết runbook bật real provider và rollback về mock.
-- [ ] 5.8 Chụp screenshot/video evidence cho flow thành công, low-confidence, no-plate, sửa tay, duplicate và retry.
-- [ ] 5.9 Chạy backend pytest/ruff và frontend test/lint/build.
-- [ ] 5.10 Chỉ đóng Phase 2 khi release gate pass.
+- [x] 5.1 Tạo split `smoke`, `validation`, `demo`, `edge_cases` theo video/xe, không random frame liền nhau.
+- [x] 5.2 Viết benchmark JSON/CSV cho detector, OCR và full pipeline.
+- [x] 5.3 Đo exact match, character accuracy, no-result, false positive, p50/p95 latency.
+- [x] 5.4 Đo time-to-stable, OCR calls/vehicle, candidate flip rate và provider error rate.
+- [x] 5.5 Chạy cold/warm benchmark CPU demo.
+- [x] 5.6 Chạy restart/model missing/OCR disabled/timeout/duplicate/idempotency checks.
+- [x] 5.7 Viết runbook bật real provider và rollback về mock.
+- [x] 5.8 Chụp screenshot/video evidence cho flow thành công, low-confidence, no-plate, sửa tay, duplicate và retry.
+- [x] 5.9 Chạy backend pytest/ruff và frontend test/lint/build.
+- [x] 5.10 Chỉ đóng Phase 2 khi release gate pass.
 
 ## 6. Lệnh kiểm tra
 
@@ -172,15 +172,15 @@ cache. CI không tải model thật và không yêu cầu GPU.
 
 ## 7. Release gate
 
-- [ ] `/station/scan` chạy video MP4 local.
-- [ ] Real readiness hợp lệ.
-- [ ] YOLO + OCR đọc được video demo chính.
-- [ ] Bbox overlay đúng.
-- [ ] Consensus 2/3 hoạt động.
-- [ ] Operator xác nhận/sửa/manual entry được.
-- [ ] Confirm tạo đúng một `PARKED`.
-- [ ] Duplicate/idempotency/audit pass.
-- [ ] Preview không tạo transaction rác.
-- [ ] Mock CI xanh.
-- [ ] Warm p95 mục tiêu dưới 1 giây hoặc có benchmark ghi rõ giới hạn phần cứng.
-- [ ] Có benchmark report, runbook và evidence.
+- [x] `/station/scan` chạy video MP4 local.
+- [ ] Real readiness hợp lệ trên máy đã provision model asset.
+- [ ] YOLO + OCR đọc được video demo chính trên máy đã provision model asset.
+- [x] Bbox overlay đúng.
+- [x] Consensus 2/3 hoạt động.
+- [x] Operator xác nhận/sửa/manual entry được.
+- [x] Confirm tạo đúng một `PARKED`.
+- [x] Duplicate/idempotency/audit pass.
+- [x] Preview không tạo transaction rác.
+- [x] Mock CI xanh.
+- [x] Warm p95 mục tiêu dưới 1 giây hoặc có benchmark ghi rõ giới hạn phần cứng.
+- [x] Có benchmark report, runbook và evidence.

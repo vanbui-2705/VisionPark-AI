@@ -1,0 +1,24 @@
+{
+  "version": "phase-2-smoke-1",
+  "description": "Deterministic non-sensitive smoke set; real assets stay outside Git.",
+  "splits": {
+    "smoke": [
+      {"id": "mock-success-01", "vehicle_id": "vehicle-01", "scenario": "success", "expected_plate": "29A12345"},
+      {"id": "mock-success-02", "vehicle_id": "vehicle-01", "scenario": "success", "expected_plate": "29A12345"},
+      {"id": "mock-low-confidence-01", "vehicle_id": "vehicle-02", "scenario": "low-confidence", "expected_plate": "29A12345"},
+      {"id": "mock-no-plate-01", "vehicle_id": "vehicle-03", "scenario": "no-plate", "expected_plate": null},
+      {"id": "mock-processing-error-01", "vehicle_id": "vehicle-04", "scenario": "processing-error", "expected_plate": null}
+    ],
+    "validation": [
+      {"id": "validation-success-01", "vehicle_id": "validation-01", "scenario": "success", "expected_plate": "29A12345"},
+      {"id": "validation-no-plate-01", "vehicle_id": "validation-02", "scenario": "no-plate", "expected_plate": null}
+    ],
+    "demo": [
+      {"id": "demo-success-01", "vehicle_id": "demo-01", "scenario": "success", "expected_plate": "29A12345"}
+    ],
+    "edge_cases": [
+      {"id": "edge-low-confidence-01", "vehicle_id": "edge-01", "scenario": "low-confidence", "expected_plate": "29A12345"},
+      {"id": "edge-provider-error-01", "vehicle_id": "edge-02", "scenario": "processing-error", "expected_plate": null}
+    ]
+  }
+}

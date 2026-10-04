@@ -137,6 +137,8 @@ async def create_detection(
                 if isinstance(result.provider_status, str)
                 else "ready"
             ),
+            detector_latency_ms=result.detector_latency_ms,
+            ocr_latency_ms=result.ocr_latency_ms,
         )
 
     except ALPRInvalidImageError as e:
