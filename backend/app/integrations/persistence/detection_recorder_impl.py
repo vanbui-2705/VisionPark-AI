@@ -21,8 +21,7 @@ class DatabaseDetectionRecorder(DetectionRecorder):
             image_key=image_key,
             raw_plate=result.raw_plate or result.plate_number,
             normalized_plate=(
-                result.normalized_plate
-                or normalize_plate(result.raw_plate or result.plate_number)
+                result.normalized_plate or normalize_plate(result.raw_plate or result.plate_number)
                 if result.raw_plate or result.plate_number
                 else None
             ),

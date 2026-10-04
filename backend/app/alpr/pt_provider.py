@@ -144,15 +144,6 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             raise ALPRManifestError(str(exc)) from exc
         try:
             from ultralytics import YOLO
-<<<<<<< HEAD
-
-            paddle_ocr = None
-            if self.ocr_enabled:
-                from paddleocr import PaddleOCR
-
-                paddle_ocr = PaddleOCR
-=======
->>>>>>> main
         except ImportError as exc:
             raise ALPRDependencyError(
                 "Real detector dependency is missing; install backend[real]."

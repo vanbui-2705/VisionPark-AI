@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-import numpy as np
-
-from app.alpr.utils import clamp_bbox, crop_plate, normalize_plate, requires_confirmation
-=======
 import cv2
 import numpy as np
 import pytest
@@ -82,8 +77,6 @@ def test_crop_with_quality_reports_out_of_bounds_and_invalid_margin():
     assert "bbox_out_of_bounds" in flags
     with pytest.raises(ValueError, match="margin"):
         crop_with_quality(image, (1, 1, 30, 15), margin=1.5)
-
->>>>>>> main
 
 
 def test_normalize_plate():

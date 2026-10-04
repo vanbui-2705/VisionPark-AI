@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class DetectionResponse(BaseModel):
@@ -15,19 +15,13 @@ class DetectionResponse(BaseModel):
     confidence: float | None = None
 
     # Các trường liên quan đến xác nhận (Confirmation)
-<<<<<<< HEAD
-    requires_confirmation: bool
-    is_confirmed: bool
-=======
     requires_confirmation: bool = False
     is_confirmed: bool = False
->>>>>>> main
     confirmed_plate: str | None = None
 
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DetectionConfirmRequest(BaseModel):

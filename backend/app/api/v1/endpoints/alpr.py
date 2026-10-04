@@ -1,9 +1,5 @@
 import os
-<<<<<<< HEAD
-from typing import Annotated
-=======
 from typing import Annotated, Literal
->>>>>>> main
 from uuid import UUID
 
 import cv2
@@ -92,33 +88,23 @@ async def create_detection(
         ) from None
 
     try:
-<<<<<<< HEAD
-        result: ALPRResult = alpr_service.process_detection(image_bytes, lane_id)
-
-        # P1-BE2-10: Mapping dữ liệu trước khi trả về
-        raw_plate = result.plate_number
-        normalized = None
-        if raw_plate:
-            normalized = raw_plate.replace("-", "").replace(".", "").replace(" ", "").strip()
-=======
         should_persist = mode != "preview" if persist is None else persist
         if should_persist is True and mode == "final" and persist is None:
             # Keep compatibility with lightweight service doubles used by the
             # existing API tests and integrations.
             result: ALPRResult = alpr_service.process_detection(image_bytes, lane_id)
         else:
-            result = alpr_service.process_detection(
-                image_bytes, lane_id, persist=should_persist
-            )
+            result = alpr_service.process_detection(image_bytes, lane_id, persist=should_persist)
 
         # P1-BE2-10: Mapping dữ liệu trước khi trả về
         raw_plate = result.raw_plate if isinstance(result.raw_plate, str) else result.plate_number
         normalized = (
             result.normalized_plate
             if isinstance(result.normalized_plate, str)
-            else normalize_plate(raw_plate) if raw_plate else None
+            else normalize_plate(raw_plate)
+            if raw_plate
+            else None
         )
->>>>>>> main
 
         bbox_list = list(result.bbox.as_tuple) if result.bbox else [0, 0, 0, 0]
         model_version = result.model_version if isinstance(result.model_version, str) else "unknown"
@@ -147,19 +133,14 @@ async def create_detection(
             quality_flags=result.quality_flags,
             provider=result.provider if isinstance(result.provider, str) else "unknown",
             provider_status=(
-                result.provider_status
-                if isinstance(result.provider_status, str)
-                else "ready"
+                result.provider_status if isinstance(result.provider_status, str) else "ready"
             ),
             detector_latency_ms=result.detector_latency_ms,
             ocr_latency_ms=result.ocr_latency_ms,
         )
 
-<<<<<<< HEAD
-=======
     except ALPRInvalidImageError as e:
         raise AppError(status_code=422, code="CORRUPTED_IMAGE", message=str(e)) from e
->>>>>>> main
     except ValueError as ve:
         raise AppError(status_code=404, code="NOT_FOUND", message=str(ve)) from ve
     except ALPRNotReadyError as e:
