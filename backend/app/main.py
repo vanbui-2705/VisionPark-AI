@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp
 
 from app.alpr.runtime_adapter import create_runtime
 from app.api.endpoints.health import router as health_router
@@ -14,6 +15,23 @@ from app.core.middleware import CorrelationIdMiddleware
 from app.core.readiness import RuntimeALPRProbe
 from app.database.seed import seed_database
 from app.database.session import database
+
+
+class VisionParkAPI(FastAPI):
+    """Apply CORS to the entire stack, including unhandled error responses."""
+
+    def build_middleware_stack(self) -> ASGIApp:
+        settings = self.state.settings
+        cors_stack = CORSMiddleware(
+            super().build_middleware_stack(),
+            allow_origins=settings.cors_origin_list,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["X-Correlation-ID"],
+        )
+        # Keep correlation IDs on CORS preflight responses as well as application responses.
+        return CorrelationIdMiddleware(cors_stack)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -34,7 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             database.dispose()
 
-    app = FastAPI(
+    app = VisionParkAPI(
         title=app_settings.app_name,
         version=app_settings.app_version,
         debug=app_settings.debug,
@@ -57,15 +75,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         runtime, provider=app_settings.alpr_provider, version=runtime.version
     )
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=app_settings.cors_origin_list,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["X-Correlation-ID"],
-    )
-    app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(api_router, prefix=app_settings.api_v1_prefix)

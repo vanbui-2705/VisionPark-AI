@@ -25,6 +25,16 @@ Edit `.env`: set `DATABASE_URL`, a unique `JWT_SECRET_KEY` of at least 32 charac
 `AUTO_SEED=true` for the demo. The example URL uses port 5432; change it if your
 local PostgreSQL uses a different port. Never use a shared/production DB for tests.
 
+`DATABASE_URL` and `JWT_SECRET_KEY` are required in every environment. Missing values fail startup
+with a configuration error; there are no built-in database credentials or default signing keys.
+The example signing key and former development key are rejected. Generate a new local key with:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Copy that value into your local `.env`; do not commit it.
+
 ```powershell
 .\.venv\Scripts\python.exe -m app.database.bootstrap
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
@@ -55,6 +65,10 @@ Login returns an access token and public user data. Use `Authorization: Bearer
 `CurrentUser` or `require_roles`, not their own JWT decoder. User CRUD, registration,
 history and confirmation are not implemented by this change.
 
+In Swagger, first call the JSON `/api/v1/auth/login` endpoint, then click **Authorize** and paste
+only the returned access token. Swagger uses HTTP Bearer authentication; it does not submit a
+separate OAuth2 form login.
+
 Detection accepts multipart `image` (JPEG/PNG) and a UUID `lane_id` from Lane API.
 The current response names remain `raw_plate`, `normalized_plate`, `bbox`,
 `confidence`, `latency_ms`, `model_version`; a missing plate retains the existing
@@ -64,6 +78,9 @@ All handled HTTP/validation/database errors, including route 404/405 and unexpec
 500, use `{code, message, details, correlation_id}`. `X-Correlation-ID` matches the
 body and is exposed to browser clients for ordinary CORS responses. Credentials
 and JWTs are not written by request logging. Keep `DEBUG=false` outside debugging.
+
+CORS covers unexpected `500` errors as well as handled errors. Correlation IDs are also attached
+to CORS preflight responses, so the frontend can inspect the common error contract on failures.
 
 ## ALPR and database integration
 

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -60,6 +61,26 @@ def test_me_requires_a_valid_bearer_token(client: TestClient) -> None:
     invalid = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer not-a-token"})
     assert invalid.status_code == 401
     assert invalid.json()["code"] == "UNAUTHENTICATED"
+
+
+def test_swagger_declares_bearer_auth_for_json_login(client: TestClient) -> None:
+    schema = client.get("/openapi.json").json()
+    assert schema["components"]["securitySchemes"]["HTTPBearer"] == {
+        "type": "http",
+        "scheme": "bearer",
+    }
+    assert set(schema["paths"]["/api/v1/auth/login"]["post"]["requestBody"]["content"]) == {
+        "application/json"
+    }
+    assert schema["paths"]["/api/v1/auth/me"]["get"]["security"] == [{"HTTPBearer": []}]
+
+
+@pytest.mark.parametrize("authorization", ["Basic abc", "Bearer", "", "Bearer not-a-token"])
+def test_invalid_authorization_preserves_error_contract(client, authorization):
+    response = client.get("/api/v1/auth/me", headers={"Authorization": authorization})
+    assert response.status_code == 401
+    assert response.json()["code"] == "UNAUTHENTICATED"
+    assert response.headers["X-Correlation-ID"] == response.json()["correlation_id"]
 
 
 def test_rbac_allows_admin_and_rejects_operator(client: TestClient) -> None:
