@@ -12,7 +12,7 @@ Run from `backend`:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,onnx]"
 # For detector-only inference on a machine with the local model asset:
 .\.venv\Scripts\python.exe -m pip install -e ".[dev,real]"
 # OCR is deferred from Phase 1; install the optional OCR extra only for Phase 2:
@@ -156,3 +156,23 @@ Run destructive rollback checks only on a disposable local test database:
 `python -m alembic downgrade base`, then `python -m app.database.bootstrap`.
 `python -m alembic check` verifies that migration head matches ORM metadata.
 See [handoff](../docs/backend-core-handoff.md) for evidence and migration notes.
+
+## Phase 2 Backend Core
+
+The canonical check-in endpoint is `POST /api/v1/parking/check-in`, authorized for ADMIN/OPERATOR.
+It uses the shared request session and commits the parking transaction and audit entry atomically.
+Transactions persist a unique idempotency key and a SHA-256 request fingerprint. The fingerprint
+covers the authenticated actor, lane, normalized plate, detection, AI input, source, confidence
+and notes. Repeating the same request returns the existing transaction, including after the lane
+has been deactivated; a new request still requires an active IN lane. Changed payloads or actors
+return `409 IDEMPOTENCY_KEY_REUSED`. Both concurrent retries and competing check-ins are protected
+by database uniqueness constraints. Header/body keys must match when both are supplied.
+
+Revision `20261006_0006` adds checks for transaction status, confidence, key length and fingerprint
+length. Its upgrade/downgrade preserve Phase 1 data and existing valid parking transactions. Older
+fingerprints remain supported for retries by the original actor with unchanged notes and payload.
+Seed/bootstrap still creates four roles, two demo users and two lanes without duplicating records.
+
+Run the focused checks with `python -m pytest tests/integration/test_backend_core_phase2.py`.
+Set `TEST_POSTGRES_URL` as described above to include real PostgreSQL race tests. Without it, those
+three tests are explicitly skipped. See [Phase 2 handoff](../docs/backend-core-phase-2-handoff.md).

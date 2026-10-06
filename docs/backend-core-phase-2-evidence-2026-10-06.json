@@ -1,0 +1,49 @@
+{
+  "verified_on": "2026-10-06",
+  "branch": "dqt_core",
+  "scope": ["P2-BC-001", "P2-BC-002", "P2-BC-003", "P2-BC-004", "P2-BC-005"],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12",
+    "postgresql": "17.11",
+    "databases": "Disposable loopback PostgreSQL cluster and isolated SQLite files"
+  },
+  "checks": {
+    "pytest_sqlite_and_postgresql": {
+      "passed": 224,
+      "skipped": 3,
+      "warnings": 2,
+      "skip_reason": "SQLite variants of PostgreSQL concurrency tests",
+      "warning_reason": "Starlette/httpx and HTTP 422 constant deprecations",
+      "duration_seconds": 121.53
+    },
+    "postgresql_races": {
+      "same_key_same_payload": "pass, one transaction and one audit",
+      "different_keys_same_plate": "pass, one 201 and one PLATE_ALREADY_PARKED",
+      "same_key_changed_payload": "pass, one 201 and one IDEMPOTENCY_KEY_REUSED"
+    },
+    "migration_upgrade_downgrade_and_data_preservation": "pass",
+    "clean_bootstrap_twice": "pass",
+    "ruff_check": "pass",
+    "ruff_format": "pass, 112 files",
+    "pip_check": "pass",
+    "mock_scenario_and_manifest_gate": "pass",
+    "compose_and_workflow_yaml": "pass"
+  },
+  "uvicorn_http_smoke": {
+    "database": "isolated SQLite",
+    "health_live": 200,
+    "health_ready": 200,
+    "login": 200,
+    "operator_lane_read": 200,
+    "check_in": 201,
+    "idempotent_retry": 201,
+    "changed_payload": 409,
+    "missing_token": 401,
+    "cors_preflight": 200
+  },
+  "limitations": [
+    "Docker Compose full-stack execution was not available on this host",
+    "Real model inference and frontend E2E were outside the Backend Core verification scope"
+  ]
+}

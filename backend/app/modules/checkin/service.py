@@ -1,5 +1,3 @@
-import hashlib
-import json
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -7,6 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.alpr.utils import normalize_plate
 from app.core.errors import AppError
+from app.database.idempotency import (
+    fingerprint_payload,
+    require_matching_fingerprint,
+    validate_idempotency_key,
+)
 from app.modules.audit_logs.service import log_action
 from app.modules.lanes.models import LaneDirection
 from app.modules.users.models import User
@@ -32,13 +35,39 @@ class CheckInService:
         operator: User,
         idempotency_key: str | None = None,
     ) -> CheckInResponse:
-        key = idempotency_key or request.idempotency_key
-        if not key:
+        key = validate_idempotency_key(
+            idempotency_key if idempotency_key is not None else request.idempotency_key
+        )
+        if request.idempotency_key is not None and request.idempotency_key != key:
             raise AppError(
                 status_code=422,
-                code="IDEMPOTENCY_KEY_REQUIRED",
-                message="Idempotency-Key header is required.",
+                code="IDEMPOTENCY_KEY_MISMATCH",
+                message="Header and body idempotency keys must match.",
             )
+
+        normalized_plate = normalize_plate(request.requested_plate)
+        if len(normalized_plate) < 3 or len(normalized_plate) > 50:
+            raise AppError(
+                status_code=422,
+                code="INVALID_PLATE",
+                message="The normalized plate must contain 3 to 50 characters.",
+            )
+        fingerprint = fingerprint_payload(
+            {
+                "operation": "parking.check-in.v2",
+                "operator_id": operator.id,
+                "lane_id": request.lane_id,
+                "normalized_plate": normalized_plate,
+                "detection_id": request.detection_id,
+                "source": request.source,
+                "original_ai_plate": request.original_ai_plate,
+                "confidence": request.confidence,
+                "notes": request.override_reason,
+            }
+        )
+        existing = self.repo.get_by_idempotency_key(key)
+        if existing is not None:
+            return self._replay(existing, request, operator, fingerprint, normalized_plate)
 
         lane = self.repo.get_lane(request.lane_id)
         if lane is None:
@@ -60,14 +89,6 @@ class CheckInService:
                 message="Check-in is only allowed on an IN lane.",
             )
 
-        normalized_plate = normalize_plate(request.requested_plate)
-        if len(normalized_plate) < 3:
-            raise AppError(
-                status_code=422,
-                code="INVALID_PLATE",
-                message="The normalized plate is too short.",
-            )
-
         detection = self.repo.get_detection(request.detection_id) if request.detection_id else None
         if request.detection_id and detection is None:
             raise AppError(
@@ -87,28 +108,6 @@ class CheckInService:
         source = self._resolve_source(
             request.source, detection is not None, ai_normalized, normalized_plate
         )
-        fingerprint = self._fingerprint(
-            lane_id=request.lane_id,
-            normalized_plate=normalized_plate,
-            detection_id=request.detection_id,
-            source=source,
-            ai_plate=ai_normalized,
-            confidence=request.confidence,
-        )
-
-        existing = self.repo.get_by_idempotency_key(key)
-        if existing:
-            if existing.request_fingerprint != fingerprint:
-                raise AppError(
-                    status_code=409,
-                    code="IDEMPOTENCY_KEY_REUSED",
-                    message="Idempotency-Key was already used with a different payload.",
-                )
-            return CheckInResponse(
-                transaction=self.to_response(existing),
-                message="The existing check-in transaction was returned.",
-            )
-
         duplicate = self.repo.get_active_by_plate(normalized_plate)
         if duplicate:
             raise AppError(
@@ -164,11 +163,8 @@ class CheckInService:
         except IntegrityError as exc:
             self.session.rollback()
             existing = self.repo.get_by_idempotency_key(key)
-            if existing and existing.request_fingerprint == fingerprint:
-                return CheckInResponse(
-                    transaction=self.to_response(existing),
-                    message="The existing check-in transaction was returned.",
-                )
+            if existing is not None:
+                return self._replay(existing, request, operator, fingerprint, normalized_plate)
             duplicate = self.repo.get_active_by_plate(normalized_plate)
             if duplicate:
                 raise AppError(
@@ -177,15 +173,46 @@ class CheckInService:
                     message="This plate already has an active PARKED transaction.",
                     details={"transaction_id": str(duplicate.id)},
                 ) from exc
-            raise AppError(
-                status_code=409,
-                code="IDEMPOTENCY_KEY_REUSED",
-                message="Idempotency-Key was already used with a different payload.",
-            ) from exc
+            # Unrelated constraint failures are handled by the shared database error handler.
+            raise
         self.session.refresh(transaction)
         return CheckInResponse(
             transaction=self.to_response(transaction),
             message="Check-in transaction created.",
+        )
+
+    def _replay(
+        self, existing, request, operator, fingerprint, normalized_plate
+    ) -> CheckInResponse:
+        # Preserve retries for transactions written by the initial Phase 2 implementation.
+        ai_plate = request.original_ai_plate or existing.original_ai_plate
+        ai_normalized = normalize_plate(ai_plate) if ai_plate else None
+        legacy = fingerprint_payload(
+            {
+                "lane_id": request.lane_id,
+                "normalized_plate": normalized_plate,
+                "detection_id": request.detection_id,
+                "source": self._resolve_source(
+                    request.source, bool(request.detection_id), ai_normalized, normalized_plate
+                ),
+                "ai_plate": ai_normalized,
+                "confidence": request.confidence,
+            }
+        )
+        legacy_matches = (
+            existing.request_fingerprint == legacy
+            and existing.check_in_operator_id == operator.id
+            and existing.notes == request.override_reason
+            and (
+                request.original_ai_plate is None
+                or request.original_ai_plate == existing.original_ai_plate
+            )
+        )
+        if not legacy_matches:
+            require_matching_fingerprint(existing.request_fingerprint, fingerprint)
+        return CheckInResponse(
+            transaction=self.to_response(existing),
+            message="The existing check-in transaction was returned.",
         )
 
     def get_transaction(self, transaction_id: UUID) -> ParkingTransactionResponse:
@@ -217,11 +244,6 @@ class CheckInService:
             if ai_plate == final_plate
             else CheckInSource.OPERATOR_CORRECTED
         )
-
-    @staticmethod
-    def _fingerprint(**values: object) -> str:
-        payload = json.dumps(values, default=str, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     @staticmethod
     def to_response(transaction: ParkingTransaction) -> ParkingTransactionResponse:
