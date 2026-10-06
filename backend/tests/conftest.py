@@ -13,9 +13,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from alembic import command
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.database.session import database
-from app.main import create_app
 from app.modules.auth.dependencies import require_roles
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
@@ -23,6 +22,16 @@ from app.modules.users.schemas import RoleName
 TEST_JWT_SECRET = "test-secret-key-with-at-least-thirty-two-characters"
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 AdminUser = Annotated[User, Depends(require_roles(RoleName.ADMIN))]
+
+
+@pytest.fixture(autouse=True)
+def required_settings_environment(monkeypatch):
+    """Tests supply their own required configuration without reading a developer's secrets."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("JWT_SECRET_KEY", TEST_JWT_SECRET)
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def make_alembic_config(database_url: str) -> Config:
@@ -78,6 +87,8 @@ def settings(migrated_database_url: str, tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def app(settings: Settings) -> FastAPI:
+    from app.main import create_app
+
     test_app = create_app(settings)
 
     @test_app.get("/api/v1/test/admin-only")

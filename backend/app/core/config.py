@@ -1,8 +1,10 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 DEV_JWT_SECRET = "development-only-change-this-jwt-secret"
 
@@ -10,8 +12,8 @@ DEV_JWT_SECRET = "development-only-change-this-jwt-secret"
 class Settings(BaseSettings):
     """Environment-backed application settings.
 
-    Local defaults make the process bootable before Docker Compose exists. Production rejects the
-    development JWT secret, and demo accounts are created only when ``auto_seed`` is explicitly on.
+    Database credentials and the JWT signing key must be supplied explicitly in every environment.
+    Demo accounts are created only when ``auto_seed`` is explicitly on.
     """
 
     model_config = SettingsConfigDict(
@@ -27,10 +29,10 @@ class Settings(BaseSettings):
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
 
-    database_url: str = "postgresql+psycopg://visionpark:visionpark@localhost:5432/visionpark"
+    database_url: str = Field(min_length=1)
     database_echo: bool = False
 
-    jwt_secret_key: SecretStr = SecretStr(DEV_JWT_SECRET)
+    jwt_secret_key: SecretStr
     jwt_algorithm: Literal["HS256"] = "HS256"
     access_token_expire_minutes: int = 60
 
@@ -64,6 +66,16 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, value: str) -> str:
+        value = value.strip()
+        try:
+            make_url(value)
+        except ArgumentError as exc:
+            raise ValueError("DATABASE_URL must be a valid SQLAlchemy connection URL") from exc
+        return value
+
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
         if self.access_token_expire_minutes <= 0:
@@ -76,10 +88,11 @@ class Settings(BaseSettings):
             raise ValueError("ALPR_OCR_MARGIN must be between 0 and 1")
         if len(self.jwt_secret_key.get_secret_value()) < 32:
             raise ValueError("JWT_SECRET_KEY must contain at least 32 characters")
-        if self.environment == "production" and (
-            self.jwt_secret_key.get_secret_value() == DEV_JWT_SECRET
-        ):
-            raise ValueError("Production must provide a non-development JWT_SECRET_KEY")
+        if self.jwt_secret_key.get_secret_value() in {
+            DEV_JWT_SECRET,
+            "replace-this-with-a-long-random-secret",
+        }:
+            raise ValueError("JWT_SECRET_KEY must not use a sample or development signing key")
         if self.auto_seed and (
             self.seed_admin_password is None or self.seed_operator_password is None
         ):

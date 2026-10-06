@@ -32,6 +32,38 @@ def test_unexpected_error_has_correlation_header(app):
     assert "private implementation" not in response.text
 
 
+def test_unexpected_error_is_readable_by_local_frontend(app):
+    @app.get("/cors-failure")
+    def failure():
+        raise RuntimeError("private implementation detail")
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get(
+            "/cors-failure",
+            headers={"Origin": "http://localhost:5173", "X-Correlation-ID": "cors-failure-check"},
+        )
+    assert response.status_code == 500
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert "X-Correlation-ID" in response.headers["access-control-expose-headers"]
+    assert response.headers["X-Correlation-ID"] == response.json()["correlation_id"]
+    assert response.json()["code"] == "INTERNAL_SERVER_ERROR"
+
+
+def test_cors_preflight_has_correlation_id(client):
+    response = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,authorization",
+            "X-Correlation-ID": "preflight-check",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert response.headers["X-Correlation-ID"] == "preflight-check"
+
+
 def test_cors_exposes_correlation_id(client):
     response = client.get("/health/live", headers={"Origin": "http://localhost:5173"})
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"

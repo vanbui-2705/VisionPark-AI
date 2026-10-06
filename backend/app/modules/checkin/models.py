@@ -2,7 +2,19 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String, Text, Uuid, func, text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -25,6 +37,20 @@ class CheckInSource(StrEnum):
 class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "parking_transactions"
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('PARKED', 'COMPLETED', 'CANCELLED')", name="ck_parking_transactions_status"
+        ),
+        CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="ck_parking_transactions_confidence",
+        ),
+        CheckConstraint(
+            "length(idempotency_key) BETWEEN 1 AND 255",
+            name="ck_parking_transactions_idempotency_key",
+        ),
+        CheckConstraint(
+            "length(request_fingerprint) = 64", name="ck_parking_transactions_fingerprint"
+        ),
         Index(
             "uq_parking_transactions_active_plate",
             "normalized_plate",

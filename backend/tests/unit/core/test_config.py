@@ -4,9 +4,30 @@ from pydantic import ValidationError
 from app.core.config import DEV_JWT_SECRET, Settings
 
 
-def test_production_rejects_development_secret() -> None:
-    with pytest.raises(ValidationError, match="Production must provide"):
-        Settings(environment="production", jwt_secret_key=DEV_JWT_SECRET)
+@pytest.mark.parametrize("environment", ["development", "production"])
+@pytest.mark.parametrize("secret", [DEV_JWT_SECRET, "replace-this-with-a-long-random-secret"])
+def test_sample_signing_keys_are_rejected(environment, secret) -> None:
+    with pytest.raises(ValidationError, match="sample or development signing key"):
+        Settings(_env_file=None, environment=environment, jwt_secret_key=secret)
+
+
+@pytest.mark.parametrize("environment", ["development", "production"])
+@pytest.mark.parametrize(
+    "variable,field", [("DATABASE_URL", "database_url"), ("JWT_SECRET_KEY", "jwt_secret_key")]
+)
+def test_required_environment_variables_have_no_fallback(monkeypatch, environment, variable, field):
+    monkeypatch.delenv(variable, raising=False)
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None, environment=environment)
+    assert any(
+        item["loc"] == (field,) and item["type"] == "missing" for item in error.value.errors()
+    )
+
+
+@pytest.mark.parametrize("url", ["", "   ", "not-a-database-url"])
+def test_invalid_database_url_is_rejected(url):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, database_url=url)
 
 
 def test_cors_origins_are_parsed_and_trimmed() -> None:
