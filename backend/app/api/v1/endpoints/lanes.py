@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.modules.auth.dependencies import require_roles
+from app.modules.auth.dependencies import CurrentUser, require_roles
 from app.modules.lanes import schemas, service
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
@@ -26,18 +26,18 @@ def create_lane(
 @router.get("/", response_model=list[schemas.LaneResponse])
 def list_lanes(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
+    current_user: CurrentUser,
 ):
-    """Liệt kê tất cả lane (Admin)."""
+    """Liệt kê tất cả lane cho user đã xác thực."""
     return service.list_lanes(db)
 
 
 @router.get("/active", response_model=list[schemas.LaneResponse])
 def list_active_lanes(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
+    current_user: CurrentUser,
 ):
-    """Liệt kê lane đang active (Admin)."""
+    """Liệt kê lane đang active cho user đã xác thực."""
     return service.list_active_lanes(db)
 
 
@@ -45,9 +45,9 @@ def list_active_lanes(
 def get_lane(
     lane_id: UUID,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
+    current_user: CurrentUser,
 ):
-    """Lấy chi tiết lane theo ID (Admin)."""
+    """Lấy chi tiết lane theo ID cho user đã xác thực."""
     return service.get_lane(db, lane_id)
 
 

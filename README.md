@@ -109,7 +109,7 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e ".[dev]"
+pip install -e ".[dev,onnx]"
 ```
 
 Trên Linux/macOS, kích hoạt virtual environment bằng:
@@ -134,6 +134,14 @@ SEED_OPERATOR_PASSWORD=mat-khau-operator-local
 ```
 
 Không commit file `.env` hoặc secret thật vào repository.
+
+`DATABASE_URL` và `JWT_SECRET_KEY` phải được cung cấp rõ ràng. Backend không dùng DB URL hoặc
+signing key mặc định. Với Docker Compose, copy `env.example` thành `.env` ở root và thay signing
+key mẫu trước khi chạy. Sinh key bằng:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
 
 ### 4. Migration và seed dữ liệu
 
