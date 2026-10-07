@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from alembic import command
 from app.database.idempotency import fingerprint_payload
+from app.modules.alpr.models import Detection
 from app.modules.audit_logs.models import AuditLog
 from app.modules.checkin.models import ParkingTransaction
 from app.modules.checkin.repository import DatabaseCheckInRepository
@@ -159,13 +160,13 @@ def test_database_rejects_invalid_transaction_fields(db_session, in_lane, field,
 
 
 def test_additive_migration_and_rollback_preserve_existing_data(database_url):
-    from sqlalchemy import MetaData, Table, Uuid
-
     config = make_alembic_config(database_url)
     command.upgrade(config, PHASE2_PARENT)
     engine = create_engine(database_url)
     detection_id, transaction_id = uuid4(), uuid4()
     with Session(engine) as session:
+        from sqlalchemy import MetaData, Table, Uuid
+
         old_users = Table("users", MetaData(), autoload_with=engine)
         old_users.c.id.type = Uuid()
         old_users.c.role_id.type = Uuid()
@@ -200,22 +201,32 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
             )
         )
         session.flush()
-        old_transactions = Table("parking_transactions", MetaData(), autoload_with=engine)
-        for column in ("id", "lane_id", "detection_id"):
-            old_transactions.c[column].type = Uuid()
+        from sqlalchemy import text
+
         session.execute(
-            old_transactions.insert().values(
-                id=transaction_id,
-                lane_id=lane.id,
-                detection_id=detection_id,
-                license_plate="29A12345",
-                normalized_plate="29A12345",
-                status="PARKED",
-                source="MANUAL_ENTRY",
-                is_manual_override=False,
-                idempotency_key="old-key",
-                request_fingerprint="a" * 64,
-            )
+            text(
+                """
+                INSERT INTO parking_transactions (
+                    id, lane_id, detection_id, license_plate, normalized_plate,
+                    status, source, idempotency_key, request_fingerprint, is_manual_override
+                ) VALUES (
+                    :id, :lane, :det, :plate, :norm,
+                    :status, :src, :key, :fp, :is_man
+                )
+                """
+            ),
+            {
+                "id": transaction_id.hex,
+                "lane": lane.id.hex,
+                "det": detection_id.hex,
+                "plate": "29A12345",
+                "norm": "29A12345",
+                "status": "PARKED",
+                "src": "MANUAL_ENTRY",
+                "key": "old-key",
+                "fp": "a" * 64,
+                "is_man": False,
+            },
         )
         session.commit()
     engine.dispose()
@@ -226,15 +237,13 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
             command.downgrade(config, revision)
         engine = create_engine(database_url)
         with Session(engine) as session:
-            legacy_table = Table("detections", MetaData(), autoload_with=engine)
-            legacy_table.c.id.type = Uuid()
-            assert (
-                session.scalar(
-                    select(legacy_table.c.image_key).where(legacy_table.c.id == detection_id)
-                )
-                == "existing-phase1.jpg"
-            )
-            assert session.get(ParkingTransaction, transaction_id).detection_id == detection_id
+            assert session.get(Detection, detection_id).image_key == "existing-phase1.jpg"
+            row = session.execute(
+                text("SELECT detection_id FROM parking_transactions WHERE id = :id"),
+                {"id": transaction_id.hex},
+            ).fetchone()
+            assert row is not None
+            assert row[0].replace("-", "") == detection_id.hex
             assert session.scalar(select(func.count()).select_from(User)) == 2
             assert session.scalar(select(func.count()).select_from(Role)) == 4
         constraints = {
@@ -253,6 +262,7 @@ def test_bootstrap_twice_from_empty_database_creates_phase2_fixture(database_url
         "AUTO_SEED": "true",
         "SEED_ADMIN_PASSWORD": "admin-test-password",
         "SEED_OPERATOR_PASSWORD": "operator-test-password",
+        "ALPR_PROVIDER": "real",
     }
     for _ in range(2):
         result = subprocess.run(

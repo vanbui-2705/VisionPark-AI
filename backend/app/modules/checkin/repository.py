@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload
@@ -47,7 +47,7 @@ class CheckInRepository(ABC):
         to_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[ParkingTransaction]:
+    ) -> tuple[list[ParkingTransaction], int]:
         raise NotImplementedError
 
 
@@ -123,8 +123,7 @@ class DatabaseCheckInRepository(CheckInRepository):
         to_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-        count_only: bool = False,
-    ) -> list[ParkingTransaction]:
+    ) -> tuple[list[ParkingTransaction], int]:
         stmt = (
             select(ParkingTransaction)
             .options(
@@ -149,8 +148,51 @@ class DatabaseCheckInRepository(CheckInRepository):
             stmt = stmt.where(ParkingTransaction.check_in_time >= from_time)
         if to_time:
             stmt = stmt.where(ParkingTransaction.check_in_time <= to_time)
-        if count_only:
-            return self.session.scalar(
-                select(func.count()).select_from(stmt.order_by(None).subquery())
-            )
-        return list(self.session.scalars(stmt.limit(limit).offset(offset)).all())
+
+        total = self.session.scalar(select(func.count()).select_from(stmt.subquery()))
+        stmt = stmt.limit(limit).offset(offset)
+        return list(self.session.scalars(stmt).all()), total
+
+
+class FakeCheckInRepository(CheckInRepository):
+    """Small in-memory repository retained for isolated service tests."""
+
+    def __init__(self):
+        self._fake_db: list[ParkingTransaction] = []
+
+    def get_lane(self, lane_id: UUID) -> Lane | None:
+        return Lane(
+            id=lane_id,
+            name="TEST_IN",
+            direction="IN",
+            video_source="fixture",
+            is_active=True,
+        )
+
+    def get_detection(self, detection_id: UUID) -> Detection | None:
+        return None
+
+    def get_by_idempotency_key(self, key: str) -> ParkingTransaction | None:
+        return next((item for item in self._fake_db if item.idempotency_key == key), None)
+
+    def get_by_id(self, transaction_id: UUID) -> ParkingTransaction | None:
+        return next((item for item in self._fake_db if item.id == transaction_id), None)
+
+    def get_active_by_plate(self, normalized_plate: str) -> ParkingTransaction | None:
+        return next(
+            (
+                item
+                for item in self._fake_db
+                if item.normalized_plate == normalized_plate
+                and item.status == TransactionStatus.PARKED
+            ),
+            None,
+        )
+
+    def save_transaction(self, values: dict) -> ParkingTransaction:
+        transaction = ParkingTransaction(id=uuid4(), **values)
+        self._fake_db.append(transaction)
+        return transaction
+
+    def list_transactions(self, **kwargs) -> tuple[list[ParkingTransaction], int]:
+        return list(self._fake_db), len(self._fake_db)

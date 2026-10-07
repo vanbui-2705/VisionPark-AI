@@ -9,7 +9,12 @@ from app.database.session import get_db
 from app.modules.auth.dependencies import require_roles
 from app.modules.checkin.models import TransactionStatus
 from app.modules.checkin.repository import DatabaseCheckInRepository
-from app.modules.checkin.schemas import CheckInRequest, CheckInResponse, ParkingTransactionResponse
+from app.modules.checkin.schemas import (
+    CheckInRequest,
+    CheckInResponse,
+    PaginatedParkingTransactions,
+    ParkingTransactionResponse,
+)
 from app.modules.checkin.service import CheckInService
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
@@ -43,7 +48,10 @@ def create_check_in(
     )
 
 
-@router.get("/transactions", response_model=list[ParkingTransactionResponse] | dict)
+@router.get(
+    "/transactions",
+    response_model=dict | PaginatedParkingTransactions | list[ParkingTransactionResponse],
+)
 def list_parking_transactions(
     q: str | None = None,
     lane_id: UUID | None = None,
@@ -55,9 +63,9 @@ def list_parking_transactions(
     paginated: bool = False,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
-) -> list[ParkingTransactionResponse]:
+):
     del current_user
-    rows = service.list_transactions(
+    paginated_result = service.list_transactions(
         query=q,
         lane_id=lane_id,
         status=status,
@@ -67,21 +75,16 @@ def list_parking_transactions(
         offset=page * limit,
     )
     if paginated:
-        total = service.repo.list_transactions(
-            query=q,
-            lane_id=lane_id,
-            status=status,
-            from_time=from_time,
-            to_time=to_time,
-            count_only=True,
-        )
         return {
-            "items": [row.model_dump(mode="json") for row in rows],
-            "total": total,
+            "items": [row.model_dump(mode="json") for row in paginated_result.data],
+            "total": paginated_result.total,
             "limit": limit,
             "offset": page * limit,
+            # include our fields too just in case
+            "data": paginated_result.data,
+            "page": page,
         }
-    return rows
+    return paginated_result
 
 
 @router.get("/transactions/{transaction_id}", response_model=ParkingTransactionResponse)

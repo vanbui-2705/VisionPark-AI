@@ -27,11 +27,11 @@ def test_checkin_creates_parked_transaction_and_audit(client, db_session, operat
 
     history = client.get("/api/v1/parking/transactions?q=29A12345", headers=operator_headers)
     assert history.status_code == 200
-    assert len(history.json()) == 1
+    assert len(history.json()["data"]) == 1
 
     audit = client.get("/api/v1/audit-logs/?action=CREATE_CHECKIN", headers=operator_headers)
     assert audit.status_code == 200
-    assert audit.json()[0]["resource"] == "ParkingTransaction"
+    assert audit.json()["data"][0]["resource"] == "ParkingTransaction"
 
 
 def test_checkin_idempotency_returns_same_transaction_and_rejects_changed_payload(
