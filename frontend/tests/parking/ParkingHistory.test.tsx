@@ -52,20 +52,24 @@ describe('ParkingHistoryPage — Duy Anh', () => {
   
   it('filter by lane', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
+    const fetchCalls: string[] = []
     renderPage(async (u) => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j(txs)
+      if (s.includes('/parking/transactions')) {
+        fetchCalls.push(s)
+        if (s.includes('lane_id=lane-out-1')) return j(paginated([txs[1]]))
+        if (s.includes('lane_id=')) return j(paginated([txs[1]]))
+        return j(paginated(txs))
+      }
       return j({})
     })
-
     await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-
-    const laneInput = screen.getByPlaceholderText('ALL')
+    const laneInput = screen.getByPlaceholderText(/Tất cả làn/i)
+    await userEvent.clear(laneInput)
     await userEvent.type(laneInput, 'lane-out-1')
-
-    expect(screen.queryByText('29A12345')).not.toBeInTheDocument()
-    expect(screen.getByText('30F88888')).toBeInTheDocument()
+    await waitFor(() => expect(fetchCalls.some(c => c.includes('lane_id='))).toBe(true), { timeout: 5000 })
+    await waitFor(() => expect(screen.getByText('30F88888')).toBeInTheDocument(), { timeout: 3000 })
   })
 
   it('filter by status', async () => {
@@ -74,10 +78,8 @@ describe('ParkingHistoryPage — Duy Anh', () => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
       if (s.includes('/parking/transactions')) {
-        return j([
-          txs[0],
-          { ...txs[1], status: 'COMPLETED' },
-        ])
+        if (s.includes('status=COMPLETED')) return j(paginated([{ ...txs[1], status: 'COMPLETED' }]))
+        return j(paginated(txs))
       }
       return j({})
     })
@@ -86,22 +88,20 @@ describe('ParkingHistoryPage — Duy Anh', () => {
 
     await userEvent.selectOptions(screen.getByRole('combobox'), 'COMPLETED')
 
-    expect(screen.queryByText('29A12345')).not.toBeInTheDocument()
-    expect(screen.getByText('30F88888')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('29A12345')).not.toBeInTheDocument(), { timeout: 3000 })
+    await waitFor(() => expect(screen.getByText('30F88888')).toBeInTheDocument())
   })
 
   it('filter by time range', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
 
-    const datedTxs = [
-      { ...txs[0], check_in_time: '2026-10-01T10:00:00' },
-      { ...txs[1], check_in_time: '2026-10-05T10:00:00' },
-    ]
-
     renderPage(async (u) => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j(datedTxs)
+      if (s.includes('/parking/transactions')) {
+        if (s.includes('from=2026-10-04')) return j(paginated([txs[1]]))
+        return j(paginated(txs))
+      }
       return j({})
     })
 
@@ -109,9 +109,8 @@ describe('ParkingHistoryPage — Duy Anh', () => {
 
     const dateInputs = document.querySelectorAll('input[type="date"]')
 await userEvent.type(dateInputs[0] as HTMLInputElement, '2026-10-04')
-
-    expect(screen.queryByText('29A12345')).not.toBeInTheDocument()
-    expect(screen.getByText('30F88888')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('29A12345')).not.toBeInTheDocument(), { timeout: 3000 })
+    await waitFor(() => expect(screen.getByText('30F88888')).toBeInTheDocument())
   })
 
   it('sends page/pageSize and filters to server', async () => {

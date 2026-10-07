@@ -136,9 +136,10 @@ export function AuditLogsPage() {
           </div>
         </div>
       </section>
-      {expanded ? (() => { const row = items.find((x) => x.id === expanded); if (!row) return null; return (
+      {expanded ? (() => { const row = items.find((x) => x.id === expanded); if (!row) return null; const _after = row.after && typeof row.after === 'object' ? row.after as Record<string, unknown> : null; return (
         <section className="data-table-card audit-detail">
           <div className="data-table-head"><div><span className="data-section-kicker">BẢN GHI {row.id}</span><h3>Chi tiết nhật ký</h3></div></div>
+          {_after ? <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 12, fontSize: 13 }}><span>{_after.ai_plate ? String(_after.ai_plate) : '—'}</span><span>{_after.final_plate ? String(_after.final_plate) : String((_after as Record<string,unknown>).plate ?? '—')}</span><span>{String(_after.source ?? row.source ?? '—')}</span><span>{row.actor ?? '—'}</span></div> : null}
           <div className="audit-detail-grid">
             <div><div className="data-section-kicker">TRƯỚC</div><pre className="code-block">{JSON.stringify(sanitize(row.before), null, 2) ?? '—'}</pre></div>
             <div><div className="data-section-kicker">SAU</div><pre className="code-block">{JSON.stringify(sanitize(row.after), null, 2) ?? '—'}</pre></div>

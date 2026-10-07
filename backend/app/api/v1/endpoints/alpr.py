@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 from uuid import UUID
 
 import cv2

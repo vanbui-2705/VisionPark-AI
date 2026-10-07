@@ -77,7 +77,7 @@ export const mockApi = {
   auditList: async (params?: AuditFilter): Promise<PaginatedResponse<AuditLog>> => {
     const p = params as Record<string, unknown> | undefined
     let filtered = [...audit]
-    if (p?.actor) filtered = filtered.filter((a) => a.actor.toLowerCase().includes(String(p.actor).toLowerCase()))
+    if (p?.actor) filtered = filtered.filter((a) => (a.actor ?? '').toLowerCase().includes(String(p.actor).toLowerCase()))
     if (p?.action) filtered = filtered.filter((a) => a.action === p.action)
     if (p?.resource) filtered = filtered.filter((a) => a.resource === p.resource)
     if (p?.q) { const q = String(p.q).toLowerCase(); filtered = filtered.filter((a) => `${a.actor} ${a.action} ${a.resource} ${a.resource_id}`.toLowerCase().includes(q)) }
