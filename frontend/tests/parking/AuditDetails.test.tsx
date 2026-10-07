@@ -45,7 +45,9 @@ describe('Audit details', () => {
     })
 
     expect(screen.getByText('operator')).toBeInTheDocument()
-    expect(screen.getByText('17:00:00 7/10/2026')).toBeInTheDocument()
+    expect(
+  screen.getByText(new Date(auditRecord.time).toLocaleString('vi-VN')),
+).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /chi tiết/i }))
 
