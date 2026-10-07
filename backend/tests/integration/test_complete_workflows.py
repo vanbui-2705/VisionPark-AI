@@ -242,6 +242,26 @@ def test_manual_source_and_historical_names_are_preserved(client, db_session, op
     assert detail["lane_name"] == lane["name"]
 
 
+def test_audit_resource_search_and_pagination(client, db_session, operator_headers):
+    from app.modules.audit_logs.models import AuditLog
+
+    db_session.add_all(
+        AuditLog(action="REVIEW", entity_type="ParkingTransaction", entity_id=f"review-{i:03}")
+        for i in range(205)
+    )
+    db_session.add(AuditLog(action="REVIEW", entity_type="Lane", entity_id="other"))
+    db_session.commit()
+    response = client.get(
+        "/api/v1/audit-logs/?paginated=true&resource=ParkingTransaction&q=review-&limit=20&offset=200",
+        headers=operator_headers,
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["total"] == 205
+    assert len(data["items"]) == 5
+    assert all(row["resource"] == "ParkingTransaction" for row in data["items"])
+
+
 def test_slow_inference_does_not_block_liveness(client, operator_headers, monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Event

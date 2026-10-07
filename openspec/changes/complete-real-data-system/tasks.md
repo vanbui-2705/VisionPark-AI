@@ -87,4 +87,3 @@
 Báo cáo: `docs/real-data-completion-report-2026-10-07.md`. Gate 7.8 còn mở:
 benchmark hai xe/11 frame có nhãn, 8/10 positive exact match, warm p95 3,03 giây CPU;
 chưa đủ nghiệm thu chất lượng tổng quát.
-

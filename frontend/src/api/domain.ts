@@ -106,6 +106,24 @@ export interface AuditLog {
   correlation_id?: string | null
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+export interface AuditFilter {
+  actor?: string
+  action?: string
+  resource?: string
+  q?: string
+  from?: string
+  to?: string
+  page?: number
+  pageSize?: number
+}
+
 export interface ManagedUser {
   id: string
   username: string

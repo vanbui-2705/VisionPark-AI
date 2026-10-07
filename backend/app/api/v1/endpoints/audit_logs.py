@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.database.session import get_db
@@ -20,6 +20,8 @@ router = APIRouter(prefix="/audit-logs", tags=["audit"])
 def list_audit_logs(
     actor: str | None = None,
     action: str | None = None,
+    resource: str | None = None,
+    q: str | None = None,
     actor_id: UUID | None = None,
     resource_id: str | None = None,
     offset: int = Query(0, ge=0),
@@ -29,7 +31,7 @@ def list_audit_logs(
     limit: int = Query(100, ge=1, le=200),
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
-) -> list[AuditLogResponse]:
+) -> list[AuditLogResponse] | dict:
     del current_user
     stmt = (
         select(AuditLog)
@@ -40,6 +42,17 @@ def list_audit_logs(
         stmt = stmt.where(AuditLog.user_id == actor_id)
     if resource_id:
         stmt = stmt.where(AuditLog.entity_id == resource_id)
+    if resource:
+        stmt = stmt.where(AuditLog.entity_type == resource)
+    if q:
+        pattern = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                AuditLog.action.ilike(pattern),
+                AuditLog.entity_type.ilike(pattern),
+                AuditLog.entity_id.ilike(pattern),
+            )
+        )
     if actor:
         stmt = stmt.join(AuditLog.user).where(User.username.ilike(f"%{actor}%"))
     if action:

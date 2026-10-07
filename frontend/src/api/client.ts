@@ -9,8 +9,8 @@ function getBaseUrl(): string {
 
 function getTimeoutMs(): number {
   const v = import.meta.env.VITE_API_TIMEOUT_MS
-  const n = v ? Number(v) : 15000
-  return Number.isFinite(n) && n > 0 ? n : 15000
+  const n = v ? Number(v) : 2000
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 2000) : 2000
 }
 
 export interface RequestOptions extends Omit<RequestInit, 'body'> {

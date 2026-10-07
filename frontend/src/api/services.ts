@@ -2,7 +2,7 @@ import { apiClient } from './client.ts'
 import { mapUser } from './authApi.ts'
 import { getApiBaseUrl } from './client.ts'
 import type { CurrentUser } from './types.ts'
-import type { AuditLog, CheckInRequest, CheckInResponse, Detection, ManagedUser, ParkingHistoryFilter, ParkingTransaction } from './domain.ts'
+import type { AuditFilter, AuditLog, PaginatedResponse, CheckInRequest, CheckInResponse, Detection, ManagedUser, ParkingHistoryFilter, ParkingTransaction } from './domain.ts'
 
 export interface UsersApi {
   list(params?: { q?: string; role?: string; active?: boolean }): Promise<ManagedUser[]>
@@ -32,6 +32,7 @@ export interface ParkingTransactionsApi {
 }
 
 export interface AuditApi {
+  page(params?: AuditFilter): Promise<PaginatedResponse<AuditLog>>
   list(params?: { actor?: string; actor_id?: string; resource_id?: string; offset?: number; action?: string; from?: string; to?: string; limit?: number }): Promise<AuditLog[]>
 }
 
@@ -87,6 +88,15 @@ const realParkingTransactions: ParkingTransactionsApi = {
 }
 
 const realAudit: AuditApi = {
+  page: async (p) => {
+    const page = p?.page ?? 0
+    const pageSize = p?.pageSize ?? 20
+    const raw = await apiClient.get<PaginatedResponse<AuditLog> | AuditLog[]>('/api/v1/audit-logs', {
+      params: { ...p, paginated: true, limit: pageSize, offset: page * pageSize },
+    })
+    if (Array.isArray(raw)) return { items: raw, total: raw.length, page, pageSize, totalPages: Math.max(1, Math.ceil(raw.length / pageSize)) }
+    return { ...raw, page, pageSize, totalPages: Math.max(1, Math.ceil(raw.total / pageSize)) }
+  },
   list: (p) => apiClient.get<AuditLog[]>('/api/v1/audit-logs', { params: p }),
 }
 

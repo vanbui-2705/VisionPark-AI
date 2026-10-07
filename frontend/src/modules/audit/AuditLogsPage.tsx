@@ -1,11 +1,14 @@
 import { t as translate } from "../../lib/i18n"
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { auditApi } from '../../api/services.ts'
 import type { AuditLog } from '../../api/domain.ts'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Spinner } from '../../components/ui/Spinner.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
+import { Input } from '../../components/ui/Input.tsx'
+import { Select } from '../../components/ui/Select.tsx'
+import { ApiError } from '../../api/errors.ts'
 
 function sanitize(obj: unknown): unknown {
   if (!obj || typeof obj !== 'object') return obj
@@ -16,64 +19,141 @@ function sanitize(obj: unknown): unknown {
 }
 
 export function AuditLogsPage() {
-  const [data, setData] = useState<AuditLog[] | null>(null)
+  const [items, setItems] = useState<AuditLog[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [err, setErr] = useState<string | null>(null)
+  const [errStatus, setErrStatus] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
-  useEffect(() => { auditApi.list({ limit: 50 }).then(setData).catch((e) => setErr(e instanceof Error ? e.message : translate("Không tải được audit logs"))).finally(() => setLoading(false)) }, [])
+  const [actor, setActor] = useState('')
+  const [action, setAction] = useState('')
+  const [resource, setResource] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [q, setQ] = useState('')
+  const [page, setPage] = useState(0)
+  const pageSize = 20
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setErr(null)
+    setErrStatus(null)
+    try {
+      const res = await auditApi.page({
+        actor: actor || undefined,
+        action: action || undefined,
+        resource: resource || undefined,
+        from: from || undefined,
+        to: to || undefined,
+        q: q || undefined,
+        page,
+        pageSize,
+      })
+      setItems(res.items)
+      setTotal(res.total)
+      setTotalPages(res.totalPages)
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : translate("Không tải được audit logs"))
+      if (e instanceof ApiError) setErrStatus(e.status)
+    } finally {
+      setLoading(false)
+    }
+  }, [actor, action, resource, from, to, q, page])
+
+  useEffect(() => { void fetchData() }, [fetchData])
+
+  const onFilterChange = (cb: () => void) => { cb(); setPage(0) }
+
   if (loading) return <Spinner />
-  if (err) return <Alert variant="error">{err}</Alert>
-  if (!data || data.length === 0) return <EmptyState title={translate("Chưa có audit logs")} />
+  if (err) {
+    const msg = errStatus === 403 ? translate("Bạn không có quyền xem audit logs.") : errStatus === 401 ? translate("Vui lòng đăng nhập lại.") : err
+    return <div><Alert variant="error">{msg}</Alert><button className="btn btn-sm" onClick={() => void fetchData()} style={{ marginTop: 12 }}>{translate("Thử lại")}</button></div>
+  }
+
+  const hasActiveFilter = !!(actor || action || resource || from || to || q)
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Audit Trail · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Audit Logs</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Theo dõi actor, action, resource và correlationId. Dữ liệu nhạy cảm được redact khi hiển thị.")}</p>
+    <div className="data-page audit-page">
+      <section className="data-hero data-hero--cream">
+        <div className="data-hero-copy">
+          <span className="data-kicker">{translate("NHẬT KÝ HỆ THỐNG · VISIONPARK")}</span>
+          <h2>{translate("Nhật ký kiểm tra")}</h2>
+          <p>{translate("Theo dõi người thực hiện, hành động, tài nguyên và mã tương quan. Dữ liệu nhạy cảm được ẩn khi hiển thị.")}</p>
         </div>
-        <Badge variant="info">{data.length}{translate("bản ghi")}</Badge>
-      </div>
+        <div className="data-hero-stat"><strong>{total}</strong><span>{translate("bản ghi")}</span></div>
+      </section>
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-        <div style={{ overflow: 'auto' }}>
-          <table className="table" style={{ margin: 0 }}>
-            <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Resource</th><th>ID</th><th>Correlation</th><th></th></tr></thead>
-            <tbody>{data.map((r) => (
+      <section className="data-filter-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span className="data-section-kicker">{translate("Bộ lọc audit")}</span>
+          <button className="btn btn-sm btn-ghost" onClick={() => { setActor(''); setAction(''); setResource(''); setFrom(''); setTo(''); setQ(''); setPage(0) }}>{translate("Xóa lọc")}</button>
+        </div>
+        <div className="data-filter-grid">
+          <Input label="Actor" value={actor} onChange={(e) => onFilterChange(() => setActor(e.target.value))} placeholder={translate("Tên người thực hiện")} />
+          <Select label="Action" value={action} onChange={(e) => onFilterChange(() => setAction(e.target.value))}>
+            <option value="">{translate("Tất cả")}</option>
+            <option value="LANE_CREATE">LANE_CREATE</option>
+            <option value="CHECK_IN">CHECK_IN</option>
+            <option value="CONFIRM_PLATE">CONFIRM_PLATE</option>
+          </Select>
+          <Select label="Resource" value={resource} onChange={(e) => onFilterChange(() => setResource(e.target.value))}>
+            <option value="">{translate("Tất cả")}</option>
+            <option value="Lane">Lane</option>
+            <option value="Detection">Detection</option>
+            <option value="ParkingTransaction">ParkingTransaction</option>
+          </Select>
+          <Input label={translate("Từ ngày")} type="date" value={from} onChange={(e) => onFilterChange(() => setFrom(e.target.value))} />
+          <Input label={translate("Đến ngày")} type="date" value={to} onChange={(e) => onFilterChange(() => setTo(e.target.value))} />
+          <Input label={translate("Tìm kiếm")} value={q} onChange={(e) => onFilterChange(() => setQ(e.target.value))} placeholder="keyword" />
+        </div>
+      </section>
+
+      {items.length === 0 ? (
+        hasActiveFilter ? <EmptyState title={translate("Không có kết quả")} description={translate("Thử đổi bộ lọc hoặc xóa điều kiện tìm kiếm.")} /> : <EmptyState title={translate("Chưa có nhật ký kiểm tra")} />
+      ) : <>
+      <section className="data-table-card">
+        <div className="data-table-head">
+          <div><span className="data-section-kicker">{translate("LỊCH SỬ THAO TÁC")}</span><h3>{translate("Hoạt động quản trị")}</h3></div>
+          <span className="data-table-meta">{total}{translate("bản ghi · trang")}{page + 1}/{totalPages}</span>
+        </div>
+        <div className="table-wrap data-table-wrap">
+          <table className="table data-table audit-table">
+            <thead><tr><th>{translate("Thời gian")}</th><th>{translate("Người thực hiện")}</th><th>{translate("Hành động")}</th><th>{translate("Tài nguyên")}</th><th>{translate("Mã tài nguyên")}</th><th>{translate("Mã tương quan")}</th><th></th></tr></thead>
+            <tbody>{items.map((r) => (
               <tr key={r.id}>
-                <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{new Date(r.time).toLocaleString('vi-VN')}</td>
-                <td><strong>{r.actor}</strong></td><td><Badge>{r.action}</Badge></td><td>{r.resource}</td><td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{r.resource_id}</td><td>{r.correlation_id ?? '—'}</td>
+                <td className="data-time">{new Date(r.time).toLocaleString('vi-VN')}</td>
+                <td><strong>{r.actor}</strong></td><td><Badge>{r.action}</Badge></td><td>{r.resource}</td><td className="data-mono">{r.resource_id}</td><td className="data-mono">{r.correlation_id ?? '—'}</td>
                 <td><button className="btn btn-ghost btn-sm" onClick={() => setExpanded(expanded === r.id ? null : r.id)}>{expanded === r.id ? translate("Thu gọn") : translate("Chi tiết")}</button></td>
               </tr>
             ))}</tbody>
           </table>
         </div>
-      </div>
-      {expanded ? (() => { const row = data.find((x) => x.id === expanded); if (!row) return null; return (
-        <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-          <h3 style={{ marginTop: 0 }}>Audit detail</h3>
-{(() => {
-  const after = row.after && typeof row.after === 'object'
-    ? row.after as Record<string, unknown>
-    : null
-
-  return (
-    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
-      <div><strong>AI plate:</strong> {String(after?.ai_plate ?? '—')}</div>
-      <div><strong>Final plate:</strong> {String(after?.final_plate ?? '—')}</div>
-      <div><strong>Actor:</strong> {row.actor ?? '—'}</div>
-      <div><strong>Source:</strong> {String(after?.source ?? row.source ?? '—')}</div>
-      <div><strong>Timestamp:</strong> {new Date(row.time).toLocaleString('vi-VN')}</div>
-    </div>
-  )
-})()}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px,1fr))', gap: 12 }}>
-            <div><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Before</div><pre className="code-block" style={{ margin: 0 }}>{JSON.stringify(sanitize(row.before), null, 2) ?? '—'}</pre></div>
-            <div><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>After</div><pre className="code-block" style={{ margin: 0 }}>{JSON.stringify(sanitize(row.after), null, 2) ?? '—'}</pre></div>
+        <div className="data-pager">
+          <div>{total}{translate("bản ghi · trang")}{page + 1}/{totalPages}</div>
+          <div className="data-pager-actions">
+            <button type="button" className="btn btn-sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>{translate("Trước")}</button>
+            <button type="button" className="btn btn-sm btn-primary" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>Sau</button>
+          </div>
+        </div>
+      </section>
+      {expanded ? (() => { const row = items.find((x) => x.id === expanded); if (!row) return null; return (
+        <section className="data-table-card audit-detail">
+          <div className="audit-detail-grid">
+            <div>AI plate: <span>{String((row.after as Record<string, unknown> | null)?.ai_plate ?? '—')}</span></div>
+            <div>Final plate: <span>{String((row.after as Record<string, unknown> | null)?.final_plate ?? '—')}</span></div>
+            <div>Actor: {row.actor ?? '—'}</div>
+            <div>Source: <span>{String((row.after as Record<string, unknown> | null)?.source ?? row.source ?? '—')}</span></div>
+            <div>Timestamp: {new Date(row.time).toLocaleString('vi-VN')}</div>
+          </div>
+          <div className="data-table-head"><div><span className="data-section-kicker">{translate("BẢN GHI")}{row.id}</span><h3>{translate("Chi tiết nhật ký")}</h3></div></div>
+          <div className="audit-detail-grid">
+            <div><div className="data-section-kicker">{translate("TRƯỚC")}</div><pre className="code-block">{JSON.stringify(sanitize(row.before), null, 2) ?? '—'}</pre></div>
+            <div><div className="data-section-kicker">SAU</div><pre className="code-block">{JSON.stringify(sanitize(row.after), null, 2) ?? '—'}</pre></div>
           </div>
         </section>
       ) })() : null}
+      </>}
     </div>
   )
 }
