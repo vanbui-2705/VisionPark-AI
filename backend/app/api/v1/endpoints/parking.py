@@ -60,9 +60,7 @@ def list_parking_transactions(
         or (request.query_params.get("format") == "paginated")
     )
     eff_page_size = pageSize if pageSize is not None else (limit if limit is not None else 20)
-    eff_skip = (
-        (page * eff_page_size) if page is not None else (skip if skip is not None else 0)
-    )
+    eff_skip = (page * eff_page_size) if page is not None else (skip if skip is not None else 0)
     eff_page = page if page is not None else (eff_skip // max(1, eff_page_size))
 
     if eff_page < 0 or eff_page_size < 1 or eff_page_size > 100:
