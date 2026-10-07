@@ -102,7 +102,7 @@ export async function createDetection(image: Blob, laneId: string): Promise<Dete
     body: form
   });
 }
-export async function confirmDetection(detectionId: string, laneId: string, payload: ConfirmationPayload): Promise<{ transactionId: string }> {
+export async function confirmDetection(detectionId: string | null, laneId: string, payload: ConfirmationPayload): Promise<{ transactionId: string }> {
   if (USE_MOCK) {
     await new Promise(resolve => window.setTimeout(resolve, 200));
     const plate = payload.accepted === true ? (payload.confirmed_plate_number ?? "29A12345") : payload.confirmed_plate_number;
@@ -127,7 +127,7 @@ export async function confirmDetection(detectionId: string, laneId: string, payl
     },
     body: JSON.stringify({
       lane_id: laneId,
-      license_plate: payload.accepted ? (payload.confirmed_plate_number ?? "29A12345") : payload.confirmed_plate_number,
+      license_plate: payload.confirmed_plate_number,
       detection_id: detectionId,
       source: payload.accepted ? "AI_ACCEPTED" : "OPERATOR_CORRECTED"
     })

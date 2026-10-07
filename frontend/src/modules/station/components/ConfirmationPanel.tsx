@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { DetectionResult } from "../types";
 type Props = {
   result: DetectionResult | null;
-  onConfirmCorrect: (id: string) => Promise<void>;
-  onConfirmCorrection: (id: string, plate: string) => Promise<void>;
+  onConfirmCorrect: (id: string | null) => Promise<void>;
+  onConfirmCorrection: (id: string | null, plate: string) => Promise<void>;
 };
 export default function ConfirmationPanel({
   result,
