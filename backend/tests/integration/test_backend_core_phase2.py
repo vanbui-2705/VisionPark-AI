@@ -323,5 +323,3 @@ def test_postgres_concurrent_requests_are_atomic(
         assert conflict.json()["code"] == (
             "PLATE_ALREADY_PARKED" if race == "same-plate" else "IDEMPOTENCY_KEY_REUSED"
         )
-
-
