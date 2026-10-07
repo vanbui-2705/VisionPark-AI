@@ -113,7 +113,6 @@ class CheckInService:
                 message="The detection belongs to a different lane.",
             )
 
-
         duplicate = self.repo.get_active_by_plate(normalized_plate)
         if duplicate:
             raise AppError(
@@ -122,7 +121,6 @@ class CheckInService:
                 message="This plate already has an active PARKED transaction.",
                 details={"transaction_id": str(duplicate.id)},
             )
-
 
         image_url = None
         if detection and detection.image_key:
@@ -303,13 +301,13 @@ class CheckInService:
             requested = CheckInSource.AI_ACCEPTED
         if requested == CheckInSource.OPERATOR_MANUAL:
             requested = CheckInSource.MANUAL_ENTRY
-            
+
         if not has_detection or not ai_plate or requested == CheckInSource.MANUAL_ENTRY:
             return CheckInSource.MANUAL_ENTRY
-            
+
         if requested == CheckInSource.OPERATOR_CORRECTED or not ai_plate:
             return CheckInSource.OPERATOR_CORRECTED
-            
+
         return (
             CheckInSource.AI_ACCEPTED
             if ai_plate == final_plate

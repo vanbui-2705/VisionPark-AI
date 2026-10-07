@@ -64,7 +64,7 @@ def list_audit_logs(
         stmt = stmt.where(AuditLog.created_at <= to_time)
 
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
-    
+
     # support both page/limit and offset/limit
     actual_offset = offset if offset > 0 else (page * limit)
     stmt = stmt.offset(actual_offset).limit(limit)
@@ -97,7 +97,7 @@ def list_audit_logs(
             "data": items,
             "page": page,
         }
-        
+
     return PaginatedAuditLogs(
         data=items,
         total=total,

@@ -166,6 +166,7 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
     detection_id, transaction_id = uuid4(), uuid4()
     with Session(engine) as session:
         from sqlalchemy import MetaData, Table, Uuid
+
         old_users = Table("users", MetaData(), autoload_with=engine)
         old_users.c.id.type = Uuid()
         old_users.c.role_id.type = Uuid()

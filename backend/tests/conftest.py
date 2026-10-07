@@ -179,5 +179,3 @@ def operator_headers(client: TestClient) -> dict[str, str]:
 def admin_token(client: TestClient) -> str:
     token = login(client, "admin", "admin-test-password")["access_token"]
     return str(token)
-
-
