@@ -52,6 +52,21 @@ export function AuditLogsPage() {
       {expanded ? (() => { const row = data.find((x) => x.id === expanded); if (!row) return null; return (
         <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
           <h3 style={{ marginTop: 0 }}>Audit detail</h3>
+{(() => {
+  const after = row.after && typeof row.after === 'object'
+    ? row.after as Record<string, unknown>
+    : null
+
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div><strong>AI plate:</strong> {String(after?.ai_plate ?? '—')}</div>
+      <div><strong>Final plate:</strong> {String(after?.final_plate ?? '—')}</div>
+      <div><strong>Actor:</strong> {row.actor ?? '—'}</div>
+      <div><strong>Source:</strong> {String(after?.source ?? row.source ?? '—')}</div>
+      <div><strong>Timestamp:</strong> {new Date(row.time).toLocaleString('vi-VN')}</div>
+    </div>
+  )
+})()}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px,1fr))', gap: 12 }}>
             <div><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Before</div><pre className="code-block" style={{ margin: 0 }}>{JSON.stringify(sanitize(row.before), null, 2) ?? '—'}</pre></div>
             <div><div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>After</div><pre className="code-block" style={{ margin: 0 }}>{JSON.stringify(sanitize(row.after), null, 2) ?? '—'}</pre></div>
