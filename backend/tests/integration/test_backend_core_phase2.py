@@ -11,9 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alembic import command
-from app.core.config import Settings
 from app.database.idempotency import fingerprint_payload
-from app.database.seed import seed_database
 from app.modules.alpr.models import Detection
 from app.modules.audit_logs.models import AuditLog
 from app.modules.checkin.models import ParkingTransaction

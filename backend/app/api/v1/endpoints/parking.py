@@ -48,7 +48,10 @@ def create_check_in(
     )
 
 
-@router.get("/transactions", response_model=dict | PaginatedParkingTransactions | list[ParkingTransactionResponse])
+@router.get(
+    "/transactions",
+    response_model=dict | PaginatedParkingTransactions | list[ParkingTransactionResponse],
+)
 def list_parking_transactions(
     q: str | None = None,
     lane_id: UUID | None = None,

@@ -62,7 +62,9 @@ class CheckInService:
         ai_plate = detection.normalized_plate if detection else None
         ai_normalized = normalize_plate(ai_plate) if ai_plate else None
         confidence = detection.confidence if detection else None
-        source = self._resolve_source(detection is not None, ai_normalized, normalized_plate, request.source)
+        source = self._resolve_source(
+            detection is not None, ai_normalized, normalized_plate, request.source
+        )
 
         fingerprint = fingerprint_payload(
             {

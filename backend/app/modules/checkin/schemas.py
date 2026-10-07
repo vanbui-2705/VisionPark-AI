@@ -47,7 +47,9 @@ class ParkingTransactionResponse(BaseModel):
     confidence: float | None = None
     check_in_time: datetime
     check_in_operator_id: UUID | None = None
-    check_in_operator_name: str | None = Field(default=None, validation_alias="operator_snapshot_name")
+    check_in_operator_name: str | None = Field(
+        default=None, validation_alias="operator_snapshot_name"
+    )
     source: str
     is_manual_override: bool
     notes: str | None = None
