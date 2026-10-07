@@ -44,10 +44,10 @@ def test_cors_origins_are_parsed_and_trimmed() -> None:
 def test_alembic_cli_reads_dotenv(tmp_path, monkeypatch):
     from pathlib import Path
 
+    from alembic.config import Config
     from sqlalchemy import create_engine, inspect
 
     from alembic import command
-    from alembic.config import Config
 
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.chdir(tmp_path)
