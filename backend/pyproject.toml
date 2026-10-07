@@ -57,3 +57,6 @@ extend-exclude = ["models/ocr/**", "**/build/**", "**/dist/**"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-third-party = ["alembic"]

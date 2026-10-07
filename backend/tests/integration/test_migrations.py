@@ -1,6 +1,6 @@
+from alembic import command
 from sqlalchemy import create_engine, inspect
 
-from alembic import command
 from tests.conftest import make_alembic_config
 
 
