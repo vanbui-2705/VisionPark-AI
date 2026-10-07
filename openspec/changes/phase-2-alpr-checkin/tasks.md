@@ -15,7 +15,7 @@
 - [x] 1.3 Chốt input demo là MP4 local, một lane `IN`, một xe/lane tại một thời điểm.
 - [x] 1.4 Chốt ALPR response có raw/normalized plate, bbox, detector/OCR/combined confidence, quality flags, model version và latency.
 - [x] 1.5 Chốt preview không persist và confirm mới tạo transaction.
-- [x] 1.6 Sửa frontend dùng endpoint canonical `/api/v1/alpr/detections/{id}/confirm`.
+- [x] 1.6 Sửa frontend persist final capture rồi gọi endpoint canonical `/api/v1/alpr/detections/{id}/confirm` với `check_in=true` và `Idempotency-Key`; manual gọi parking check-in.
 - [x] 1.7 Chốt manifest/checksum/model distribution ngoài Git.
 - [x] 1.8 Tạo fixture lane `IN`, user Operator và video/ảnh smoke không nhạy cảm.
 
@@ -140,16 +140,16 @@
 
 ## 5. M4 — Benchmark, hardening và demo
 
-- [x] 5.1 Tạo split `smoke`, `validation`, `demo`, `edge_cases` theo video/xe, không random frame liền nhau.
+- [ ] 5.1 Tạo split `smoke`, `validation`, `demo`, `edge_cases` theo video/xe, không random frame liền nhau.
 - [x] 5.2 Viết benchmark JSON/CSV cho detector, OCR và full pipeline.
 - [x] 5.3 Đo exact match, character accuracy, no-result, false positive, p50/p95 latency.
 - [x] 5.4 Đo time-to-stable, OCR calls/vehicle, candidate flip rate và provider error rate.
 - [x] 5.5 Chạy cold/warm benchmark CPU demo.
 - [x] 5.6 Chạy restart/model missing/OCR disabled/timeout/duplicate/idempotency checks.
-- [x] 5.7 Viết runbook bật real provider và rollback về mock.
-- [x] 5.8 Chụp screenshot/video evidence cho flow thành công, low-confidence, no-plate, sửa tay, duplicate và retry.
+- [x] 5.7 Real-only runbook and schema-compatible rollback; obsolete mock rollback removed.
+- [ ] 5.8 Chụp screenshot/video evidence cho flow thành công, low-confidence, no-plate, sửa tay, duplicate và retry.
 - [x] 5.9 Chạy backend pytest/ruff và frontend test/lint/build.
-- [x] 5.10 Chỉ đóng Phase 2 khi release gate pass.
+- [ ] 5.10 Chỉ đóng Phase 2 khi release gate pass.
 
 ## 6. Lệnh kiểm tra
 
@@ -173,14 +173,46 @@ cache. CI không tải model thật và không yêu cầu GPU.
 ## 7. Release gate
 
 - [x] `/station/scan` chạy video MP4 local.
-- [ ] Real readiness hợp lệ trên máy đã provision model asset.
-- [ ] YOLO + OCR đọc được video demo chính trên máy đã provision model asset.
+- [x] Real readiness hợp lệ trên máy đã provision model asset.
+- [x] YOLO + OCR đọc được video demo chính trên máy đã provision model asset.
 - [x] Bbox overlay đúng.
 - [x] Consensus 2/3 hoạt động.
 - [x] Operator xác nhận/sửa/manual entry được.
 - [x] Confirm tạo đúng một `PARKED`.
 - [x] Duplicate/idempotency/audit pass.
 - [x] Preview không tạo transaction rác.
-- [x] Mock CI xanh.
-- [x] Warm p95 mục tiêu dưới 1 giây hoặc có benchmark ghi rõ giới hạn phần cứng.
-- [x] Có benchmark report, runbook và evidence.
+- [x] CI với test doubles xanh; mock ứng dụng đã loại bỏ.
+- [x] Warm p95 mục tiêu dưới 1 giây hoặc có benchmark ghi rõ giới hạn phần cứng. (CPU limit report: p95 3.03s; sub-second target not met.)
+- [ ] Có benchmark report thật, runbook và đầy đủ evidence; còn thiếu coverage thật đa cảnh cho nghiệm thu chất lượng.
+
+## 8. Integration reconciliation (2026-10-07)
+
+- [x] 8.1 Station dùng shared token/client và backend provider, bỏ mock ALPR trong frontend.
+- [x] 8.2 Preview không persist; final capture có UUID/fingerprint chống retry tạo detection trùng.
+- [x] 8.3 Canonical confirmation ghi detection, PARKED và audit trong cùng transaction.
+- [x] 8.4 Đồng bộ lane is_active, ALPR readiness, detection detail/filter và bbox pixel.
+- [x] 8.5 Hoàn thiện Admin users/roles API; bảo toàn bốn role và policy read/write; registration mặc định tắt.
+- [x] 8.6 Dashboard đọc số tổng từ database; manual entry không phụ thuộc provider.
+- [x] 8.7 Additive migrations và regression SQLite/PostgreSQL; kiểm tra frontend test/lint/build.
+- [x] 8.8 Refresh Compose và chạy browser smoke với video tổng hợp, lưu evidence có ghi rõ mock.
+- [x] 8.9 Đồng bộ runbook/contracts; bỏ claim benchmark thật dựa trên fixture tổng hợp.
+- [x] 8.10 Bật real provider trong Docker: CPU dependencies, model/cache mounts, startup warmup và API/OCR inference smoke.
+
+## 9. Real-data completion reconciliation (2026-10-07)
+
+Các ghi chú thiếu video có nhãn trước đây được thay bằng kết quả mới: video miLPR
+trong Downloads do người dùng chỉ định đã chạy YOLO/PaddleOCR thật, 10 frame
+positive thuộc hai xe và một title-frame negative. Exact match 8/10, character
+accuracy 97,5%; warm p50/p95 1,30/3,03 giây, cold 36,86 giây.
+Chrome đã confirm ảnh `29A90101` và video `30V4495` thành PARKED trên môi trường
+restore riêng; Docker lifecycle giữ nguyên row/media hashes. OCR smoke 2.4.8 và
+đo 5.3–5.5 có evidence thật, không train hay đổi weights.
+
+Evidence: `docs/phase-2-evidence/completion-user-video-benchmark.json`,
+`completion-browser.json`, `completion-lifecycle-final.json` và
+`docs/real-data-completion-report-2026-10-07.md`.
+M4 vẫn mở: 5.1 chưa đủ dữ liệu để chia validation/demo/edge_cases độc lập;
+5.8 chưa có đầy đủ screenshot/video từng tình huống thật; 5.10/release chất lượng
+chưa đóng. Không suy ra accuracy tổng quát từ hai xe/frame liền nhau, không tự động
+thông xe. Evidence mock/synthetic ở mục lịch sử chỉ chứng minh contract.
+Ứng dụng hiện chỉ có real provider; test doubles giữ trong tests.

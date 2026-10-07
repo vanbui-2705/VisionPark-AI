@@ -1,4 +1,4 @@
-"""Migrate the configured database, then optionally seed local demo accounts."""
+"""Migrate the configured database, then optionally provision an initial administrator."""
 
 from pathlib import Path
 

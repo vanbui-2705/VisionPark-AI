@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     """Environment-backed application settings.
 
     Database credentials and the JWT signing key must be supplied explicitly in every environment.
-    Demo accounts are created only when ``auto_seed`` is explicitly on.
+    Initial administrator is created only when ``auto_seed`` is explicitly on.
     """
 
     model_config = SettingsConfigDict(
@@ -39,16 +39,16 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     upload_max_bytes: int = 5 * 1024 * 1024
     local_storage_path: str = "./var/media"
-    alpr_provider: str = "mock"
+    alpr_provider: Literal["real"] = "real"
     alpr_manifest_path: str = "models/alpr-manifest.json"
     alpr_device: str = "cpu"
     alpr_detector_confidence: float = 0.25
     alpr_confidence_threshold: float = 0.85
     alpr_ocr_margin: float = 0.08
-    alpr_ocr_enabled: bool = False
-    alpr_mock_scenario: str = "success"
+    alpr_ocr_enabled: bool = True
 
     auto_seed: bool = False
+    public_registration_enabled: bool = False
     seed_admin_username: str = "admin"
     seed_admin_password: SecretStr | None = None
     seed_operator_username: str = "operator"
@@ -94,9 +94,11 @@ class Settings(BaseSettings):
         }:
             raise ValueError("JWT_SECRET_KEY must not use a sample or development signing key")
         if self.auto_seed and (
-            self.seed_admin_password is None or self.seed_operator_password is None
+            self.seed_admin_password is None or len(self.seed_admin_password.get_secret_value()) < 8
         ):
-            raise ValueError("Demo account passwords are required when AUTO_SEED=true")
+            raise ValueError(
+                "An administrator password of at least 8 characters is required when AUTO_SEED=true"
+            )
         return self
 
 

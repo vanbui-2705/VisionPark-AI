@@ -53,8 +53,8 @@ describe('LaneListPage', () => {
         ? j(ADMIN)
         : u.includes('/lanes')
           ? j([
-              { id: '1', name: 'LANE_IN_01', direction: 'IN', active: true },
-              { id: '2', name: 'LANE_OUT_01', direction: 'OUT', active: false },
+              { id: '1', name: 'LANE_IN_01', direction: 'IN', is_active: true },
+              { id: '2', name: 'LANE_OUT_01', direction: 'OUT', is_active: false },
             ])
           : j({}),
     )
@@ -72,7 +72,7 @@ describe('LaneListPage', () => {
   it('shows "Tên làn đã tồn tại" on 409 DUPLICATE_LANE_NAME', async () => {
     mockFetch((u, init) => {
       if (u.includes('/auth/me')) return j(ADMIN)
-      if (u.endsWith('/api/v1/lanes') && init?.method === 'POST') return j({ code: 'DUPLICATE_LANE_NAME', message: 'exists' }, 409)
+      if (u.endsWith('/api/v1/lanes/') && init?.method === 'POST') return j({ code: 'DUPLICATE_LANE_NAME', message: 'exists' }, 409)
       if (u.includes('/lanes')) return j([])
       return j({})
     })
@@ -86,15 +86,15 @@ describe('LaneListPage', () => {
     expect(await screen.findByText(/Tên làn đã tồn tại/i)).toBeInTheDocument()
   })
 
-  it('inactive lane requires confirm then PATCH active=false', async () => {
+  it('inactive lane requires confirmation then POST deactivate', async () => {
     let patched: unknown = null
     mockFetch((u, init) => {
       if (u.includes('/auth/me')) return j(ADMIN)
-      if (u.includes('/api/v1/lanes/1') && init?.method === 'PATCH') {
-        patched = JSON.parse(String(init.body))
-        return j({ id: '1', name: 'LANE_IN_01', direction: 'IN', active: false })
+      if (u.includes('/api/v1/lanes/1') && init?.method === 'POST') {
+        patched = u.endsWith('/deactivate')
+        return j({ id: '1', name: 'LANE_IN_01', direction: 'IN', is_active: false })
       }
-      if (u.endsWith('/api/v1/lanes')) return j([{ id: '1', name: 'LANE_IN_01', direction: 'IN', active: true }])
+      if (u.endsWith('/api/v1/lanes/')) return j([{ id: '1', name: 'LANE_IN_01', direction: 'IN', is_active: true }])
       return j({})
     })
     renderLanes()
@@ -105,11 +105,11 @@ describe('LaneListPage', () => {
     expect(await screen.findByText(/Bạn có chắc muốn ngưng hoạt động/i)).toBeInTheDocument()
 
     // list unchanged before confirming
-    expect(screen.getAllByText(/Đang hoạt động/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Active|Đang hoạt động/).length).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: /^Xác nhận$/i }))
-    await waitFor(() => expect(patched).toEqual({ active: false }))
-    await waitFor(() => expect(screen.getAllByText('Ngưng hoạt động').length).toBeGreaterThanOrEqual(1))
+    await waitFor(() => expect(patched).toBe(true))
+    await waitFor(() => expect(screen.getAllByText(/Ngưng hoạt động|Inactive/).length).toBeGreaterThanOrEqual(1))
   })
 
   it('no DELETE request is ever issued', async () => {
@@ -117,7 +117,7 @@ describe('LaneListPage', () => {
     mockFetch((u, init) => {
       spy(init?.method)
       if (u.includes('/auth/me')) return j(ADMIN)
-      if (u.includes('/lanes')) return j([{ id: '1', name: 'L1', direction: 'IN', active: true }])
+      if (u.includes('/lanes')) return j([{ id: '1', name: 'L1', direction: 'IN', is_active: true }])
       return j({})
     })
     renderLanes()
@@ -125,7 +125,7 @@ describe('LaneListPage', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Ngưng hoạt động/i }))
     await user.click(screen.getByRole('button', { name: /^Xác nhận$/i }))
-    await waitFor(() => expect(spy).toHaveBeenCalledWith('PATCH'))
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('POST'))
     expect(spy).not.toHaveBeenCalledWith('DELETE')
   })
 })

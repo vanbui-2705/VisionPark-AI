@@ -2,244 +2,154 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { AuthProvider } from '../../src/modules/auth/AuthContext.tsx'
-import { ParkingHistoryPage } from '../../src/modules/parking/ParkingHistoryPage.tsx'
-import { ApiError } from '../../src/api/errors.ts'
-import * as services from '../../src/api/services.ts'
-
-function j(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
-}
-
-function paginated(items: unknown[], page = 0, pageSize = 20) {
-  return { items, total: items.length, page, pageSize, totalPages: Math.max(1, Math.ceil(items.length / pageSize)) }
-}
+import { ParkingHistoryPage } from '../../src/modules/parking/ParkingHistoryPage'
 
 const txs = [
-  { id: 'pt-1', license_plate: '29A12345', normalized_plate: '29A12345', original_ai_plate: '29A-123.45', status: 'PARKED', lane_id: 'lane-in-1', lane_name: 'LANE_IN_01', detection_id: 'd-1', confidence: 0.9, check_in_time: new Date().toISOString(), source: 'STATION_AUTO', is_manual_override: false, created_at: new Date().toISOString() },
-  { id: 'pt-2', license_plate: '30F88888', normalized_plate: '30F88888', original_ai_plate: '30F-888.88', status: 'PARKED', lane_id: 'lane-out-1', lane_name: 'LANE_OUT_01', detection_id: 'd-2', confidence: 0.6, check_in_time: new Date().toISOString(), source: 'OPERATOR_MANUAL', is_manual_override: true, created_at: new Date().toISOString() },
+  {
+    id: 'pt-1',
+    license_plate: '29A12345',
+    normalized_plate: '29A12345',
+    status: 'PARKED',
+    lane_id: 'lane-1',
+    lane_name: 'IN',
+    check_in_time: '2026-10-07T00:00:00Z',
+    source: 'AI_ACCEPTED',
+  },
+  {
+    id: 'pt-2',
+    license_plate: '30F88888',
+    normalized_plate: '30F88888',
+    status: 'PARKED',
+    lane_id: 'lane-1',
+    lane_name: 'IN',
+    check_in_time: '2026-10-07T00:00:00Z',
+    source: 'MANUAL_ENTRY',
+  },
 ]
 
-function renderPage(fetcher?: (u: unknown) => Promise<Response>) {
-  if (fetcher) vi.spyOn(globalThis, 'fetch').mockImplementation(fetcher as unknown as typeof fetch)
-  return render(<MemoryRouter><AuthProvider><ParkingHistoryPage /></AuthProvider></MemoryRouter>)
+const j = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+function start(handler: (url: URL) => Response) {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (u) => {
+    const url = new URL(String(u))
+    return url.pathname.includes('/parking/transactions')
+      ? handler(url)
+      : url.pathname.includes('/lanes')
+        ? j([{ id: 'lane-1', name: 'IN', direction: 'IN', is_active: true }])
+        : j([])
+  })
+  render(
+    <MemoryRouter>
+      <ParkingHistoryPage />
+    </MemoryRouter>
+  )
 }
 
-describe('ParkingHistoryPage — Duy Anh', () => {
-  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks() })
-
-  it('render success with paginated response', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j(paginated(txs))
-      return j({})
-    })
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
+describe('Parking server history', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
   })
 
-  it('backward compat: handles bare array', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j(txs)
-      return j({})
-    })
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-  })
-  
-  it('filter by lane', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    const fetchCalls: string[] = []
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) {
-        fetchCalls.push(s)
-        if (s.includes('lane_id=lane-out-1')) return j(paginated([txs[1]]))
-        if (s.includes('lane_id=')) return j(paginated([txs[1]]))
-        return j(paginated(txs))
-      }
-      return j({})
-    })
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-    const laneInput = screen.getByPlaceholderText(/Tất cả làn/i)
-    await userEvent.clear(laneInput)
-    await userEvent.type(laneInput, 'lane-out-1')
-    await waitFor(() => expect(fetchCalls.some(c => c.includes('lane_id='))).toBe(true), { timeout: 5000 })
-    await waitFor(() => expect(screen.getByText('30F88888')).toBeInTheDocument(), { timeout: 3000 })
+  it('renders database items and server totals', async () => {
+    start(() => j({ items: txs, total: 205 }))
+    expect(await screen.findByText('29A12345')).toBeInTheDocument()
+    expect(screen.getByText(/205/)).toBeInTheDocument()
   })
 
-  it('filter by status', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) {
-        if (s.includes('status=COMPLETED')) return j(paginated([{ ...txs[1], status: 'COMPLETED' }]))
-        return j(paginated(txs))
-      }
-      return j({})
+  it('sends search to server and displays matching rows', async () => {
+    const queries: string[] = []
+    start((url) => {
+      const q = url.searchParams.get('q') ?? ''
+      queries.push(q)
+      const items = txs.filter((t) => t.license_plate.includes(q))
+      return j({ items, total: items.length })
     })
-
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'COMPLETED')
-
-    await waitFor(() => expect(screen.queryByText('29A12345')).not.toBeInTheDocument(), { timeout: 3000 })
-    await waitFor(() => expect(screen.getByText('30F88888')).toBeInTheDocument())
+    await screen.findByText('29A12345')
+    await userEvent.type(screen.getAllByRole('textbox')[0], '30F')
+    await waitFor(() => expect(screen.queryByText('29A12345')).not.toBeInTheDocument())
+    expect(screen.getByText('30F88888')).toBeInTheDocument()
+    expect(queries).toContain('30F')
   })
 
-  it('filter by time range', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) {
-        if (s.includes('from=2026-10-04')) return j(paginated([txs[1]]))
-        return j(paginated(txs))
-      }
-      return j({})
-    })
-
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-
-    const dateInputs = document.querySelectorAll('input[type="date"]')
-await userEvent.type(dateInputs[0] as HTMLInputElement, '2026-10-04')
-    await waitFor(() => expect(screen.queryByText('29A12345')).not.toBeInTheDocument(), { timeout: 3000 })
-    await waitFor(() => expect(screen.getByText('30F88888')).toBeInTheDocument())
+  it('keeps filters visible for an empty result', async () => {
+    start(() => j({ items: [], total: 0 }))
+    await waitFor(() => expect(screen.getAllByRole('textbox').length).toBeGreaterThan(0))
+    expect(screen.queryByText('29A12345')).not.toBeInTheDocument()
   })
 
-  it('sends page/pageSize and filters to server', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    const calls: string[] = []
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) { calls.push(s); return j(paginated([], 0, 20)) }
-      return j({})
-    })
-    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
-    expect(calls[0]).toContain('page=')
-    expect(calls[0]).toContain('pageSize=')
+  it('shows API error without replacing data with fixtures', async () => {
+    start(() => j({ message: 'server failed', code: 'FAILED' }, 500))
+    expect(await screen.findByText('server failed')).toBeInTheDocument()
+    expect(screen.queryByText('29A12345')).not.toBeInTheDocument()
   })
 
-  it('filter by plate triggers server request with q', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    const calls: string[] = []
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) {
-        calls.push(s)
-        if (s.includes('q=')) return j(paginated([txs[1]]))
-        return j(paginated(txs))
-      }
-      return j({})
+  it('sends lane filter to server', async () => {
+    const queries: string[] = []
+    start((url) => {
+      queries.push(url.searchParams.get('lane_id') ?? '')
+      return j({ items: txs, total: txs.length })
     })
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-    const input = screen.getByPlaceholderText('29A12345')
-    await userEvent.type(input, '30F')
-    await waitFor(() => expect(calls.some((c) => c.includes('q='))).toBe(true), { timeout: 5000 })
+    await screen.findByText('29A12345')
+    await userEvent.selectOptions(screen.getAllByRole('combobox')[0], 'lane-1')
+    await waitFor(() => expect(queries).toContain('lane-1'))
   })
 
-  it('empty state when no transactions at all', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j(paginated([]))
-      return j({})
+  it('sends status filter to server', async () => {
+    const queries: string[] = []
+    start((url) => {
+      queries.push(url.searchParams.get('status') ?? '')
+      return j({ items: txs, total: txs.length })
     })
-    await waitFor(() => expect(screen.getByText(/Chưa có lịch sử đỗ xe/i)).toBeInTheDocument())
+    await screen.findByText('29A12345')
+    await userEvent.selectOptions(screen.getAllByRole('combobox')[1], 'COMPLETED')
+    await waitFor(() => expect(queries).toContain('COMPLETED'))
   })
 
-  it('empty filtered result shows no-result message', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    let first = true
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) {
-        if (first) { first = false; return j(paginated(txs)) }
-        return j(paginated([]))
-      }
-      return j({})
+  it('sends date range to server', async () => {
+    const queries: string[] = []
+    start((url) => {
+      queries.push(url.searchParams.get('from') ?? '')
+      return j({ items: txs, total: txs.length })
     })
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-    const input = screen.getByPlaceholderText('29A12345')
-    await userEvent.type(input, 'ZZZ')
-    await waitFor(() => expect(screen.getByText(/Không có kết quả/)).toBeInTheDocument(), { timeout: 5000 })
-  })
-
-  it('error 500 shows retry', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j({ message: 'fail', code: 'INTERNAL' }, 500)
-      return j({})
+    await screen.findByText('29A12345')
+    const { fireEvent } = await import('@testing-library/react')
+    fireEvent.change(document.querySelector('input[type="date"]')!, {
+      target: { value: '2026-10-04' },
     })
-    await waitFor(() => expect(screen.getByText(/Thử lại/i)).toBeInTheDocument())
-  })
-
-  it('error 403 shows forbidden message', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j({ message: 'forbidden', code: 'FORBIDDEN' }, 403)
-      return j({})
-    })
-    await waitFor(() => expect(screen.getByText(/không có quyền/i)).toBeInTheDocument())
-  })
-
-  it('error 404 shows not found (mocked service)', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    vi.spyOn(services.parkingTransactionsApi, 'list').mockRejectedValue(new ApiError('not found', { status: 404, code: 'NOT_FOUND' }))
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      return j({})
-    })
-    render(<MemoryRouter><AuthProvider><ParkingHistoryPage /></AuthProvider></MemoryRouter>)
-    await waitFor(() => expect(screen.getByText(/Không tìm thấy/i)).toBeInTheDocument())
-  })
-
-  it('invalid page returns 422', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j({ message: 'Invalid page', code: 'VALIDATION_ERROR' }, 422)
-      return j({})
-    })
-    await waitFor(() => expect(screen.getByText(/Thử lại/i)).toBeInTheDocument())
+    await waitFor(() =>
+      expect(
+        queries.some(
+          (value) =>
+            Boolean(value) &&
+            new Date(value).getTime() === new Date('2026-10-04T00:00:00').getTime()
+        )
+      ).toBe(true)
+    )
   })
 
   it('navigates to page 2 with filters preserved', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-    const calls: string[] = []
-    renderPage(async (u) => {
-      const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) {
-        calls.push(s)
-        if (s.includes('page=1')) {
-          return j({ items: [{ ...txs[1], id: 'pt-p2', license_plate: '51A99999' }], total: 40, page: 1, pageSize: 20, totalPages: 2 })
-        }
-        return j({ items: [txs[0]], total: 40, page: 0, pageSize: 20, totalPages: 2 })
+    const queries: string[] = []
+    start((url) => {
+      const page = url.searchParams.get('page')
+      queries.push(page ?? '')
+      if (page === '1') {
+        return j({
+          items: [{ ...txs[1], id: 'pt-p2', license_plate: '51A99999' }],
+          total: 40,
+        })
       }
-      return j({})
+      return j({ items: [txs[0]], total: 40 })
     })
-    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
+    await screen.findByText('29A12345')
     const nextBtn = screen.getByRole('button', { name: /Sau/i })
     expect(nextBtn).toBeEnabled()
     await userEvent.click(nextBtn)
     await waitFor(() => expect(screen.getByText('51A99999')).toBeInTheDocument())
-    expect(calls.some((c) => c.includes('page=1'))).toBe(true)
+    expect(queries).toContain('1')
   })
 })

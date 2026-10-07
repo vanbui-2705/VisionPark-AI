@@ -1,123 +1,118 @@
 import { apiClient } from './client.ts'
-import { ApiError } from './errors.ts'
+import { mapUser } from './authApi.ts'
+import { getApiBaseUrl } from './client.ts'
 import type { CurrentUser } from './types.ts'
-import type { AuditFilter, AuditLog, CheckInRequest, CheckInResponse, Detection, DetectionFilter, ManagedUser, PaginatedResponse, ParkingHistoryFilter, ParkingTransaction } from './domain.ts'
-
-function normalizePaginated<T>(raw: PaginatedResponse<T> | T[], fallbackPage: number, fallbackPageSize: number): PaginatedResponse<T> {
-  if (Array.isArray(raw)) return { items: raw, total: raw.length, page: fallbackPage, pageSize: fallbackPageSize, totalPages: Math.max(1, Math.ceil(raw.length / fallbackPageSize)) }
-  return raw
-}
+import type { AuditFilter, AuditLog, PaginatedResponse, CheckInRequest, CheckInResponse, Detection, ManagedUser, ParkingHistoryFilter, ParkingTransaction } from './domain.ts'
 
 export interface UsersApi {
   list(params?: { q?: string; role?: string; active?: boolean }): Promise<ManagedUser[]>
   get(id: string): Promise<ManagedUser>
-  create(payload: { username: string; display_name: string; email?: string | null; password: string; role: 'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'; active?: boolean }): Promise<ManagedUser>
+  create(payload: {
+    username: string
+    display_name: string
+    email?: string | null
+    password: string
+    role: ManagedUser['role']
+    active?: boolean
+  }): Promise<ManagedUser>
   patch(id: string, payload: Partial<ManagedUser & { password?: string }>): Promise<ManagedUser>
 }
 
 export interface DetectionsApi {
-  list(params?: DetectionFilter): Promise<PaginatedResponse<Detection>>
+  list(params?: { lane_id?: string; direction?: string; status?: string; q?: string; limit?: number; from?: string; to?: string }): Promise<Detection[]>
   get(id: string): Promise<Detection>
   confirm(id: string, payload: { final_plate: string }): Promise<Detection>
 }
 
 export interface ParkingTransactionsApi {
-  list(params?: ParkingHistoryFilter): Promise<PaginatedResponse<ParkingTransaction>>
+  summary(): Promise<{ total: number; parked: number; manual: number }>
+  list(params?: ParkingHistoryFilter): Promise<ParkingTransaction[]>
   get(id: string): Promise<ParkingTransaction>
   checkIn(payload: CheckInRequest, idempotencyKey?: string): Promise<CheckInResponse>
 }
 
 export interface AuditApi {
-  list(params?: AuditFilter): Promise<PaginatedResponse<AuditLog>>
+  page(params?: AuditFilter): Promise<PaginatedResponse<AuditLog>>
+  list(params?: { actor?: string; actor_id?: string; resource_id?: string; offset?: number; action?: string; from?: string; to?: string; limit?: number }): Promise<AuditLog[]>
 }
 
 export interface RolesApi {
   list(): Promise<{ name: string; display_name: string; description: string }[]>
 }
 
-function mockEnabled(): boolean {
-  return import.meta.env.VITE_USE_MOCK_FIXTURES === 'true'
+type ManagedUserResponse = Omit<ManagedUser, 'active' | 'last_login'> & { is_active: boolean; last_login_at: string | null }
+function mapManagedUser(raw: ManagedUserResponse): ManagedUser {
+  return { ...raw, ...mapUser(raw), last_login: raw.last_login_at ?? undefined }
 }
-
-async function call<T>(key: string, real: () => Promise<T>, mockArgs?: unknown): Promise<T> {
-  try {
-    return await real()
-  } catch (e: unknown) {
-    const pending = e instanceof ApiError && (e.status === 404 || e.status === 501 || e.code === 'NOT_FOUND')
-    if (pending && mockEnabled()) {
-      const mod = await import('./mocks/fixtures.ts')
-      const impl = (mod.mockApi as unknown as Record<string, (args?: unknown) => Promise<T>>)[key]
-      if (impl) return impl(mockArgs)
-    }
-    throw e
-  }
-}
-
 const realUsers: UsersApi = {
-  list: (p) => apiClient.get<ManagedUser[]>('/api/v1/users', { params: p }),
-  get: (id) => apiClient.get<ManagedUser>(`/api/v1/users/${id}`),
-  create: (b) => apiClient.post<ManagedUser>('/api/v1/users', b),
-  patch: (id, b) => apiClient.patch<ManagedUser>(`/api/v1/users/${id}`, b),
+  list: async (p) => (await apiClient.get<ManagedUserResponse[]>('/api/v1/users', { params: p })).map(mapManagedUser),
+  get: async (id) => mapManagedUser(await apiClient.get<ManagedUserResponse>(`/api/v1/users/${id}`)),
+  create: async (b) => mapManagedUser(await apiClient.post<ManagedUserResponse>('/api/v1/users', b)),
+  patch: async (id, b) => mapManagedUser(await apiClient.patch<ManagedUserResponse>(`/api/v1/users/${id}`, b)),
 }
 
 const realDetections: DetectionsApi = {
-  list: async (p) => {
-    const raw = await apiClient.get<PaginatedResponse<Detection> | Detection[]>('/api/v1/alpr/detections', { params: p as Record<string, string | number | boolean | undefined | null> })
-    return normalizePaginated(raw, p?.page ?? 0, p?.pageSize ?? p?.limit ?? 20)
-  },
-  get: (id) => apiClient.get<Detection>(`/api/v1/alpr/detections/${id}`),
-  confirm: (id, b) => apiClient.post<Detection>(`/api/v1/alpr/detections/${id}/confirm`, b),
+  list: async (p) => (await apiClient.get<DetectionResponse[]>('/api/v1/alpr/detections', { params: p })).map(mapDetection),
+  get: async (id) => mapDetection(await apiClient.get<DetectionResponse>(`/api/v1/alpr/detections/${id}`)),
+  confirm: async (id, b) => mapDetection(await apiClient.post<DetectionResponse>(`/api/v1/alpr/detections/${id}/confirm`, { confirmed_plate: b.final_plate })),
+}
+
+export interface DetectionResponse {
+  input_kind?: string | null; lane_name?: string | null; direction?: "IN" | "OUT";
+  id: string; lane_id: string; image_key: string; raw_plate: string | null;
+  normalized_plate: string | null; confidence: number | null;
+  requires_confirmation: boolean; is_confirmed: boolean; confirmed_plate: string | null;
+  created_at: string; confirmed_at: string | null; confirmed_by_id: string | null;
+  processing_time_ms: number | null; model_version: string | null;
+  bbox_x1: number | null; bbox_y1: number | null; bbox_x2: number | null; bbox_y2: number | null;
+}
+export function mapDetection(raw: DetectionResponse): Detection {
+  return {
+    ...raw, lane_name: raw.lane_name ?? undefined, ai_plate: raw.raw_plate, final_plate: raw.confirmed_plate,
+    status: raw.is_confirmed ? (raw.confirmed_plate === raw.normalized_plate ? 'CONFIRMED' : 'CORRECTED')
+      : !raw.normalized_plate ? 'NO_PLATE' : raw.requires_confirmation ? 'NEEDS_CONFIRMATION' : 'DETECTED',
+    image_url: `${getApiBaseUrl()}/api/v1/alpr/media/${encodeURIComponent(raw.image_key)}`,
+    processing_ms: raw.processing_time_ms, confirmed_by: raw.confirmed_by_id,
+    bbox: raw.bbox_x1 != null && raw.bbox_y1 != null && raw.bbox_x2 != null && raw.bbox_y2 != null
+      ? { x: raw.bbox_x1, y: raw.bbox_y1, w: raw.bbox_x2 - raw.bbox_x1, h: raw.bbox_y2 - raw.bbox_y1 } : null,
+  }
 }
 
 const realParkingTransactions: ParkingTransactionsApi = {
-  list: async (p) => {
-    const raw = await apiClient.get<PaginatedResponse<ParkingTransaction> | ParkingTransaction[]>('/api/v1/parking/transactions', { params: p as Record<string, string | number | boolean | undefined | null> })
-    return normalizePaginated(raw, p?.page ?? 0, p?.pageSize ?? p?.limit ?? 20)
-  },
+  summary: () => apiClient.get('/api/v1/parking/summary'),
+  list: (p) => apiClient.get<ParkingTransaction[]>('/api/v1/parking/transactions', { params: p }),
   get: (id) => apiClient.get<ParkingTransaction>(`/api/v1/parking/transactions/${id}`),
-  checkIn: (payload, idempotencyKey) => apiClient.post<CheckInResponse>('/api/v1/parking/check-in', payload, { headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined }),
+  checkIn: (payload, idempotencyKey) => apiClient.post<CheckInResponse>('/api/v1/parking/check-in', payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  }),
 }
 
 const realAudit: AuditApi = {
-  list: async (p) => {
-    const raw = await apiClient.get<PaginatedResponse<AuditLog> | AuditLog[]>('/api/v1/audit-logs', { params: p as Record<string, string | number | boolean | undefined | null> })
-    return normalizePaginated(raw, p?.page ?? 0, p?.pageSize ?? p?.limit ?? 20)
+  page: async (p) => {
+    const page = p?.page ?? 0
+    const pageSize = p?.pageSize ?? 20
+    const raw = await apiClient.get<PaginatedResponse<AuditLog> | AuditLog[]>('/api/v1/audit-logs', {
+      params: { ...p, paginated: true, limit: pageSize, offset: page * pageSize },
+    })
+    if (Array.isArray(raw)) return { items: raw, total: raw.length, page, pageSize, totalPages: Math.max(1, Math.ceil(raw.length / pageSize)) }
+    return { ...raw, page, pageSize, totalPages: Math.max(1, Math.ceil(raw.total / pageSize)) }
   },
+  list: (p) => apiClient.get<AuditLog[]>('/api/v1/audit-logs', { params: p }),
 }
 
 const realRoles: RolesApi = {
   list: () => apiClient.get<{ name: string; display_name: string; description: string }[]>('/api/v1/roles'),
 }
 
-export const usersApi: UsersApi = {
-  list: (p) => call('usersList', () => realUsers.list(p), p),
-  get: (id) => call('usersGet', () => realUsers.get(id), id),
-  create: (b) => call('usersCreate', () => realUsers.create(b), b),
-  patch: (id, b) => call('usersPatch', () => realUsers.patch(id, b), { id, b }),
-}
-
-export const detectionsApi: DetectionsApi = {
-  list: (p) => call('detectionsList', () => realDetections.list(p), p),
-  get: (id) => call('detectionsGet', () => realDetections.get(id), id),
-  confirm: (id, b) => call('detectionsConfirm', () => realDetections.confirm(id, b), { id, b }),
-}
-
-export const parkingTransactionsApi: ParkingTransactionsApi = {
-  list: (p) => call('parkingTransactionsList', () => realParkingTransactions.list(p), p),
-  get: (id) => call('parkingTransactionsGet', () => realParkingTransactions.get(id), id),
-  checkIn: (payload, idempotencyKey) => call('parkingTransactionsCheckIn', () => realParkingTransactions.checkIn(payload, idempotencyKey), { payload, idempotencyKey }),
-}
-
-export const auditApi: AuditApi = {
-  list: (p) => call('auditList', () => realAudit.list(p), p),
-}
-
-export const rolesApi: RolesApi = {
-  list: () => call('rolesList', () => realRoles.list()),
-}
+export const usersApi = realUsers
+export const detectionsApi = realDetections
+export const parkingTransactionsApi = realParkingTransactions
+export const auditApi = realAudit
+export const rolesApi = realRoles
 
 export const authRegisterApi = {
   register(payload: { username: string; display_name: string; email?: string; password: string }): Promise<CurrentUser> {
+    // public register không gửi role; backend phải set OPERATOR/PENDING. Client không bao giờ chọn ADMIN.
     return apiClient.post<CurrentUser>('/api/v1/auth/register', payload)
   },
 }

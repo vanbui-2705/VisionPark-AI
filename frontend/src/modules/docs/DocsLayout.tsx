@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 const DOCS = [
   { group: 'Tổng quan', items: [{ slug: '', label: 'Overview' }, { slug: 'architecture', label: 'Architecture' }, { slug: 'ai-context', label: 'AI Context' }] },
@@ -10,13 +11,13 @@ export function DocsLayout() {
   return (
     <div className="docs-layout">
       <aside className="docs-sidebar">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b>Trung tâm tài liệu</b><button className="btn btn-ghost btn-sm" onClick={() => nav('/admin/dashboard')}>← Quay lại</button></div>
-        <p className="muted" style={{ fontSize: 12 }}>Tài liệu kỹ thuật hệ thống VisionPark</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b>Docs Center</b><button className="btn btn-ghost btn-sm" onClick={() => nav('/admin/dashboard')}>← Admin</button></div>
+        <p className="muted" style={{ fontSize: 12 }}>{translate("Nguồn:")}<code>frontend/docs/*.md</code></p>
         {DOCS.map((g) => (
           <div key={g.group}>
             <div className="docs-group">{g.group}</div>
             {g.items.map((it) => (
-              <NavLink key={it.slug} to={it.slug ? `/docs/${it.slug}` : '/docs'} end={it.slug === ''} className={({ isActive }) => (isActive ? 'active' : undefined)}>{it.label}</NavLink>
+              <NavLink key={it.slug} to={it.slug ? `/docs/${it.slug}` : '/docs'} end={it.slug === ''} className={({ isActive }) => (isActive ? 'active' : undefined)}>{translate(it.label)}</NavLink>
             ))}
           </div>
         ))}

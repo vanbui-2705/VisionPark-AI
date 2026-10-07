@@ -16,6 +16,8 @@ export type Lane = {
 };
 export type DetectionResult = {
   detection_id: string | null;
+  candidate_id?: string;
+
   raw_plate_number: string | null;
   normalized_plate_number: string | null;
   bbox: [number, number, number, number] | null;

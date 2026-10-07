@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func as _func
@@ -17,12 +18,14 @@ from app.modules.users.schemas import RoleName
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 
-@router.get("/")
+@router.get("/", response_model=list[AuditLogResponse] | dict)
 def list_audit_logs(
     request: Request,
     actor: str | None = None,
+    actor_id: UUID | None = None,
     action: str | None = None,
     resource: str | None = None,
+    resource_id: str | None = None,
     q: str | None = None,
     from_time: Annotated[datetime | None, Query(alias="from")] = None,
     to_time: Annotated[datetime | None, Query(alias="to")] = None,
@@ -30,20 +33,23 @@ def list_audit_logs(
     pageSize: int | None = Query(None, ge=1, le=100),
     limit: int | None = Query(None, ge=1, le=200),
     skip: int | None = Query(None, ge=0),
+    offset: int = Query(0, ge=0),
+    paginated: bool = False,
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
-):
+) -> list[AuditLogResponse] | dict:
     del current_user
     is_paginated = (
-        "page" in request.query_params
-        or "pageSize" in request.query_params
-        or request.query_params.get("format") == "paginated"
+        paginated
+        or ("page" in request.query_params)
+        or ("pageSize" in request.query_params)
+        or (request.query_params.get("format") == "paginated")
     )
-    eff_page = page if page is not None else 0
     eff_page_size = pageSize if pageSize is not None else (limit if limit is not None else 20)
-    if limit is not None and not is_paginated:
-        eff_page_size = limit
-        eff_page = (skip // max(1, eff_page_size)) if skip else 0
+    eff_skip = (
+        (page * eff_page_size) if page is not None else (skip if skip is not None else offset)
+    )
+    eff_page = page if page is not None else (eff_skip // max(1, eff_page_size))
 
     if eff_page < 0 or eff_page_size < 1 or eff_page_size > 100:
         raise AppError(status_code=422, code="VALIDATION_ERROR", message="Invalid page/pageSize")
@@ -54,6 +60,13 @@ def list_audit_logs(
     if actor or q:
         stmt = stmt.outerjoin(AuditLog.user)
         count_stmt = count_stmt.outerjoin(AuditLog.user)
+
+    if actor_id:
+        stmt = stmt.where(AuditLog.user_id == actor_id)
+        count_stmt = count_stmt.where(AuditLog.user_id == actor_id)
+    if resource_id:
+        stmt = stmt.where(AuditLog.entity_id == resource_id)
+        count_stmt = count_stmt.where(AuditLog.entity_id == resource_id)
 
     if actor:
         actor_pat = f"%{actor}%"
@@ -86,17 +99,16 @@ def list_audit_logs(
         count_stmt = count_stmt.where(AuditLog.created_at >= from_time)
 
     if to_time:
-        to_inc = to_time
-        stmt = stmt.where(AuditLog.created_at <= to_inc)
-        count_stmt = count_stmt.where(AuditLog.created_at <= to_inc)
+        stmt = stmt.where(AuditLog.created_at <= to_time)
+        count_stmt = count_stmt.where(AuditLog.created_at <= to_time)
 
     total = db.scalar(count_stmt) or 0
-    totalPages = max(1, (total + eff_page_size - 1) // eff_page_size)
+    total_pages = max(1, (total + eff_page_size - 1) // eff_page_size)
 
     rows = (
         db.scalars(
-            stmt.order_by(AuditLog.created_at.desc())
-            .offset(eff_page * eff_page_size)
+            stmt.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+            .offset(eff_skip)
             .limit(eff_page_size)
         )
         .unique()
@@ -111,19 +123,23 @@ def list_audit_logs(
             action=row.action,
             resource=row.entity_type,
             resource_id=row.entity_id,
-            source=(row.new_value or {}).get("source") if isinstance(row.new_value, dict) else None,
+            source=(
+                (row.new_value or {}).get("source") if isinstance(row.new_value, dict) else None
+            ),
             before=row.old_value,
             after=row.new_value,
-        ).model_dump(mode="json")
+        )
         for row in rows
     ]
 
     if is_paginated:
         return {
-            "items": items,
+            "items": [item.model_dump(mode="json") for item in items],
             "total": total,
             "page": eff_page,
             "pageSize": eff_page_size,
-            "totalPages": totalPages,
+            "totalPages": total_pages,
+            "limit": eff_page_size,
+            "offset": eff_skip,
         }
     return items

@@ -24,6 +24,10 @@ class ALPRResult(BaseModel):
     requires_confirmation: bool
     model_version: str = "unknown"
     detection_id: str | None = None
+    input_kind: str | None = None
+    video_time_ms: int | None = None
+    actor_id: str | None = None
+    image_size_bytes: int | None = None
     detector_confidence: float | None = Field(None, ge=0.0, le=1.0)
     ocr_confidence: float | None = Field(None, ge=0.0, le=1.0)
     combined_confidence: float | None = Field(None, ge=0.0, le=1.0)
@@ -43,6 +47,9 @@ class ALPRHTTPResponse(BaseModel):
     model_version: str
     requires_confirmation: bool = True
     detection_id: str | None = None
+    input_kind: str | None = None
+    video_time_ms: int | None = None
+    actor_id: str | None = None
 
     # Compatibility fields used by the Station capture flow.
     raw_plate_number: str | None = None

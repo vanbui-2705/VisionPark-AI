@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "mock-api": "node dev/mock-api.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",

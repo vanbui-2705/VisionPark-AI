@@ -1,3 +1,4 @@
+import { t as translate } from "../lib/i18n"
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../modules/auth/AuthContext.tsx'
 
@@ -9,7 +10,7 @@ export function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="brand">VisionPark</div>
         <nav>
-          <NavLink to="/admin/lanes">Quản lý làn</NavLink>
+          <NavLink to="/admin/lanes">{translate("Quản lý làn")}</NavLink>
           <NavLink to="/station">Station</NavLink>
         </nav>
         <div className="admin-user">
@@ -23,9 +24,7 @@ export function AdminLayout() {
               logout()
               nav('/login')
             }}
-          >
-            Đăng xuất
-          </button>
+          >{translate("Đăng xuất")}</button>
         </div>
       </aside>
       <main className="admin-main">

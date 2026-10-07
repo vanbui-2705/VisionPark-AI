@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useState } from 'react'
 import type { Lane, LaneDirection } from '../../api/types.ts'
 import { ApiError } from '../../api/errors.ts'
@@ -32,24 +33,24 @@ export function LaneForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = name.trim()
-    if (!trimmed) { setErr('Tên làn không được để trống'); return }
-    if (direction !== 'IN' && direction !== 'OUT') { setErr('Direction phải là IN hoặc OUT'); return }
+    if (!trimmed) { setErr(translate("Tên làn không được để trống")); return }
+    if (direction !== 'IN' && direction !== 'OUT') { setErr(translate("Direction phải là IN hoặc OUT")); return }
     setErr(null)
     setSubmitting(true)
     try {
       await onSubmit({ name: trimmed, direction, video_source: videoSource.trim() || null, active })
     } catch (e2) {
-      if (e2 instanceof ApiError && e2.code === 'DUPLICATE_LANE_NAME') setErr('Tên làn đã tồn tại.')
+      if (e2 instanceof ApiError && e2.code === 'DUPLICATE_LANE_NAME') setErr(translate("Tên làn đã tồn tại."))
       else if (e2 instanceof ApiError) setErr(e2.message)
       else if (e2 instanceof Error) setErr(e2.message)
-      else setErr('Thao tác thất bại.')
+      else setErr(translate("Thao tác thất bại."))
     } finally { setSubmitting(false) }
   }
 
   return (
     <form onSubmit={submit}>
       {err ? <Alert variant="error">{err}</Alert> : null}
-      <Input label="Tên làn *" name="name" value={name} onChange={(e) => setName(e.target.value)} />
+      <Input label={translate("Tên làn *")} name="name" value={name} onChange={(e) => setName(e.target.value)} />
       <Select label="Direction" name="direction" value={direction} onChange={(e) => setDirection(e.target.value as LaneDirection)}>
         <option value="IN">IN</option>
         <option value="OUT">OUT</option>
@@ -59,8 +60,8 @@ export function LaneForm({
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Active
       </label>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <Button type="button" onClick={onCancel}>Hủy</Button>
-        <Button type="submit" variant="primary" loading={submitting}>Lưu</Button>
+        <Button type="button" onClick={onCancel}>{translate("Hủy")}</Button>
+        <Button type="submit" variant="primary" loading={submitting}>{translate("Lưu")}</Button>
       </div>
     </form>
   )

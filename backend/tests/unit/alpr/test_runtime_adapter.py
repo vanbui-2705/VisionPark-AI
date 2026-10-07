@@ -4,7 +4,7 @@ import pytest
 from PIL import Image
 
 from app.alpr.errors import ALPRNotReadyError, ALPRProcessingError
-from app.alpr.runtime_adapter import FakeALPRRuntime
+from tests.alpr_double import FakeALPRRuntime
 
 
 def image_bytes() -> bytes:

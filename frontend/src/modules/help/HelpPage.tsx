@@ -1,26 +1,24 @@
+import { t as translate } from "../../lib/i18n"
 import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
 export function HelpPage() {
   return (
-    <div className="utility-page help-page">
-      <Breadcrumb items={[{ label: 'Trợ giúp' }]} />
-      <section className="utility-hero utility-hero--forest">
-        <div className="utility-hero-copy">
-          <span className="utility-kicker">Hướng dẫn sử dụng · VisionPark</span>
-          <h1>Trợ giúp</h1>
-          <p>Hướng dẫn chức năng theo vai trò, vận hành trạm quét và xử lý khi phát sinh sự cố.</p>
-        </div>
-      </section>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <Breadcrumb items={[{ label: translate("Trợ giúp") }]} />
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff' }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Guide · Duy Anh</div>
+        <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>{translate("Trợ giúp")}</h2>
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Vai trò, trạm quét, ALPR Test Lab và cách gửi mã hỗ trợ khi gặp lỗi.")}</p>
+      </div>
       {[
-        { title: 'Phân quyền vai trò', body: <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}><li><b>Quản trị viên (ADMIN):</b> Tổng quan, Quản lý làn xe, Người dùng, Vai trò & Phân quyền, Kiểm thử ALPR, Nhật ký kiểm tra, Trung tâm lỗi, Tình trạng hệ thống.</li><li><b>Nhân viên vận hành (OPERATOR):</b> Quét biển số, Lịch sử nhận diện, Lịch sử đỗ xe, Xác nhận/sửa biển số, Hồ sơ, Cài đặt và Trợ giúp.</li><li>Menu tự động ẩn/hiện theo quyền của tài khoản; hệ thống kiểm tra bảo mật ở từng yêu cầu.</li></ul> },
-        { title: 'Trạm quét biển số', body: <ul style={{ margin: 0, paddingLeft: 18 }}><li>Màn hình quét: chọn làn xe, chọn video mẫu hoặc luồng camera trực tiếp. Bấm <b>Toàn màn hình</b> để vào chế độ vận hành chuyên dụng.</li><li>Chế độ toàn màn hình: video tối ưu kích thước, biển số và độ tin cậy hiển thị to rõ; hỗ trợ phím tắt: Enter (Xác nhận) · E (Sửa) · R (Thử lại) · Space (Phát/Tạm dừng) · Esc (Thoát).</li></ul> },
-        { title: 'Phòng thử nghiệm ALPR', body: <p style={{ margin: 0 }}>Cho phép kiểm thử các kịch bản nhận diện mẫu: thành công, độ tin cậy thấp, không thấy biển số hoặc mô phỏng lỗi kết nối.</p> },
-        { title: 'Xử lý khi phát sinh sự cố', body: <p style={{ margin: 0 }}>Khi gặp lỗi kết nối hoặc thao tác thất bại → truy cập <b>Trung tâm lỗi</b>; sao chép <b>Mã đối soát</b> (correlationId) gửi đội ngũ kỹ thuật để tra cứu log server. <Badge>Mẹo</Badge></p> },
+        { title: translate("Vai trò"), body: <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}><li><b>ADMIN:</b>{translate("Dashboard, Làn xe (CRUD không xóa), Người dùng, Vai trò/Phân quyền, ALPR Test Lab, Audit Logs, Error Center, System Health.")}</li><li><b>OPERATOR:</b>{translate("Quét biển số, Lịch sử nhận diện, Xem làn xe, Xác nhận/sửa biển số, Hồ sơ/Cài đặt/Thông báo/Trợ giúp.")}</li><li>{translate("Sidebar dùng")}<code>can(user, permission)</code>{translate("— backend là authority.")}</li></ul> },
+        { title: translate("Trạm quét"), body: <p>{translate("Chọn làn vào và chế độ Ảnh JPEG/PNG hoặc Video MP4. Nhận diện bằng YOLO/OCR thật, kiểm tra biển số rồi xác nhận hoặc sửa. Nhập thủ công khi không đọc được. Kết quả cuối và giao dịch được lưu; preview không lưu mỗi frame.")}</p> },
+        { title: 'ALPR Test Lab', body: <p>{translate("Chọn ảnh và làn, bấm Chạy nhận diện để xem kết quả. Bấm Lưu kết quả để lưu detection và ảnh vào lịch sử; thao tác này không tạo giao dịch xe vào.")}</p> },
+        { title: translate("Sự cố"), body: <p style={{ margin: 0 }}>{translate("Gặp lỗi API → mở Error Center; copy")}<b>{translate("Mã hỗ trợ")}</b>{translate("(correlationId) gửi quản trị viên.")}<Badge>Tip</Badge></p> },
       ].map((s) => (
-        <section key={s.title} className="utility-panel help-panel">
-          <div className="utility-panel-head"><span className="utility-section-kicker">HƯỚNG DẪN {String(s.title).toUpperCase()}</span></div>
-          <h3>{s.title}</h3>
-          <div className="help-panel-body">{s.body}</div>
+        <section key={s.title} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+          <h3 style={{ margin: '0 0 10px' }}>{translate(s.title)}</h3>
+          <div style={{ fontSize: 13, color: 'var(--text)' }}>{s.body}</div>
         </section>
       ))}
     </div>

@@ -1,0 +1,31 @@
+{
+  "target": "isolated restore",
+  "head": "20261007_0010",
+  "tables": {
+    "audit_logs": {
+      "count": 2,
+      "sha256": "313f286a398f63deb627840e8a873d292be4bd55d0a4b3a47f76bbda79151905"
+    },
+    "detections": {
+      "count": 4,
+      "sha256": "9034bcd690708d8d93d4eefb318bb785b99abba8fab2292fb492565887c1ef1e"
+    },
+    "lanes": {
+      "count": 2,
+      "sha256": "3f8e71804c5b235882382b718397a48dac44f825cfe1e063c5154b0f7bedddaf"
+    },
+    "parking_transactions": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "roles": {
+      "count": 4,
+      "sha256": "d32865c5e3da1b52c23da3b032c19f697accd181e946b015e75352e66a2d9110"
+    },
+    "users": {
+      "count": 4,
+      "sha256": "e34fb4788fa9f5ba7b78ab7f5bc34b7e97738e258e30b926502e270bbb866388"
+    }
+  },
+  "original_columns_preserved": true
+}

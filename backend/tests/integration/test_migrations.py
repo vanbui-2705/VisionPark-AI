@@ -28,11 +28,9 @@ def test_migration_head_matches_registered_models(database_url: str) -> None:
 def test_upgrade_preserves_existing_detection(database_url: str) -> None:
     from uuid import uuid4
 
-    from sqlalchemy import select
+    from sqlalchemy import MetaData, Table, Uuid
     from sqlalchemy.orm import Session
 
-    from app.core.config import Settings
-    from app.database.seed import seed_database
     from app.modules.alpr.models import Detection
     from app.modules.lanes.models import Lane
 
@@ -40,10 +38,22 @@ def test_upgrade_preserves_existing_detection(database_url: str) -> None:
     command.upgrade(config, "aa276e942822")
     engine = create_engine(database_url)
     with Session(engine) as session:
-        seed_database(session, Settings(_env_file=None, environment="test"))
-        lane = session.scalar(select(Lane))
+        lane = Lane(name="existing-lane", direction="IN", video_source="demo.mp4", is_active=True)
+        session.add(lane)
+        session.flush()
         detection_id = uuid4()
-        session.add(Detection(id=detection_id, lane_id=lane.id, image_key="existing.jpg"))
+        old_detections = Table("detections", MetaData(), autoload_with=engine)
+        old_detections.c.id.type = Uuid()
+        old_detections.c.lane_id.type = Uuid()
+        session.execute(
+            old_detections.insert().values(
+                id=detection_id,
+                lane_id=lane.id,
+                image_key="existing.jpg",
+                requires_confirmation=False,
+                is_confirmed=False,
+            )
+        )
         session.commit()
     engine.dispose()
     command.upgrade(config, "head")
@@ -54,4 +64,7 @@ def test_upgrade_preserves_existing_detection(database_url: str) -> None:
         assert record.image_key == "existing.jpg"
         assert session.get(Lane, record.lane_id) is not None
     engine.dispose()
-    command.downgrade(config, "base")
+    import pytest
+
+    with pytest.raises(RuntimeError, match="Refusing downgrade"):
+        command.downgrade(config, "base")

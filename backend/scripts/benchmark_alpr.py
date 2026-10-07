@@ -1,7 +1,7 @@
 """Run a reproducible ALPR benchmark without downloading model assets.
 
-Mock mode is CI-safe. Real mode uses the externally provisioned manifest and
-weights, so the same report shape can be compared across providers.
+Uses externally provisioned model assets and labelled images.
+No application mock provider is available.
 """
 
 from __future__ import annotations
@@ -9,8 +9,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import platform
 import statistics
 import time
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,7 @@ import numpy as np
 
 from app.alpr.errors import ALPRNotReadyError, ALPRProcessingError
 from app.alpr.runtime_adapter import create_runtime
+from app.core.config import get_settings
 
 
 def synthetic_frame() -> bytes:
@@ -149,7 +152,9 @@ def build_report(rows: list[dict[str, Any]], provider: str, split: str) -> dict[
         "exact_match_rate": round(
             sum(row["exact_match"] for row in expected) / max(len(expected), 1), 4
         ),
-        "character_accuracy": round(statistics.mean(row["character_accuracy"] for row in rows), 4),
+        "character_accuracy": round(
+            statistics.mean(row["character_accuracy"] for row in (expected or rows)), 4
+        ),
         "no_result_rate": round(sum(row["no_result"] for row in rows) / max(len(rows), 1), 4),
         "false_positive_rate": round(
             sum(row["false_positive"] for row in rows) / max(len(rows), 1), 4
@@ -181,7 +186,7 @@ def warmup_report(runtime: Any, case: dict[str, Any], dataset: Path) -> dict[str
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--provider", default="mock", choices=("mock", "real"))
+    parser.add_argument("--provider", default="real", choices=("real",))
     parser.add_argument("--split", default="smoke")
     parser.add_argument(
         "--dataset", type=Path, default=Path("tests/fixtures/phase2-benchmark.json")
@@ -190,15 +195,44 @@ def main() -> None:
     parser.add_argument("--csv-out", type=Path, default=Path("var/benchmarks/alpr-results.csv"))
     args = parser.parse_args()
     cases = load_cases(args.dataset, args.split)
+    if args.provider == "real":
+        for case in cases:
+            if not case.get("image"):
+                parser.error(
+                    "Real benchmarks require an image path for every sample; "
+                    "mock fixtures are not recognition evidence."
+                )
+            if not (args.dataset.parent / case["image"]).is_file():
+                parser.error(f"Real benchmark image is missing: {case['image']}")
     rows: list[dict[str, Any]] = []
-    warm_runtime = create_runtime(args.provider, ocr_enabled=args.provider == "real")
+    settings = get_settings()
+    warm_runtime = create_runtime(
+        args.provider,
+        ocr_enabled=True,
+        manifest_path=settings.alpr_manifest_path,
+        device=settings.alpr_device,
+        detector_confidence=settings.alpr_detector_confidence,
+        confirmation_threshold=settings.alpr_confidence_threshold,
+        ocr_margin=settings.alpr_ocr_margin,
+    )
+    warmup = warmup_report(warm_runtime, cases[0], args.dataset)
     for case in cases:
         runtime = warm_runtime
-        if args.provider == "mock":
-            runtime = create_runtime("mock", mock_scenario=case.get("scenario", "success"))
         rows.append(run_case(runtime, case, args.dataset))
     report = build_report(rows, args.provider, args.split)
-    report["warmup"] = warmup_report(warm_runtime, cases[0], args.dataset)
+    report["dataset"] = str(args.dataset)
+    report["input_kind"] = "provisioned-images"
+    report["warmup"] = warmup
+    report["model_version"] = warm_runtime.version
+    report["hardware"] = {
+        "machine": platform.machine(),
+        "platform": platform.platform(),
+        "device": settings.alpr_device,
+    }
+    report["versions"] = {
+        package: version(package) for package in ["ultralytics", "paddleocr", "paddlepaddle"]
+    }
+    report["provenance"] = json.loads(args.dataset.read_text(encoding="utf-8")).get("provenance")
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.csv_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(report, indent=2), encoding="utf-8")

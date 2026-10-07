@@ -1,5 +1,7 @@
+import { t as translate } from "../lib/i18n"
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../modules/auth/AuthContext.tsx'
+import { can, type Permission } from '../lib/permissions.ts'
 import { ProtectedRoute } from '../modules/auth/guards.tsx'
 import { LoginPage } from '../modules/auth/LoginPage.tsx'
 import { RegisterPage } from '../modules/auth/RegisterPage.tsx'
@@ -34,10 +36,15 @@ import { DocsHomePage } from '../modules/docs/DocsHomePage.tsx'
 import { DocsArticlePage } from '../modules/docs/DocsArticlePage.tsx'
 
 function RootRedirect() {
-  const { initialized, isAuthenticated, isAdmin } = useAuth()
-  if (!initialized) return <div style={{ padding: 24 }}>Đang tải...</div>
+  const { initialized, isAuthenticated, isAdmin, user } = useAuth()
+  if (!initialized) return <div style={{ padding: 24 }}>{translate("Đang tải...")}</div>
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  return <Navigate to={isAdmin ? '/admin/dashboard' : '/station/scan'} replace />
+  return <Navigate to={isAdmin ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'} replace />
+}
+
+function PermissionGuard({ permission, children }: { permission: Permission; children: React.ReactNode }) {
+  const { user } = useAuth()
+  return can(user, permission) ? children : <ForbiddenPage />
 }
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
@@ -64,15 +71,15 @@ export function AppRoutes() {
         }
       >
         <Route path="/station" element={<Navigate to="/station/scan" replace />} />
-        <Route path="/station/scan" element={<StationPage />} />
+        <Route path="/station/scan" element={<PermissionGuard permission="station.use"><StationPage /></PermissionGuard>} />
         <Route path="/station/scan/fullscreen" element={<Navigate to="/station/scan" replace />} />
         <Route path="/station/history" element={<Navigate to="/detections" replace />} />
 
         {/* Detections / Parking operations — ADMIN + OPERATOR */}
-        <Route path="/detections" element={<DetectionHistoryPage />} />
-        <Route path="/detections/:id" element={<DetectionDetailPage />} />
-        <Route path="/parking" element={<ParkingHistoryPage />} />
-        <Route path="/parking/:id" element={<ParkingDetailPage />} />
+        <Route path="/detections" element={<PermissionGuard permission="detections.read"><DetectionHistoryPage /></PermissionGuard>} />
+        <Route path="/detections/:id" element={<PermissionGuard permission="detections.read"><DetectionDetailPage /></PermissionGuard>} />
+        <Route path="/parking" element={<PermissionGuard permission="transactions.read"><ParkingHistoryPage /></PermissionGuard>} />
+        <Route path="/parking/:id" element={<PermissionGuard permission="transactions.read"><ParkingDetailPage /></PermissionGuard>} />
         <Route path="/operations/transactions" element={<Navigate to="/parking" replace />} />
         <Route path="/operations/transactions/:id" element={<Navigate to="/parking" replace />} />
         <Route path="/admin/detections" element={<Navigate to="/detections" replace />} />
@@ -83,9 +90,9 @@ export function AppRoutes() {
         {/* Admin-only */}
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<AdminGuard><DashboardPage /></AdminGuard>} />
-        <Route path="/admin/lanes" element={<AdminGuard><LaneListPage /></AdminGuard>} />
+        <Route path="/admin/lanes" element={<PermissionGuard permission="lanes.read"><LaneListPage /></PermissionGuard>} />
         <Route path="/admin/lanes/new" element={<AdminGuard><LaneCreatePage /></AdminGuard>} />
-        <Route path="/admin/lanes/:id" element={<AdminGuard><LaneDetailPage /></AdminGuard>} />
+        <Route path="/admin/lanes/:id" element={<PermissionGuard permission="lanes.read"><LaneDetailPage /></PermissionGuard>} />
         <Route path="/admin/lanes/:id/edit" element={<AdminGuard><LaneEditPage /></AdminGuard>} />
         <Route path="/admin/users" element={<AdminGuard><UserListPage /></AdminGuard>} />
         <Route path="/admin/users/new" element={<AdminGuard><CreateUserPage /></AdminGuard>} />

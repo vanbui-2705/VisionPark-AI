@@ -7,6 +7,7 @@ export type DetectionStatus =
   | 'ERROR'
 
 export interface Detection {
+  input_kind?: string | null;
   id: string
   lane_id: string
   lane_name?: string
@@ -40,6 +41,7 @@ export type CheckInSource =
   | 'MANUAL_ENTRY'
   | 'STATION_AUTO'
   | 'OPERATOR_MANUAL'
+
 
 export type TransactionStatus = 'PARKED' | 'COMPLETED' | 'CANCELLED'
 
@@ -80,45 +82,15 @@ export interface CheckInResponse {
   message: string
 }
 
-export interface PaginatedResponse<T> {
-  items: T[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-}
-
-export interface PaginationParams {
-  page?: number
-  pageSize?: number
-  limit?: number
-  offset?: number
-}
-
-export interface ParkingHistoryFilter extends PaginationParams {
+export interface ParkingHistoryFilter {
   q?: string
   lane_id?: string
   status?: TransactionStatus | 'ALL'
   from?: string
   to?: string
-}
-
-export interface AuditFilter extends PaginationParams {
-  actor?: string
-  action?: string
-  resource?: string
-  from?: string
-  to?: string
-  q?: string
-}
-
-export interface DetectionFilter extends PaginationParams {
-  lane_id?: string
-  direction?: string
-  status?: string
-  q?: string
-  from?: string
-  to?: string
+  limit?: number
+  page?: number
+  [k: string]: string | number | boolean | undefined | null
 }
 
 export interface AuditLog {
@@ -134,12 +106,30 @@ export interface AuditLog {
   correlation_id?: string | null
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+export interface AuditFilter {
+  actor?: string
+  action?: string
+  resource?: string
+  q?: string
+  from?: string
+  to?: string
+  page?: number
+  pageSize?: number
+}
+
 export interface ManagedUser {
   id: string
   username: string
   display_name: string
   email?: string | null
-  role: 'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'
+  role: import('./types.ts').UserRole
   active: boolean
   last_login?: string | null
   created_at?: string

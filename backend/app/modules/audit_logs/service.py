@@ -8,7 +8,7 @@ from .models import AuditLog
 
 def log_action(
     db: Session,
-    user_id: UUID,
+    user_id: UUID | None,
     action: str,
     entity_type: str,
     entity_id: str,

@@ -84,6 +84,8 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     source: Mapped[str] = mapped_column(String(32), nullable=False)
+    lane_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    operator_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_manual_override: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)

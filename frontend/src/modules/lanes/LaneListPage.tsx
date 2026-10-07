@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useMemo, useState } from 'react'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Button } from '../../components/ui/Button.tsx'
@@ -8,8 +9,11 @@ import { Spinner } from '../../components/ui/Spinner.tsx'
 import { Table } from '../../components/ui/Table.tsx'
 import { LaneForm } from './LaneForm.tsx'
 import { useLanes } from './useLanes.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
+import { can } from '../../lib/permissions.ts'
 
 export function LaneListPage() {
+  const { user } = useAuth()
   const { lanes, loading, error, refresh, createLane, updateLane, inactive } = useLanes()
   const [dir, setDir] = useState('ALL')
   const [status, setStatus] = useState('ALL')
@@ -33,71 +37,63 @@ export function LaneListPage() {
     return (
       <div>
         <Alert variant="error">{error}</Alert>
-        <Button type="button" onClick={() => void refresh()}>Thử lại</Button>
+        <Button type="button" onClick={() => void refresh()}>{translate("Thử lại")}</Button>
       </div>
     )
   }
 
   return (
-    <div className="data-page lanes-page">
-      <section className="data-hero data-hero--forest">
-        <div className="data-hero-copy">
-          <span className="data-kicker">Cổng kiểm soát · VisionPark</span>
-          <h2>Quản lý làn</h2>
-          <p>Cấu hình làn vào/ra, nguồn luồng camera và trạng thái vận hành.</p>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Lane Management · Duy Anh</div>
+          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>{translate("Quản lý làn")}</h2>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Cấu hình làn IN/OUT, nguồn video và trạng thái vận hành.")}</p>
         </div>
-        <Button variant="secondary" onClick={() => setOpenCreate(true)}>Tạo làn</Button>
-      </section>
+        {can(user, 'lanes.create') && <Button variant="primary" onClick={() => setOpenCreate(true)}>{translate("Tạo làn")}</Button>}
+      </div>
 
       {feedback ? <Alert variant="success">{feedback}</Alert> : null}
       {laneError ? <Alert variant="error">{laneError}</Alert> : null}
 
-      <section className="data-filter-card data-filter-card--compact">
-        <div className="data-section-kicker">Bộ lọc vận hành</div>
-        <div className="data-filter-grid data-filter-grid--two">
-        <Select label="Hướng làn" value={dir} onChange={(e) => setDir(e.target.value)}>
-          <option value="ALL">Tất cả</option>
-          <option value="IN">Làn vào</option>
-          <option value="OUT">Làn ra</option>
+      <div className="filters">
+        <Select label="Direction" value={dir} onChange={(e) => setDir(e.target.value)}>
+          <option value="ALL">ALL</option>
+          <option value="IN">IN</option>
+          <option value="OUT">OUT</option>
         </Select>
-        <Select label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="ALL">Tất cả</option>
-          <option value="ACTIVE">Đang hoạt động</option>
-          <option value="INACTIVE">Ngưng hoạt động</option>
+        <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="ALL">ALL</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
         </Select>
-        </div>
-      </section>
+      </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="Chưa có làn nào" description={lanes.length === 0 ? 'Nhấn Tạo làn để thêm làn đầu tiên.' : 'Không có làn phù hợp bộ lọc.'} />
+        <EmptyState title={translate("Chưa có làn nào")} description={lanes.length === 0 ? translate("Nhấn Tạo làn để thêm làn đầu tiên.") : translate("Không có làn phù hợp bộ lọc.")} />
       ) : (
-        <section className="data-table-card">
-        <div className="data-table-head">
-          <div><span className="data-section-kicker">LANE MONITOR</span><h3>Danh sách làn</h3></div>
-          <span className="data-table-meta">{filtered.length} / {lanes.length} làn</span>
-        </div>
         <Table>
           <thead>
             <tr>
-              <th>Tên làn</th>
-              <th>Hướng</th>
-              <th>Nguồn video</th>
-              <th>Trạng thái</th>
-              <th>Thao tác</th>
+              <th>{translate("Tên làn")}</th>
+              <th>Direction</th>
+              <th>Video source</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((lane) => (
               <tr key={lane.id}>
-                <td><strong>{lane.name}</strong></td>
-                <td>{lane.direction === 'IN' ? 'Làn vào' : lane.direction === 'OUT' ? 'Làn ra' : lane.direction}</td>
-                <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{lane.video_source ?? '—'}</td>
-                <td><span className={`badge ${lane.active ? 'badge-success' : 'badge-muted'}`}>{lane.active ? 'Đang hoạt động' : 'Ngưng hoạt động'}</span></td>
+                <td>{lane.name}</td>
+                <td>{lane.direction}</td>
+                <td>{lane.video_source ?? '-'}</td>
+                <td>{lane.active ? 'Active' : 'Inactive'}</td>
                 <td>
-                  <div className="row-actions data-row-actions">
-                    <Button type="button" variant="secondary" onClick={() => setEditing(lane.id)}>Sửa</Button>
-                    {lane.active ? (
-                      <Button type="button" variant="danger" onClick={() => setConfirmInactive(lane.id)}>Ngưng hoạt động</Button>
+                  <div className="row-actions">
+                    {can(user, 'lanes.update') && <Button type="button" onClick={() => setEditing(lane.id)}>{translate("Sửa")}</Button>}
+                    {lane.active && can(user, 'lanes.manage') ? (
+                      <Button type="button" variant="danger" onClick={() => setConfirmInactive(lane.id)}>{translate("Ngưng hoạt động")}</Button>
                     ) : null}
                   </div>
                 </td>
@@ -105,16 +101,15 @@ export function LaneListPage() {
             ))}
           </tbody>
         </Table>
-        </section>
       )}
 
-      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} title="Tạo làn">
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} title={translate("Tạo làn")}>
         <LaneForm
           onCancel={() => setOpenCreate(false)}
           onSubmit={async (payload) => {
             await createLane(payload)
             setOpenCreate(false)
-            setFeedback('Tạo làn thành công.')
+            setFeedback(translate("Tạo làn thành công."))
             setTimeout(() => setFeedback(null), 3000)
           }}
         />
@@ -132,7 +127,7 @@ export function LaneListPage() {
                 onSubmit={async (payload) => {
                   await updateLane(lane.id, payload)
                   setEditing(null)
-                  setFeedback('Cập nhật làn thành công.')
+                  setFeedback(translate("Cập nhật làn thành công."))
                   setTimeout(() => setFeedback(null), 3000)
                 }}
               />
@@ -141,11 +136,11 @@ export function LaneListPage() {
         })()
       ) : null}
 
-      <Dialog open={!!confirmInactive} onClose={() => setConfirmInactive(null)} title="Xác nhận">
-        <p>Bạn có chắc muốn ngưng hoạt động làn &quot;{lanes.find((l) => l.id === confirmInactive)?.name}&quot;?</p>
+      <Dialog open={!!confirmInactive} onClose={() => setConfirmInactive(null)} title={translate("Xác nhận")}>
+        <p>{translate("Bạn có chắc muốn ngưng hoạt động làn \"")}{lanes.find((l) => l.id === confirmInactive)?.name}&quot;?</p>
         {laneError ? <Alert variant="error">{laneError}</Alert> : null}
-        <div className="data-dialog-actions">
-          <Button type="button" onClick={() => setConfirmInactive(null)}>Hủy</Button>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+          <Button type="button" onClick={() => setConfirmInactive(null)}>{translate("Hủy")}</Button>
           <Button
             type="button"
             variant="danger"
@@ -155,15 +150,13 @@ export function LaneListPage() {
               try {
                 await inactive(confirmInactive)
                 setConfirmInactive(null)
-                setFeedback('Đã ngưng hoạt động làn.')
+                setFeedback(translate("Đã ngưng hoạt động làn."))
                 setTimeout(() => setFeedback(null), 3000)
               } catch (e) {
-                setLaneError(e instanceof Error ? e.message : 'Thao tác thất bại.')
+                setLaneError(e instanceof Error ? e.message : translate("Thao tác thất bại."))
               }
             }}
-          >
-            Xác nhận
-          </Button>
+          >{translate("Xác nhận")}</Button>
         </div>
       </Dialog>
     </div>

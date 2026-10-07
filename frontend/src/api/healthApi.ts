@@ -5,7 +5,11 @@ export const healthApi = {
   live(): Promise<unknown> {
     return apiClient.get('/health/live')
   },
-  ready(): Promise<HealthStatus> {
-    return apiClient.get<HealthStatus>('/health/ready')
+  async ready(): Promise<HealthStatus> {
+    const raw = await apiClient.get<HealthStatus>('/health/ready')
+    return { ...raw,
+      database: raw.database ? { ...raw.database, ready: raw.database.status === 'ready' } : undefined,
+      alpr: raw.alpr ? { ...raw.alpr, ready: raw.alpr.status === 'ready', model_version: raw.alpr.version } : undefined,
+    }
   },
 }

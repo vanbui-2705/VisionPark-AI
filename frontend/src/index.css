@@ -22,6 +22,23 @@
 }
 
 * { box-sizing: border-box; }
+:root[data-theme="dark"] {
+  --background: #0b1220;
+  --surface: #182235;
+  --text-primary: #f1f5f9;
+  --text-secondary: #a5b4c8;
+  --border: #344258;
+  --navy: #2563eb;
+  --navy-2: #182235;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .btn:not(.btn-primary):not(.btn-danger) {
+  background: var(--surface); color: var(--text); border-color: var(--border);
+}
+body { margin: 0; background: var(--bg); }
 body {
   margin: 0;
   background: var(--bg);
@@ -32,16 +49,17 @@ body {
 input, select, textarea, button {
   font-family: inherit;
 }
+
 h1, h2, h3 { margin: 0 0 8px; }
 p { margin: 0 0 8px; }
 
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
 .field label { font-size: 14px; font-weight: 500; }
-.field input, .field select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: #fff; color: var(--text); }
+.field input, .field select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: var(--surface); color: var(--text); }
 .field input:focus-visible, .field select:focus-visible, .btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
 .field-error { color: var(--error); font-size: 12px; }
 
-.btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-size: 14px; background: #fff; color: var(--text); }
+.btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-size: 14px; background: var(--surface); color: var(--text); }
 .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
 .btn-danger { background: var(--error); color: #fff; border-color: var(--error); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -66,7 +84,6 @@ p { margin: 0 0 8px; }
 .empty { padding: 24px; text-align: center; color: var(--muted); }
 .empty-title { font-weight: 600; color: var(--text); }
 
-.banner-mock { background: #fef3c7; border-bottom: 1px solid #fcd34d; color: #92400e; padding: 10px 16px; font-size: 13px; text-align: center; }
 
 .admin-layout { display: flex; min-height: 100vh; }
 .admin-sidebar { width: 220px; background: var(--navy); color: #fff; padding: 16px; display: flex; flex-direction: column; gap: 12px; border-right: 1px solid var(--navy-2); }

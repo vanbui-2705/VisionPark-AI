@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { apiClient } from '../../api/client.ts'
+import { loadPreferences } from '../../lib/preferences.ts'
 import { authApi } from '../../api/authApi.ts'
 import { setUnauthorizedHandler } from '../../api/client.ts'
 import { getToken, removeToken, setToken } from '../../api/token.ts'
@@ -34,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   const logout = useCallback(() => {
+    if (getToken()) void apiClient.post("/api/v1/auth/logout").catch(() => undefined)
     removeToken()
     setTokenState(null)
     setUser(null)
@@ -61,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const u = await authApi.me()
       setUser(u)
+      void loadPreferences().catch(() => undefined)
       setTokenState(t)
     } catch (e: unknown) {
       if (e instanceof ApiError && e.status === 401) {
@@ -93,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTokenState(tok)
         const u = await authApi.me()
         setUser(u)
+      void loadPreferences().catch(() => undefined)
       } catch (e: unknown) {
         removeToken()
         setTokenState(null)

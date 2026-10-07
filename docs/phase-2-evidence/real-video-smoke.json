@@ -1,0 +1,9 @@
+{
+  "input": "synthetic gray MP4",
+  "provider": "ultralytics-paddleocr",
+  "normalized_plate": null,
+  "latency_ms": 180.0,
+  "video_frame_api": "pass",
+  "browser_errors": [],
+  "persisted": false
+}

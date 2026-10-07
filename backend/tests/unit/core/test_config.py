@@ -4,6 +4,12 @@ from pydantic import ValidationError
 from app.core.config import DEV_JWT_SECRET, Settings
 
 
+@pytest.mark.parametrize("password", [None, "", "short"])
+def test_bootstrap_rejects_missing_or_short_admin_password(password):
+    with pytest.raises(ValidationError, match="at least 8 characters"):
+        Settings(_env_file=None, auto_seed=True, seed_admin_password=password)
+
+
 @pytest.mark.parametrize("environment", ["development", "production"])
 @pytest.mark.parametrize("secret", [DEV_JWT_SECRET, "replace-this-with-a-long-random-secret"])
 def test_sample_signing_keys_are_rejected(environment, secret) -> None:

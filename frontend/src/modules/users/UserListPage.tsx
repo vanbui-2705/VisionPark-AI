@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usersApi } from '../../api/services.ts'
@@ -25,7 +26,7 @@ export function UserListPage() {
       const data = await usersApi.list()
       setUsers(data)
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Tải danh sách thất bại. (P1-FE-USER-API pending)')
+      setErr(e instanceof Error ? e.message : translate("Tải danh sách thất bại."))
     } finally {
       setLoading(false)
     }
@@ -48,44 +49,36 @@ export function UserListPage() {
   }, [users, q, role, status])
 
   if (loading) return <Spinner />
-  if (err) return <div><Alert variant="error">{err}</Alert><Button onClick={() => void load()}>Thử lại</Button></div>
+  if (err) return <div><Alert variant="error">{err}</Alert><Button onClick={() => void load()}>{translate("Thử lại")}</Button></div>
 
   return (
-    <div className="data-page users-page">
-      <section className="data-hero data-hero--cream">
-        <div className="data-hero-copy">
-          <span className="data-kicker">WORKFORCE · VISIONPARK</span>
-          <h2>Người dùng</h2>
-          <p>Quản lý tài khoản quản trị, nhân viên vận hành và trạng thái truy cập.</p>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>User Management · Duy Anh</div>
+          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>{translate("Người dùng")}</h2>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Quản lý tài khoản và vai trò, trạng thái hoạt động và hồ sơ vận hành.")}</p>
         </div>
-        <Link to="/admin/users/new" className="btn btn-primary">+ Tạo tài khoản</Link>
-      </section>
-      <section className="data-filter-card data-filter-card--compact">
-        <div className="data-section-kicker">Bộ lọc tài khoản</div>
-        <div className="data-filter-grid data-filter-grid--users">
-        <Input label="Tìm kiếm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên / username / email" />
-        <Select label="Vai trò" value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="ALL">Tất cả</option>
+        <Link to="/admin/users/new" className="btn btn-primary">{translate("+ Tạo tài khoản")}</Link>
+      </div>
+      <div className="filters">
+        <Input label={translate("Tìm kiếm")} value={q} onChange={(e) => setQ(e.target.value)} placeholder={translate("Tên / username / email")} />
+        <Select label={translate("Vai trò")} value={role} onChange={(e) => setRole(e.target.value)}>
+          <option value="ALL">ALL</option>
           <option value="ADMIN">ADMIN</option>
           <option value="OPERATOR">OPERATOR</option>
           <option value="ACCOUNTANT">ACCOUNTANT</option>
           <option value="TECHNICIAN">TECHNICIAN</option>
         </Select>
-        <Select label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="ALL">Tất cả</option>
-          <option value="ACTIVE">Đang hoạt động</option>
-          <option value="INACTIVE">Không hoạt động</option>
+        <Select label={translate("Trạng thái")} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="ALL">ALL</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
         </Select>
-        </div>
-      </section>
-      {filtered.length === 0 ? <EmptyState title="Không có người dùng phù hợp" /> : (
-        <section className="data-table-card">
-          <div className="data-table-head">
-            <div><span className="data-section-kicker">ACCESS DIRECTORY</span><h3>Danh sách người dùng</h3></div>
-            <span className="data-table-meta">{filtered.length} tài khoản</span>
-          </div>
-          <Table>
-          <thead><tr><th>Tên đăng nhập</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+      </div>
+      {filtered.length === 0 ? <EmptyState title={translate("Không có người dùng phù hợp")} /> : (
+        <Table>
+          <thead><tr><th>Username</th><th>{translate("Họ tên")}</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
             {filtered.map((u) => (
               <tr key={u.id}>
@@ -93,13 +86,12 @@ export function UserListPage() {
                 <td>{u.display_name}</td>
                 <td>{u.email ?? '—'}</td>
                 <td><span className={`badge ${u.role === 'ADMIN' ? 'badge-info' : u.role === 'ACCOUNTANT' ? 'badge-success' : u.role === 'TECHNICIAN' ? 'badge-warn' : 'badge-muted'}`}>{u.role}</span></td>
-                <td><span className={`badge ${u.active ? 'badge-success' : 'badge-muted'}`}>{u.active ? 'Đang hoạt động' : 'Đã khóa'}</span></td>
-                <td><Link className="data-inline-action" to={`/admin/users/${u.id}`}>Sửa</Link></td>
+                <td><span className={`badge ${u.active ? 'badge-success' : 'badge-muted'}`}>{u.active ? 'Active' : 'Locked'}</span></td>
+                <td><Link to={`/admin/users/${u.id}`}>{translate("Sửa")}</Link></td>
               </tr>
             ))}
           </tbody>
-          </Table>
-        </section>
+        </Table>
       )}
     </div>
   )

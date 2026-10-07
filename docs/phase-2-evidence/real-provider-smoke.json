@@ -1,0 +1,58 @@
+{
+  "input": "synthetic blank image and rendered text crop",
+  "checks": {
+    "real_detector_and_ocr_ready": "pass",
+    "blank_frame_does_not_return_mock_plate": "pass",
+    "actual_ocr_inference_on_rendered_crop": "pass"
+  },
+  "health": {
+    "status": "ready",
+    "version": "0.1.0",
+    "database": {
+      "status": "ready",
+      "message": "Database connection is ready.",
+      "provider": null,
+      "version": null
+    },
+    "alpr": {
+      "status": "ready",
+      "message": "Loaded detector + OCR model ultralytics-8.4.165-yolo26n-plate-v1",
+      "provider": "real",
+      "version": "ultralytics-8.4.165-yolo26n-plate-v1",
+      "ocr_enabled": true
+    },
+    "correlation_id": "7fee7128-f1f4-433f-b976-375a6ac816be"
+  },
+  "blank_frame": {
+    "raw_plate": null,
+    "normalized_plate": null,
+    "bbox": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "confidence": 0.0,
+    "latency_ms": 2684.0,
+    "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+    "requires_confirmation": true,
+    "detection_id": null,
+    "raw_plate_number": null,
+    "normalized_plate_number": null,
+    "processing_time_ms": 2684,
+    "detector_confidence": 0.0,
+    "ocr_confidence": null,
+    "combined_confidence": 0.0,
+    "quality_flags": [],
+    "provider": "ultralytics-paddleocr",
+    "provider_status": "ready",
+    "detector_latency_ms": 2684.0986849856563,
+    "ocr_latency_ms": null
+  },
+  "rendered_text_ocr": {
+    "raw_text": "30F12345",
+    "normalized_text": "30F12345",
+    "confidence": 0.991126298904419
+  },
+  "limitation": "Synthetic sanity checks; no real-vehicle accuracy/latency claim."
+}

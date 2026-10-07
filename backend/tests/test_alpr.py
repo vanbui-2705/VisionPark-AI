@@ -30,14 +30,14 @@ def valid_image_file(sample_image_bytes):
 
 
 @pytest.fixture
-def mock_settings():
+def mock_settings(tmp_path):
     """Mock Settings cho tests."""
     from app.core.config import Settings
 
     return Settings(
         environment="test",
         database_url="sqlite:///./test_alpr.db",
-        local_storage_path="./var/test-media",
+        local_storage_path=str(tmp_path / "media"),
     )
 
 
@@ -68,24 +68,26 @@ def mock_alpr_service(
     mock_settings, mock_storage_adapter, mock_detection_recorder, mock_lane_checker
 ):
     """Mock ALPR service cho endpoint tests."""
-    from app.alpr.runtime_adapter import create_runtime
     from app.alpr.service import ALPRApplicationService
+    from tests.alpr_double import FakeALPRRuntime
 
     service = ALPRApplicationService(
-        runtime=create_runtime("mock"),
+        runtime=FakeALPRRuntime(),
         lane_checker=mock_lane_checker,
         image_storage=mock_storage_adapter,
         detection_recorder=mock_detection_recorder,
     )
 
     # Mock result trả về
-    mock_result = MagicMock()
-    mock_result.plate_number = "29A-123.45"
-    mock_result.confidence = 0.98
-    mock_result.processing_time_ms = 250
-    mock_bbox = MagicMock()
-    mock_bbox.as_tuple = (100, 200, 400, 300)
-    mock_result.bbox = mock_bbox
+    from app.alpr.schema import ALPRResult, BoundingBox
+
+    mock_result = ALPRResult(
+        plate_number="29A-123.45",
+        confidence=0.98,
+        processing_time_ms=250,
+        bbox=BoundingBox(x1=100, y1=200, x2=400, y2=300),
+        requires_confirmation=False,
+    )
 
     service.process_detection = MagicMock(return_value=mock_result)
     return service

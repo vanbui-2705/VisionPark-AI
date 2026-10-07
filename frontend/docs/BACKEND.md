@@ -1,9 +1,13 @@
-# Backend (tóm tắt cho frontend)
+# Backend
 
-- Base: `VITE_API_BASE_URL`
-- Auth: `POST /api/v1/auth/login`, `POST /api/v1/auth/register` (gate `PUBLIC_REGISTRATION_ENABLED`), `GET /api/v1/auth/me`
-- Lanes: `GET/POST /api/v1/lanes`, `GET/PATCH /api/v1/lanes/:id` (không có DELETE)
-- Users: `GET/POST /api/v1/users`, `GET/PATCH /api/v1/users/:id` (ADMIN only)
-- Detections: `GET /api/v1/detections`, `GET /api/v1/detections/:id`, `POST /api/v1/detections/:id/confirm`
-- Audit: `GET /api/v1/audit-logs` (ADMIN)
-- Roles/Health: `GET /api/v1/roles`, `/health/ready`, `/health/live`
+FastAPI + PostgreSQL, Alembic migration trước startup. API routes và DTO được
+mô tả trong API.md và OpenAPI `/docs`.
+
+Lanes được đọc bởi user đăng nhập, ghi bởi ADMIN. Users/roles API yêu cầu ADMIN.
+ALPR/detection/parking/audit yêu cầu ADMIN hoặc OPERATOR. Auth giữ role thật.
+Preview không persist; final lưu metadata/ảnh. Check-in lưu PARKED và audit,
+chống trùng active plate và hỗ trợ idempotency. Confirm check-in qua canonical
+ALPR confirm endpoint hoặc nhập tay qua parking/check-in.
+
+Real ALPR tùy chọn, mock mặc định. Readiness phản ánh database + runtime;
+mock ready không chứng minh recognition accuracy. ALPR không mở barrier.

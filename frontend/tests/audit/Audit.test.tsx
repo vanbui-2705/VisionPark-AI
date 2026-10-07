@@ -51,7 +51,7 @@ describe('AuditLogsPage', () => {
   it('filter by actor triggers refetch', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     const { auditApi } = await import('../../src/api/services.ts')
-    const spy = vi.spyOn(auditApi, 'list').mockResolvedValue(paginated(audits) as unknown as Awaited<ReturnType<typeof auditApi.list>>)
+    const spy = vi.spyOn(auditApi, 'page').mockResolvedValue(paginated(audits) as unknown as Awaited<ReturnType<typeof auditApi.page>>)
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (u) => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'admin', display_name: 'Admin', role: 'ADMIN', active: true })

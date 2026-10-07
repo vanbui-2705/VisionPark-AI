@@ -8,20 +8,30 @@ export interface LanePayload {
   active?: boolean
 }
 
+interface LaneResponse extends Omit<Lane, 'active'> { is_active: boolean }
+function mapLane(raw: LaneResponse): Lane { return { ...raw, active: raw.is_active } }
+function toPayload(payload: Partial<LanePayload>) {
+  const { active, ...rest } = payload
+  return { ...rest, ...(active === undefined ? {} : { is_active: active }) }
+}
+
 export const lanesApi = {
-  getLanes(): Promise<Lane[]> {
-    return apiClient.get<Lane[]>('/api/v1/lanes')
+  async getLanes(): Promise<Lane[]> {
+    return (await apiClient.get<LaneResponse[]>('/api/v1/lanes/')).map(mapLane)
   },
-  getLane(id: string): Promise<Lane> {
-    return apiClient.get<Lane>(`/api/v1/lanes/${id}`)
+  async getActiveLanes(): Promise<Lane[]> {
+    return (await apiClient.get<LaneResponse[]>('/api/v1/lanes/active')).map(mapLane)
   },
-  createLane(payload: LanePayload): Promise<Lane> {
-    return apiClient.post<Lane>('/api/v1/lanes', payload)
+  async getLane(id: string): Promise<Lane> {
+    return mapLane(await apiClient.get<LaneResponse>(`/api/v1/lanes/${id}`))
   },
-  updateLane(id: string, payload: Partial<LanePayload>): Promise<Lane> {
-    return apiClient.patch<Lane>(`/api/v1/lanes/${id}`, payload)
+  async createLane(payload: LanePayload): Promise<Lane> {
+    return mapLane(await apiClient.post<LaneResponse>('/api/v1/lanes/', toPayload(payload)))
   },
-  setLaneInactive(id: string): Promise<Lane> {
-    return apiClient.patch<Lane>(`/api/v1/lanes/${id}`, { active: false })
+  async updateLane(id: string, payload: Partial<LanePayload>): Promise<Lane> {
+    return mapLane(await apiClient.patch<LaneResponse>(`/api/v1/lanes/${id}`, toPayload(payload)))
+  },
+  async setLaneInactive(id: string): Promise<Lane> {
+    return mapLane(await apiClient.post<LaneResponse>(`/api/v1/lanes/${id}/deactivate`))
   },
 }

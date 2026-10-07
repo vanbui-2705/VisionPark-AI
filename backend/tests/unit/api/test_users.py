@@ -42,7 +42,7 @@ def test_create_and_patch_user(client: TestClient, admin_token: str):
     patched = patch_res.json()
     assert patched["display_name"] == "Updated Name"
     assert patched["role"] == "ACCOUNTANT"
-    assert patched["active"] is False
+    assert patched["is_active"] is False
 
 
 def test_create_user_conflict(client: TestClient, admin_token: str):

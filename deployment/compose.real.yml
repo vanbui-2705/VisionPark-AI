@@ -1,0 +1,52 @@
+# Apply with: docker compose -f docker-compose.yml -f deployment/compose.real.yml up --build -d
+# Run backend/scripts/provision_real_docker.py before using this override.
+services:
+  backend:
+    build:
+      args: &real-build-args
+        INSTALL_REAL_ALPR: "true"
+        INSTALL_OCR: "true"
+        INSTALL_TORCH_CPU: "true"
+    environment:
+      ALPR_PROVIDER: real
+      ALPR_OCR_ENABLED: "true"
+      ALPR_DEVICE: cpu
+      ALPR_MANIFEST_PATH: /app/models/alpr-manifest.docker.json
+      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True"
+    # Load the models in the serving process before opening the HTTP listener.
+    # This prevents the first Station frame from paying the model import/load cost.
+    command:
+      - python
+      - -c
+      - >-
+        import logging, uvicorn;
+        from app.main import app;
+        logging.getLogger('visionpark.alpr').warning('Real ALPR warmup: %s', app.state.alpr_runtime.is_ready());
+        uvicorn.run(app, host='0.0.0.0', port=8000)
+    volumes:
+      - type: bind
+        source: ./backend/app/alpr/weights
+        target: /app/app/alpr/weights
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./backend/var/models/ocr
+        target: /models/ocr
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./backend/var/models/alpr-manifest.docker.json
+        target: /app/models/alpr-manifest.docker.json
+        read_only: true
+        bind:
+          create_host_path: false
+    # Model import/load may take longer than the ordinary API liveness budget.
+    healthcheck:
+      timeout: 10s
+      start_period: 120s
+  migrate:
+    # Both services share an image, so their build arguments must match.
+    build:
+      args: *real-build-args
