@@ -2,6 +2,8 @@ import { t as translate } from "../../lib/i18n"
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { auditApi, parkingTransactionsApi } from '../../api/services.ts'
+import { can } from '../../lib/permissions.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
 import type { AuditLog, ParkingTransaction } from '../../api/domain.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Skeleton } from '../../components/ui/Skeleton.tsx'
@@ -19,6 +21,7 @@ function sanitize(obj: unknown): unknown {
 const SOURCE_LABEL: Record<string, string> = { AI_ACCEPTED: 'AI được xác nhận', OPERATOR_CORRECTED: 'Sửa biển số', MANUAL_ENTRY: 'Nhập tay', STATION_AUTO: 'Tự động (Station)', OPERATOR_MANUAL: 'Thủ công (Operator)' }
 
 export function ParkingDetailPage() {
+  const { user } = useAuth()
   const { id } = useParams()
   const [tx, setTx] = useState<ParkingTransaction | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -54,7 +57,7 @@ export function ParkingDetailPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {tx.detection_id ? <Link to={`/detections/${tx.detection_id}`} className="btn btn-sm" style={{ textDecoration: 'none', background: 'var(--surface)', color: '#0f172a', borderColor: '#fff' }}>Xem detection</Link> : null}
+          {tx.detection_id && can(user, 'detections.read') ? <Link to={`/detections/${tx.detection_id}`} className="btn btn-sm" style={{ textDecoration: 'none', background: 'var(--surface)', color: '#0f172a', borderColor: '#fff' }}>Xem detection</Link> : null}
           <Link to="/parking" className="btn btn-sm" style={{ textDecoration: 'none', background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,0.35)' }}>{translate("Quay lại")}</Link>
         </div>
       </div>
@@ -78,7 +81,7 @@ export function ParkingDetailPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Lane ID</span><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{tx.lane_id}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>{translate("Nhân viên")}</span><span>{tx.check_in_operator_name ?? '—'}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>{translate("ID giao dịch")}</span><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{tx.id.slice(0, 8)}…</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Detection</span>{tx.detection_id ? <Link to={`/detections/${tx.detection_id}`} style={{ fontSize: 12 }}>{tx.detection_id.slice(0, 8)}…</Link> : <span>—</span>}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Detection</span>{tx.detection_id && can(user, 'detections.read') ? <Link to={`/detections/${tx.detection_id}`} style={{ fontSize: 12 }}>{tx.detection_id.slice(0, 8)}…</Link> : <span>{tx.detection_id ? `${tx.detection_id.slice(0, 8)}…` : '—'}</span>}</div>
             {tx.notes ? <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{translate("Ghi chú")}</div><div>{tx.notes}</div></div> : null}
           </div>
         </section>

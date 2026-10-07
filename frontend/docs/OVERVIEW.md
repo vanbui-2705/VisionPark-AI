@@ -7,8 +7,8 @@ Phase 2 hiện có ảnh JPEG/PNG và video MP4, ALPR preview/final, consensus 2
 biển số thủ công, check-in PARKED, duplicate/idempotency, lịch sử/audit.
 Backend chỉ hỗ trợ YOLO/PaddleOCR thật; frontend không còn fixture fallback hay mock API.
 
-ADMIN quản trị; OPERATOR vận hành và đọc lanes. ACCOUNTANT/TECHNICIAN giữ role
-thật và chỉ có trang tài khoản trong portal hiện tại.
+ADMIN quản trị; OPERATOR vận hành và đọc lanes. ACCOUNTANT đọc dashboard,
+parking và audit; TECHNICIAN dùng Station/check-in, detection và trang trạng thái.
 
 Profile, preferences, notifications và lỗi đã lưu database. Model readiness, video demo thật và
 accuracy/latency benchmark là các mức xác minh riêng. Check-out/payment/barrier,

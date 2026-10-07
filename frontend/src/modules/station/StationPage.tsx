@@ -11,7 +11,11 @@ import ErrorPanel from "./components/ErrorPanel";
 import { useAlprDetection } from "./hooks/useAlprDetection";
 import type { ApiError, Lane, RecentHistoryItem } from "./types";
 import { DetectionImage } from "../../components/DetectionImage";
+import { useAuth } from "../auth/AuthContext";
+import { can } from "../../lib/permissions";
 export default function StationPage() {
+  const { user } = useAuth();
+  const mayReadTransactions = can(user, 'transactions.read');
   const [inputMode, setInputMode] = useState<'image' | 'video'>('video');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -38,10 +42,11 @@ export default function StationPage() {
     failConfirm
   } = useAlprDetection();
   const refreshHistory = useCallback(async () => {
+    if (!mayReadTransactions) { setHistory([]); return; }
     try {
       setHistory(await getRecentHistory());
     } catch {/* history is secondary */}
-  }, []);
+  }, [mayReadTransactions]);
   useEffect(() => {
     void (async () => {
       try {

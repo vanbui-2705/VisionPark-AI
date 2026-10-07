@@ -28,91 +28,6 @@ export type Permission =
   | 'help.read'
   | 'docs.read'
 
-const ADMIN_ALL: Permission[] = [
-  'dashboard.read',
-  'station.use',
-  'station.history.read',
-  'detections.read',
-  'detections.confirm',
-  'checkin.create',
-  'transactions.read',
-  'lanes.read',
-  'lanes.create',
-  'lanes.update',
-  'lanes.manage',
-  'users.read',
-  'users.manage',
-  'roles.read',
-  'permissions.read',
-  'alpr.read',
-  'alpr.test',
-  'audit.read',
-  'errors.read',
-  'system.read',
-  'profile.read',
-  'profile.update',
-  'settings.update',
-  'notifications.read',
-  'help.read',
-  'docs.read',
-]
-
-const OPERATOR_PERMS: Permission[] = [
-  'station.use',
-  'station.history.read',
-  'detections.read',
-  'detections.confirm',
-  'checkin.create',
-  'transactions.read',
-  'lanes.read',
-  'profile.read',
-  'profile.update',
-  'settings.update',
-  'notifications.read',
-  'help.read',
-]
-
-const ACCOUNTANT_PERMS: Permission[] = [
-  'dashboard.read',
-  'transactions.read',
-  'audit.read',
-  'profile.read',
-  'profile.update',
-  'settings.update',
-  'notifications.read',
-  'help.read',
-]
-
-const TECHNICIAN_PERMS: Permission[] = [
-  'station.use',
-  'station.history.read',
-  'detections.read',
-  'detections.confirm',
-  'checkin.create',
-  'lanes.read',
-  'system.read',
-  'alpr.read',
-  'profile.read',
-  'profile.update',
-  'settings.update',
-  'notifications.read',
-  'help.read',
-]
-
-const ROLE_PERMS: Record<string, Permission[]> = {
-  ADMIN: ADMIN_ALL,
-  OPERATOR: OPERATOR_PERMS,
-  ACCOUNTANT: ACCOUNTANT_PERMS,
-  TECHNICIAN: TECHNICIAN_PERMS,
-}
-
-export function can(user: CurrentUser | null | undefined, perm: Permission): boolean {
-  if (!user) return false
-  const perms = ROLE_PERMS[user.role]
-  if (!perms) return false
-  return (perms as string[]).includes(perm)
-}
-
 export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolean; operator: boolean; accountant: boolean; technician: boolean }[] = [
   { perm: 'dashboard.read', label: 'Dashboard', admin: true, operator: false, accountant: true, technician: false },
   { perm: 'station.use', label: 'Quét biển số', admin: true, operator: true, accountant: false, technician: true },
@@ -124,6 +39,7 @@ export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolea
   { perm: 'lanes.read', label: 'Xem làn xe', admin: true, operator: true, accountant: false, technician: true },
   { perm: 'lanes.create', label: 'Tạo làn xe', admin: true, operator: false, accountant: false, technician: false },
   { perm: 'lanes.update', label: 'Cập nhật làn xe', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'lanes.manage', label: 'Quản lý làn xe', admin: true, operator: false, accountant: false, technician: false },
   { perm: 'users.read', label: 'Xem người dùng', admin: true, operator: false, accountant: false, technician: false },
   { perm: 'users.manage', label: 'Quản lý người dùng', admin: true, operator: false, accountant: false, technician: false },
   { perm: 'roles.read', label: 'Xem vai trò', admin: true, operator: false, accountant: false, technician: false },
@@ -140,3 +56,16 @@ export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolea
   { perm: 'help.read', label: 'Trợ giúp', admin: true, operator: true, accountant: true, technician: true },
   { perm: 'docs.read', label: 'Docs Center', admin: true, operator: false, accountant: false, technician: false },
 ]
+
+const ROLE_COLUMN: Record<CurrentUser['role'], 'admin' | 'operator' | 'accountant' | 'technician'> = {
+  ADMIN: 'admin',
+  OPERATOR: 'operator',
+  ACCOUNTANT: 'accountant',
+  TECHNICIAN: 'technician',
+}
+
+export function can(user: CurrentUser | null | undefined, perm: Permission): boolean {
+  if (!user) return false
+  const column = ROLE_COLUMN[user.role]
+  return column ? (PERMISSION_MATRIX.find((entry) => entry.perm === perm)?.[column] ?? false) : false
+}

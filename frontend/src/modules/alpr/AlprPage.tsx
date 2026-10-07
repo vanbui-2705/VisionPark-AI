@@ -2,12 +2,15 @@ import { t as translate } from "../../lib/i18n"
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { healthApi } from '../../api/healthApi.ts'
+import { can } from '../../lib/permissions.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
 import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Spinner } from '../../components/ui/Spinner.tsx'
 
 export function AlprPage() {
+  const { user } = useAuth()
   const [data, setData] = useState<unknown>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -49,7 +52,7 @@ export function AlprPage() {
           ))}
         </ul>
         <pre className="code-block" style={{ marginTop: 12 }}>{JSON.stringify(data, null, 2)}</pre>
-        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}><Link to="/admin/alpr/test" className="btn btn-sm btn-primary" style={{ textDecoration: 'none' }}>ALPR Test Lab</Link><Link to="/detections" className="btn btn-sm" style={{ textDecoration: 'none' }}>{translate("Lịch sử nhận diện")}</Link></div>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>{can(user, 'alpr.test') && <Link to="/admin/alpr/test" className="btn btn-sm btn-primary" style={{ textDecoration: 'none' }}>ALPR Test Lab</Link>}<Link to="/detections" className="btn btn-sm" style={{ textDecoration: 'none' }}>{translate("Lịch sử nhận diện")}</Link></div>
       </section>
     </div>
   )

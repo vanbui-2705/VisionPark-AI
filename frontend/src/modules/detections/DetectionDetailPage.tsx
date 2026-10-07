@@ -3,6 +3,8 @@ import { DetectionImage } from '../../components/DetectionImage.tsx'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { detectionsApi, auditApi } from '../../api/services.ts'
+import { can } from '../../lib/permissions.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
 import type { Detection, AuditLog } from '../../api/domain.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Skeleton } from '../../components/ui/Skeleton.tsx'
@@ -13,6 +15,8 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
 const TABS = ['Overview', 'Media', 'Audit', 'Raw Data'] as const
 
 export function DetectionDetailPage() {
+  const { user } = useAuth()
+  const mayReadAudit = can(user, 'audit.read')
   const { id } = useParams()
   const [d, setD] = useState<Detection | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -22,8 +26,8 @@ export function DetectionDetailPage() {
   useEffect(() => {
     if (!id) return
     detectionsApi.get(id).then(setD).catch((e: unknown) => setErr(e instanceof Error ? e.message : translate("Không tải được chi tiết."))).finally(() => setLoading(false))
-    auditApi.list({ resource_id: id, limit: 100 }).then(setAudit).catch(() => setAudit([]))
-  }, [id])
+    if (mayReadAudit) auditApi.list({ resource_id: id, limit: 100 }).then(setAudit).catch(() => setAudit([]))
+  }, [id, mayReadAudit])
   if (loading) return <Skeleton lines={6} />
   if (err) return <Alert variant="error">{err}</Alert>
   if (!d) return <Alert variant="info">{translate("Không tìm thấy detection.")}</Alert>
@@ -43,7 +47,7 @@ export function DetectionDetailPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {TABS.map((t) => <button type="button" key={t} onClick={() => setTab(t)} style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--border)', background: t === tab ? '#0f172a' : 'var(--surface)', color: t === tab ? '#fff' : 'var(--text)', fontWeight: 600, fontSize: 13 }}>{t}</button>)}
+        {TABS.filter((t) => t !== 'Audit' || mayReadAudit).map((t) => <button type="button" key={t} onClick={() => setTab(t)} style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--border)', background: t === tab ? '#0f172a' : 'var(--surface)', color: t === tab ? '#fff' : 'var(--text)', fontWeight: 600, fontSize: 13 }}>{t}</button>)}
       </div>
 
       {tab === 'Overview' && (
@@ -86,7 +90,7 @@ export function DetectionDetailPage() {
           {d.bbox ? <p className="muted">BBox: {JSON.stringify(d.bbox)}</p> : null}
         </section>
       )}
-      {tab === 'Audit' && (
+      {tab === 'Audit' && mayReadAudit && (
         <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
           <h3 style={{ marginTop: 0 }}>{translate("Lịch sử audit liên quan")}</h3>
           {audit.length === 0 ? <p className="muted">{translate("Chưa có bản ghi audit cho detection này.")}</p> : <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>{audit.map((a) => <li key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', flexWrap: 'wrap' }}><span style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date((a as unknown as { time?: string }).time ?? 0).toLocaleString('vi-VN')}</span><b>{a.actor}</b><span>{a.action}</span><code>{a.resource}</code></li>)}</ul>}

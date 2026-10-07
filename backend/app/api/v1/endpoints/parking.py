@@ -32,7 +32,9 @@ def create_check_in(
     request: CheckInRequest,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     service: CheckInService = Depends(get_checkin_service),
-    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN)
+    ),
 ) -> CheckInResponse:
     return service.process_check_in(
         request,
@@ -58,7 +60,9 @@ def list_parking_transactions(
     skip: int | None = Query(None, ge=0),
     paginated: bool = False,
     service: CheckInService = Depends(get_checkin_service),
-    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+    ),
 ):
     del current_user
     is_paginated = (
@@ -97,11 +101,24 @@ def list_parking_transactions(
     return paginated_result.data
 
 
+@router.get("/summary", response_model=dict[str, int])
+def get_parking_summary(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+    ),
+) -> dict[str, int]:
+    del current_user
+    return DatabaseCheckInRepository(db).summary()
+
+
 @router.get("/transactions/{transaction_id}", response_model=ParkingTransactionResponse)
 def get_parking_transaction(
     transaction_id: UUID,
     service: CheckInService = Depends(get_checkin_service),
-    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+    ),
 ) -> ParkingTransactionResponse:
     del current_user
     return service.get_transaction(transaction_id)
