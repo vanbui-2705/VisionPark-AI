@@ -75,8 +75,8 @@ def test_provenance_locking_and_snapshot(client, db_session, operator_headers):
     assert data["source"] == "MANUAL_ENTRY"
     assert data["original_ai_plate"] is None
     assert data["confidence"] is None
-    assert data["lane_snapshot_name"] == lane.name
-    assert data["lane_snapshot_direction"] == lane.direction
+    assert data["lane_name"] == lane.name
+    assert data["lane_direction"] == lane.direction
 
     # Change lane name in DB
     lane.name = "CHANGED_LANE"
@@ -85,4 +85,4 @@ def test_provenance_locking_and_snapshot(client, db_session, operator_headers):
     # Read history - snapshot should remain unchanged
     history = client.get(f"/api/v1/parking/transactions/{data['id']}", headers=operator_headers)
     assert history.status_code == 200
-    assert history.json()["lane_snapshot_name"] == "LANE_IN_01"  # Kept the snapshot
+    assert history.json()["lane_name"] == "LANE_IN_01"  # Kept the snapshot
