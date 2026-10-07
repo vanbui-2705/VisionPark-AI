@@ -34,7 +34,12 @@ export interface AlprProviderInfo {
   runtime?: string
 }
 
-export type CheckInSource = 'STATION_AUTO' | 'OPERATOR_MANUAL'
+export type CheckInSource =
+  | 'AI_ACCEPTED'
+  | 'OPERATOR_CORRECTED'
+  | 'MANUAL_ENTRY'
+  | 'STATION_AUTO'
+  | 'OPERATOR_MANUAL'
 
 export type TransactionStatus = 'PARKED' | 'COMPLETED' | 'CANCELLED'
 
@@ -60,11 +65,14 @@ export interface ParkingTransaction {
 
 export interface CheckInRequest {
   lane_id: string
-  license_plate: string
-  detection_id?: string
-  confidence?: number
-  source: CheckInSource
-  override_reason?: string
+  license_plate?: string | null
+  plate_number?: string | null
+  detection_id?: string | null
+  confidence?: number | null
+  original_ai_plate?: string | null
+  source?: CheckInSource | null
+  override_reason?: string | null
+  idempotency_key?: string | null
 }
 
 export interface CheckInResponse {
@@ -86,14 +94,14 @@ export interface ParkingHistoryFilter {
 export interface AuditLog {
   id: string
   time: string
-  actor: string
+  actor: string | null
   action: string
   resource: string
   resource_id: string
-  source?: CheckInSource | 'ADMIN'
-  before?: unknown
-  after?: unknown
-  correlation_id?: string
+  source?: string | null
+  before?: unknown | null
+  after?: unknown | null
+  correlation_id?: string | null
 }
 
 export interface ManagedUser {

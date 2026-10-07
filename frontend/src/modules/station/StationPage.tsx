@@ -65,7 +65,7 @@ export default function StationPage() {
     setActionError(null);
     await detect(image, selectedLaneId);
   }, [detect, selectedLaneId]);
-  const confirm = async (detectionId: string, plate?: string) => {
+  const confirm = async (detectionId: string | null, plate?: string) => {
     setActionError(null);
     beginConfirm();
     try {

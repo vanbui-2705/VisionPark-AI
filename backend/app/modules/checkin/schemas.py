@@ -10,9 +10,9 @@ class CheckInRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     lane_id: UUID
-    license_plate: str | None = Field(None, min_length=3)
+    license_plate: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
     # Backwards-compatible body name used by the first check-in prototype.
-    plate_number: str | None = Field(None, min_length=3)
+    plate_number: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
     detection_id: UUID | None = None
     confidence: float | None = Field(None, ge=0.0, le=1.0)
     original_ai_plate: str | None = Field(None, max_length=50)
