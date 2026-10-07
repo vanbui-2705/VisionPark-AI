@@ -9,7 +9,12 @@ from app.database.session import get_db
 from app.modules.auth.dependencies import require_roles
 from app.modules.checkin.models import TransactionStatus
 from app.modules.checkin.repository import DatabaseCheckInRepository
-from app.modules.checkin.schemas import CheckInRequest, CheckInResponse, ParkingTransactionResponse
+from app.modules.checkin.schemas import (
+    CheckInRequest,
+    CheckInResponse,
+    PaginatedParkingTransactions,
+    ParkingTransactionResponse,
+)
 from app.modules.checkin.service import CheckInService
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
@@ -35,7 +40,7 @@ def create_check_in(
     )
 
 
-@router.get("/transactions", response_model=list[ParkingTransactionResponse])
+@router.get("/transactions", response_model=PaginatedParkingTransactions)
 def list_parking_transactions(
     q: str | None = None,
     lane_id: UUID | None = None,
@@ -46,7 +51,7 @@ def list_parking_transactions(
     page: int = Query(0, ge=0),
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
-) -> list[ParkingTransactionResponse]:
+) -> PaginatedParkingTransactions:
     del current_user
     return service.list_transactions(
         query=q,

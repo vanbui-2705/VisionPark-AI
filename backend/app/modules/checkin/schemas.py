@@ -32,7 +32,7 @@ class CheckInRequest(BaseModel):
 
 
 class ParkingTransactionResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: UUID
     license_plate: str
@@ -40,17 +40,25 @@ class ParkingTransactionResponse(BaseModel):
     normalized_plate: str
     status: TransactionStatus
     lane_id: UUID
-    lane_name: str | None = None
+    lane_name: str | None = Field(default=None, alias="lane_snapshot_name")
+    lane_direction: str | None = Field(default=None, alias="lane_snapshot_direction")
     detection_id: UUID | None = None
     image_url: str | None = None
     confidence: float | None = None
     check_in_time: datetime
     check_in_operator_id: UUID | None = None
-    check_in_operator_name: str | None = None
+    check_in_operator_name: str | None = Field(default=None, alias="operator_snapshot_name")
     source: str
     is_manual_override: bool
     notes: str | None = None
     created_at: datetime
+
+
+class PaginatedParkingTransactions(BaseModel):
+    data: list[ParkingTransactionResponse]
+    total: int
+    page: int
+    limit: int
 
 
 class CheckInResponse(BaseModel):
@@ -69,3 +77,10 @@ class AuditLogResponse(BaseModel):
     before: object | None = None
     after: object | None = None
     correlation_id: str | None = None
+
+
+class PaginatedAuditLogs(BaseModel):
+    data: list[AuditLogResponse]
+    total: int
+    page: int
+    limit: int

@@ -181,18 +181,32 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
         lane = session.scalar(select(Lane).where(Lane.name == "LANE_IN_01"))
         session.add(Detection(id=detection_id, lane_id=lane.id, image_key="existing-phase1.jpg"))
         session.flush()
-        session.add(
-            ParkingTransaction(
-                id=transaction_id,
-                lane_id=lane.id,
-                detection_id=detection_id,
-                license_plate="29A12345",
-                normalized_plate="29A12345",
-                status="PARKED",
-                source="MANUAL_ENTRY",
-                idempotency_key="old-key",
-                request_fingerprint="a" * 64,
-            )
+        from sqlalchemy import text
+
+        session.execute(
+            text(
+                """
+                INSERT INTO parking_transactions (
+                    id, lane_id, detection_id, license_plate, normalized_plate, 
+                    status, source, idempotency_key, request_fingerprint, is_manual_override
+                ) VALUES (
+                    :id, :lane, :det, :plate, :norm, 
+                    :status, :src, :key, :fp, :is_man
+                )
+                """
+            ),
+            {
+                "id": transaction_id.hex,
+                "lane": lane.id.hex,
+                "det": detection_id.hex,
+                "plate": "29A12345",
+                "norm": "29A12345",
+                "status": "PARKED",
+                "src": "MANUAL_ENTRY",
+                "key": "old-key",
+                "fp": "a" * 64,
+                "is_man": False,
+            },
         )
         session.commit()
     engine.dispose()
@@ -204,7 +218,12 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
         engine = create_engine(database_url)
         with Session(engine) as session:
             assert session.get(Detection, detection_id).image_key == "existing-phase1.jpg"
-            assert session.get(ParkingTransaction, transaction_id).detection_id == detection_id
+            row = session.execute(
+                text("SELECT detection_id FROM parking_transactions WHERE id = :id"),
+                {"id": transaction_id.hex},
+            ).fetchone()
+            assert row is not None
+            assert row[0].replace("-", "") == detection_id.hex
             assert session.scalar(select(func.count()).select_from(User)) == 2
             assert session.scalar(select(func.count()).select_from(Role)) == 4
         constraints = {

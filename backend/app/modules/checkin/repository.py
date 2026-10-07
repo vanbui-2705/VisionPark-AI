@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.modules.alpr.models import Detection
@@ -47,7 +47,7 @@ class CheckInRepository(ABC):
         to_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[ParkingTransaction]:
+    ) -> tuple[list[ParkingTransaction], int]:
         raise NotImplementedError
 
 
@@ -113,7 +113,7 @@ class DatabaseCheckInRepository(CheckInRepository):
         to_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[ParkingTransaction]:
+    ) -> tuple[list[ParkingTransaction], int]:
         stmt = (
             select(ParkingTransaction)
             .options(
@@ -121,8 +121,6 @@ class DatabaseCheckInRepository(CheckInRepository):
                 joinedload(ParkingTransaction.check_in_operator),
             )
             .order_by(ParkingTransaction.check_in_time.desc())
-            .limit(limit)
-            .offset(offset)
         )
         if query:
             pattern = f"%{query.upper()}%"
@@ -140,7 +138,10 @@ class DatabaseCheckInRepository(CheckInRepository):
             stmt = stmt.where(ParkingTransaction.check_in_time >= from_time)
         if to_time:
             stmt = stmt.where(ParkingTransaction.check_in_time <= to_time)
-        return list(self.session.scalars(stmt).all())
+
+        total = self.session.scalar(select(func.count()).select_from(stmt.subquery()))
+        stmt = stmt.limit(limit).offset(offset)
+        return list(self.session.scalars(stmt).all()), total
 
 
 class FakeCheckInRepository(CheckInRepository):
@@ -183,5 +184,5 @@ class FakeCheckInRepository(CheckInRepository):
         self._fake_db.append(transaction)
         return transaction
 
-    def list_transactions(self, **kwargs) -> list[ParkingTransaction]:
-        return list(self._fake_db)
+    def list_transactions(self, **kwargs) -> tuple[list[ParkingTransaction], int]:
+        return list(self._fake_db), len(self._fake_db)

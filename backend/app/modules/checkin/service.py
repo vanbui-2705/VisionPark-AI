@@ -19,6 +19,7 @@ from .repository import CheckInRepository
 from .schemas import (
     CheckInRequest,
     CheckInResponse,
+    PaginatedParkingTransactions,
     ParkingTransactionResponse,
 )
 
@@ -52,6 +53,15 @@ class CheckInService:
                 code="INVALID_PLATE",
                 message="The normalized plate must contain 3 to 50 characters.",
             )
+        lane = self.repo.get_lane(request.lane_id)
+        detection = self.repo.get_detection(request.detection_id) if request.detection_id else None
+
+        # Compute provenance for fingerprint
+        ai_plate = detection.normalized_plate if detection else None
+        ai_normalized = normalize_plate(ai_plate) if ai_plate else None
+        confidence = detection.confidence if detection else None
+        source = self._resolve_source(detection is not None, ai_normalized, normalized_plate)
+
         fingerprint = fingerprint_payload(
             {
                 "operation": "parking.check-in.v2",
@@ -65,22 +75,19 @@ class CheckInService:
                 "notes": request.override_reason,
             }
         )
+
         existing = self.repo.get_by_idempotency_key(key)
         if existing is not None:
             return self._replay(existing, request, operator, fingerprint, normalized_plate)
 
-        lane = self.repo.get_lane(request.lane_id)
+        # Now perform validations
         if lane is None:
             raise AppError(
-                status_code=404,
-                code="LANE_NOT_FOUND",
-                message="The selected lane does not exist.",
+                status_code=404, code="LANE_NOT_FOUND", message="The selected lane does not exist."
             )
         if not lane.is_active:
             raise AppError(
-                status_code=400,
-                code="LANE_INACTIVE",
-                message="The selected lane is inactive.",
+                status_code=400, code="LANE_INACTIVE", message="The selected lane is inactive."
             )
         if lane.direction != LaneDirection.IN:
             raise AppError(
@@ -89,7 +96,6 @@ class CheckInService:
                 message="Check-in is only allowed on an IN lane.",
             )
 
-        detection = self.repo.get_detection(request.detection_id) if request.detection_id else None
         if request.detection_id and detection is None:
             raise AppError(
                 status_code=404,
@@ -103,11 +109,6 @@ class CheckInService:
                 message="The detection belongs to a different lane.",
             )
 
-        ai_plate = request.original_ai_plate or (detection.normalized_plate if detection else None)
-        ai_normalized = normalize_plate(ai_plate) if ai_plate else None
-        source = self._resolve_source(
-            request.source, detection is not None, ai_normalized, normalized_plate
-        )
         duplicate = self.repo.get_active_by_plate(normalized_plate)
         if duplicate:
             raise AppError(
@@ -117,12 +118,10 @@ class CheckInService:
                 details={"transaction_id": str(duplicate.id)},
             )
 
-        confidence = request.confidence
-        if confidence is None and detection:
-            confidence = detection.confidence
         image_url = None
         if detection and detection.image_key:
             image_url = f"/api/v1/alpr/media/{detection.image_key}"
+
         if self.session is None:
             raise RuntimeError("Database session is required for check-in persistence")
         try:
@@ -133,10 +132,13 @@ class CheckInService:
                     "original_ai_plate": ai_plate,
                     "status": TransactionStatus.PARKED,
                     "lane_id": request.lane_id,
+                    "lane_snapshot_name": lane.name,
+                    "lane_snapshot_direction": lane.direction,
                     "detection_id": request.detection_id,
                     "image_url": image_url,
                     "confidence": confidence,
                     "check_in_operator_id": operator.id,
+                    "operator_snapshot_name": operator.display_name,
                     "source": source,
                     "is_manual_override": source != CheckInSource.AI_ACCEPTED,
                     "notes": request.override_reason,
@@ -185,20 +187,37 @@ class CheckInService:
         self, existing, request, operator, fingerprint, normalized_plate
     ) -> CheckInResponse:
         # Preserve retries for transactions written by the initial Phase 2 implementation.
-        ai_plate = request.original_ai_plate or existing.original_ai_plate
-        ai_normalized = normalize_plate(ai_plate) if ai_plate else None
+        # Fallback to the requested original_ai_plate for legacy fingerprints
+        legacy_ai_plate = request.original_ai_plate or existing.original_ai_plate
+        legacy_ai_normalized = normalize_plate(legacy_ai_plate) if legacy_ai_plate else None
+
+        # We need to emulate the old _resolve_source for legacy fingerprint
+        requested_source = request.source
+        if requested_source == CheckInSource.STATION_AUTO:
+            requested_source = CheckInSource.AI_ACCEPTED
+        if requested_source == CheckInSource.OPERATOR_MANUAL:
+            requested_source = CheckInSource.MANUAL_ENTRY
+        if not requested_source:
+            if not request.detection_id or not legacy_ai_normalized:
+                requested_source = CheckInSource.MANUAL_ENTRY
+            else:
+                requested_source = (
+                    CheckInSource.AI_ACCEPTED
+                    if legacy_ai_normalized == normalized_plate
+                    else CheckInSource.OPERATOR_CORRECTED
+                )
+
         legacy = fingerprint_payload(
             {
                 "lane_id": request.lane_id,
                 "normalized_plate": normalized_plate,
                 "detection_id": request.detection_id,
-                "source": self._resolve_source(
-                    request.source, bool(request.detection_id), ai_normalized, normalized_plate
-                ),
-                "ai_plate": ai_normalized,
+                "source": requested_source,
+                "ai_plate": legacy_ai_normalized,
                 "confidence": request.confidence,
             }
         )
+
         legacy_matches = (
             existing.request_fingerprint == legacy
             and existing.check_in_operator_id == operator.id
@@ -208,8 +227,25 @@ class CheckInService:
                 or request.original_ai_plate == existing.original_ai_plate
             )
         )
-        if not legacy_matches:
+
+        # New fingerprint legacy support: the Phase 2 original fingerprint before this change
+        intermediate_fingerprint = fingerprint_payload(
+            {
+                "operation": "parking.check-in.v2",
+                "operator_id": operator.id,
+                "lane_id": request.lane_id,
+                "normalized_plate": normalized_plate,
+                "detection_id": request.detection_id,
+                "source": request.source,
+                "original_ai_plate": request.original_ai_plate,
+                "confidence": request.confidence,
+                "notes": request.override_reason,
+            }
+        )
+
+        if not legacy_matches and existing.request_fingerprint != intermediate_fingerprint:
             require_matching_fingerprint(existing.request_fingerprint, fingerprint)
+
         return CheckInResponse(
             transaction=self.to_response(existing),
             message="The existing check-in transaction was returned.",
@@ -221,22 +257,23 @@ class CheckInService:
             raise AppError(status_code=404, code="NOT_FOUND", message="Transaction not found.")
         return self.to_response(transaction)
 
-    def list_transactions(self, **filters) -> list[ParkingTransactionResponse]:
-        return [self.to_response(item) for item in self.repo.list_transactions(**filters)]
+    def list_transactions(
+        self, limit: int = 100, offset: int = 0, **filters
+    ) -> PaginatedParkingTransactions:
+        transactions, total = self.repo.list_transactions(limit=limit, offset=offset, **filters)
+        return PaginatedParkingTransactions(
+            data=[self.to_response(item) for item in transactions],
+            total=total,
+            page=offset // limit if limit > 0 else 0,
+            limit=limit,
+        )
 
     @staticmethod
     def _resolve_source(
-        requested: CheckInSource | None,
         has_detection: bool,
         ai_plate: str | None,
         final_plate: str,
     ) -> str:
-        if requested == CheckInSource.STATION_AUTO:
-            requested = CheckInSource.AI_ACCEPTED
-        if requested == CheckInSource.OPERATOR_MANUAL:
-            requested = CheckInSource.MANUAL_ENTRY
-        if requested:
-            return requested
         if not has_detection or not ai_plate:
             return CheckInSource.MANUAL_ENTRY
         return (
@@ -247,6 +284,18 @@ class CheckInService:
 
     @staticmethod
     def to_response(transaction: ParkingTransaction) -> ParkingTransactionResponse:
+        lane_name = transaction.lane_snapshot_name
+        if not lane_name and transaction.lane:
+            lane_name = transaction.lane.name
+
+        lane_dir = transaction.lane_snapshot_direction
+        if not lane_dir and transaction.lane:
+            lane_dir = transaction.lane.direction
+
+        operator_name = transaction.operator_snapshot_name
+        if not operator_name and transaction.check_in_operator:
+            operator_name = transaction.check_in_operator.display_name
+
         return ParkingTransactionResponse(
             id=transaction.id,
             license_plate=transaction.license_plate,
@@ -254,17 +303,14 @@ class CheckInService:
             normalized_plate=transaction.normalized_plate,
             status=transaction.status,
             lane_id=transaction.lane_id,
-            lane_name=transaction.lane.name if transaction.lane else None,
+            lane_name=lane_name,
+            lane_direction=lane_dir,
             detection_id=transaction.detection_id,
             image_url=transaction.image_url,
             confidence=transaction.confidence,
             check_in_time=transaction.check_in_time,
             check_in_operator_id=transaction.check_in_operator_id,
-            check_in_operator_name=(
-                transaction.check_in_operator.display_name
-                if transaction.check_in_operator
-                else None
-            ),
+            check_in_operator_name=operator_name,
             source=transaction.source,
             is_manual_override=transaction.is_manual_override,
             notes=transaction.notes,
