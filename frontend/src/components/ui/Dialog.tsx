@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useEffect, useRef } from 'react'
 
 export function Dialog({
@@ -32,7 +33,7 @@ export function Dialog({
     <dialog ref={ref} onClose={onClose} aria-label={title} className="dialog">
       <div className="dialog-header">
         <h3>{title}</h3>
-        <button type="button" onClick={onClose} aria-label="Close">×</button>
+        <button type="button" onClick={onClose} aria-label="Close">{translate("×")}</button>
       </div>
       <div className="dialog-body">{children}</div>
     </dialog>

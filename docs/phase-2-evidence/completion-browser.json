@@ -1,0 +1,55 @@
+{
+  "environment": "isolated restored environment",
+  "checks": {
+    "repeat_image_checkin_duplicate_rejected": "pass",
+    "real_image_recognize_confirm_history": "pass",
+    "switch_mode_ignores_pending_image_result": "pass",
+    "real_mp4_frame_recognize_confirm_history": "pass"
+  },
+  "captures": [
+    {
+      "kind": "IMAGE_UPLOAD",
+      "transaction": {
+        "id": "463b83db-5808-4916-a292-4802c3d43c02",
+        "license_plate": "29A90101",
+        "original_ai_plate": "29A90101",
+        "normalized_plate": "29A90101",
+        "status": "PARKED",
+        "lane_id": "4233e58e-d2ee-4bb1-929f-ec9477acd3d0",
+        "lane_name": "LANE_IN_01",
+        "detection_id": "3689c9b7-55fc-485f-a522-73786c3ecdeb",
+        "image_url": "/api/v1/alpr/media/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_d5fc93bb14b7407b92625b6066721afa.jpg",
+        "confidence": 0.7941959500312805,
+        "check_in_time": "2026-10-07T11:24:46.187783Z",
+        "check_in_operator_id": "45cbfc1c-ee59-4bd2-9200-306c94d0c869",
+        "check_in_operator_name": "VisionPark Administrator",
+        "source": "AI_ACCEPTED",
+        "is_manual_override": false,
+        "notes": null,
+        "created_at": "2026-10-07T11:24:46.187783Z"
+      }
+    },
+    {
+      "kind": "VIDEO_FRAME",
+      "transaction": {
+        "id": "70b2133c-9520-41f0-8551-9f43ef4203b3",
+        "license_plate": "30V4495",
+        "original_ai_plate": "30V4495",
+        "normalized_plate": "30V4495",
+        "status": "PARKED",
+        "lane_id": "4233e58e-d2ee-4bb1-929f-ec9477acd3d0",
+        "lane_name": "LANE_IN_01",
+        "detection_id": "b24fcaf7-39b3-48ad-b6ba-c61321c63377",
+        "image_url": "/api/v1/alpr/media/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_7e39e870482a4232aa184a64ac92801b.jpg",
+        "confidence": 0.805447518825531,
+        "check_in_time": "2026-10-07T11:41:07.616754Z",
+        "check_in_operator_id": "45cbfc1c-ee59-4bd2-9200-306c94d0c869",
+        "check_in_operator_name": "VisionPark Administrator",
+        "source": "AI_ACCEPTED",
+        "is_manual_override": false,
+        "notes": null,
+        "created_at": "2026-10-07T11:41:07.616754Z"
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "head": "20261007_0010",
+  "preservation": {
+    "original_tables_preserved": 6,
+    "images_preserved": 4,
+    "volumes": [
+      "visionpark_media_data",
+      "visionpark_postgres_data"
+    ]
+  },
+  "health": {
+    "status": "ready",
+    "version": "0.1.0",
+    "database": {
+      "status": "ready",
+      "message": "Database connection is ready.",
+      "provider": null,
+      "version": null
+    },
+    "alpr": {
+      "status": "ready",
+      "message": "Loaded detector + OCR model ultralytics-8.4.165-yolo26n-plate-v1",
+      "provider": "real",
+      "version": "ultralytics-8.4.165-yolo26n-plate-v1",
+      "ocr_enabled": true
+    },
+    "correlation_id": "ecb71a21-07d8-4134-92e9-ceee6f079c60"
+  },
+  "frontend_url": "http://localhost:5174"
+}

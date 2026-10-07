@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.database.session import get_db
@@ -15,19 +16,44 @@ from app.modules.users.schemas import RoleName
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 
-@router.get("/", response_model=PaginatedAuditLogs)
+@router.get("/", response_model=PaginatedAuditLogs | list[AuditLogResponse] | dict)
 def list_audit_logs(
     actor: str | None = None,
     action: str | None = None,
+    resource: str | None = None,
+    q: str | None = None,
+    actor_id: UUID | None = None,
+    resource_id: str | None = None,
+    offset: int = Query(0, ge=0),
+    paginated: bool = False,
     from_time: Annotated[datetime | None, Query(alias="from")] = None,
     to_time: Annotated[datetime | None, Query(alias="to")] = None,
     limit: int = Query(100, ge=1, le=200),
     page: int = Query(0, ge=0),
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
-) -> PaginatedAuditLogs:
+):
     del current_user
-    stmt = select(AuditLog).options(joinedload(AuditLog.user)).order_by(AuditLog.created_at.desc())
+    stmt = (
+        select(AuditLog)
+        .options(joinedload(AuditLog.user))
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+    )
+    if actor_id:
+        stmt = stmt.where(AuditLog.user_id == actor_id)
+    if resource_id:
+        stmt = stmt.where(AuditLog.entity_id == resource_id)
+    if resource:
+        stmt = stmt.where(AuditLog.entity_type == resource)
+    if q:
+        pattern = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                AuditLog.action.ilike(pattern),
+                AuditLog.entity_type.ilike(pattern),
+                AuditLog.entity_id.ilike(pattern),
+            )
+        )
     if actor:
         stmt = stmt.join(AuditLog.user).where(User.username.ilike(f"%{actor}%"))
     if action:
@@ -37,11 +63,14 @@ def list_audit_logs(
     if to_time:
         stmt = stmt.where(AuditLog.created_at <= to_time)
 
-    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
-    stmt = stmt.limit(limit).offset(page * limit)
+    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
+    
+    # support both page/limit and offset/limit
+    actual_offset = offset if offset > 0 else (page * limit)
+    stmt = stmt.offset(actual_offset).limit(limit)
     rows = db.scalars(stmt).unique().all()
 
-    data = [
+    items = [
         AuditLogResponse(
             id=row.id,
             time=row.created_at,
@@ -55,8 +84,22 @@ def list_audit_logs(
         )
         for row in rows
     ]
+
+    # Support our phase 3 pagination (if page was provided implicitly or explicitly)
+    # but also support main's paginated dict if requested
+    if paginated:
+        return {
+            "items": [item.model_dump(mode="json") for item in items],
+            "total": total,
+            "limit": limit,
+            "offset": actual_offset,
+            # include our fields too just in case
+            "data": items,
+            "page": page,
+        }
+        
     return PaginatedAuditLogs(
-        data=data,
+        data=items,
         total=total,
         page=page,
         limit=limit,

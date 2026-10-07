@@ -9,11 +9,12 @@ function getBaseUrl(): string {
 
 function getTimeoutMs(): number {
   const v = import.meta.env.VITE_API_TIMEOUT_MS
-  const n = v ? Number(v) : 15000
-  return Number.isFinite(n) && n > 0 ? n : 15000
+  const n = v ? Number(v) : 2000
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 2000) : 2000
 }
 
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
+  timeoutMs?: number
   body?: unknown
   params?: Record<string, string | number | boolean | undefined | null>
 }
@@ -51,7 +52,7 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code: s
 }
 
 async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
-  const { params, body, headers: extraHeaders, signal: externalSignal, ...rest } = opts
+  const { params, body, headers: extraHeaders, signal: externalSignal, timeoutMs: requestTimeoutMs, ...rest } = opts
 
   const url = buildUrl(path, params)
   const token = getToken()
@@ -77,7 +78,7 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
     }
   }
 
-  const timeoutMs = getTimeoutMs()
+  const timeoutMs = requestTimeoutMs ?? getTimeoutMs()
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(new DOMException('TimeoutError', 'TimeoutError')), timeoutMs)
   if (externalSignal) {
@@ -122,6 +123,10 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
 
   if (!res.ok) {
     const parsed = await parseErrorBody(res)
+    const previewFrame = path.endsWith('/alpr/detections') && isFormData && (body as FormData).get('mode') === 'preview'
+    if (token && !path.includes('/errors') && !previewFrame) {
+      void import('../lib/errorLog').then(({ recordError }) => recordError({ code: parsed.code, status: res.status, message: parsed.message, source: 'api', correlationId: parsed.correlationId })).catch(() => undefined)
+    }
     throw new ApiError(parsed.message, {
       status: res.status,
       code: parsed.code,

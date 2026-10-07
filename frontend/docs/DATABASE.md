@@ -7,4 +7,5 @@ Frontend không sở hữu DB; đây là tham chiếu cho backend (Phase 1).
 - Detections: `id`, `lane_id`, `ai_plate`, `normalized_plate`, `final_plate`, `confidence`, `status` (NEEDS_CONFIRMATION/CONFIRMED/CORRECTED), `bbox`, `image_url`, `created_at`.
 - Audit: `id`, `actor`, `action`, `resource`, `resource_id`, `before`, `after`, `created_at`.
 
-Mock hiện tại: in-memory trong `dev/mock-api.mjs`.
+
+Current runtime: backend API only, ALPR_PROVIDER=real with OCR enabled. Preferences, notifications and error events persist in PostgreSQL.

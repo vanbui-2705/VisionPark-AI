@@ -1,0 +1,90 @@
+{
+  "environment": "isolated restored DB and volumes",
+  "limitation": "Blank images exercise real inference and no-plate handling; this is not a real-vehicle accuracy benchmark.",
+  "checks": {
+    "image_video_real_no_plate_final_retry_media": "pass",
+    "correction_transaction_idempotency": "pass",
+    "restart_rows_and_media_unchanged": "pass",
+    "down_up_rows_and_media_unchanged": "pass",
+    "force_recreate_rows_and_media_unchanged": "pass"
+  },
+  "health": {
+    "status": "ready",
+    "version": "0.1.0",
+    "database": {
+      "status": "ready",
+      "message": "Database connection is ready.",
+      "provider": null,
+      "version": null
+    },
+    "alpr": {
+      "status": "ready",
+      "message": "Loaded detector + OCR model ultralytics-8.4.165-yolo26n-plate-v1",
+      "provider": "real",
+      "version": "ultralytics-8.4.165-yolo26n-plate-v1",
+      "ocr_enabled": true
+    },
+    "correlation_id": "cfd33c4b-0070-4c51-9cab-ad4cab4d0049"
+  },
+  "inventory": {
+    "volumes": [
+      "visionpark_completion_test_db",
+      "visionpark_completion_test_media"
+    ],
+    "tables": {
+      "alembic_version": {
+        "count": 1,
+        "sha256": "b3f1b58a9d00994f7e61e8c3831f43903e4a9a724828db9940eb364bfd4c6a60"
+      },
+      "audit_logs": {
+        "count": 6,
+        "sha256": "b09fd8e928f1efcc6c2edd77cb0752b02a4b2ae2dd301c33e3f6a71d1c5646e0"
+      },
+      "detections": {
+        "count": 7,
+        "sha256": "4851a38c952c479de29a6c19412d56b873c095f3cf9d6f2fbb51eab4334c1daf"
+      },
+      "error_events": {
+        "count": 1,
+        "sha256": "4dbc50f8f38cf54e2fd520e1586c173dd55f60f6ff01016614c826602acc5bc1"
+      },
+      "lanes": {
+        "count": 2,
+        "sha256": "3f8e71804c5b235882382b718397a48dac44f825cfe1e063c5154b0f7bedddaf"
+      },
+      "notifications": {
+        "count": 1,
+        "sha256": "6eafe92b1d97d352dda2c0b9aacce023fd05abfaade48234a3d253994040ba59"
+      },
+      "parking_transactions": {
+        "count": 2,
+        "sha256": "ace4a2ad2cb5ee72ebf22060ccf35b917cd979ebc067b3ed49d04bd9296c0d20"
+      },
+      "roles": {
+        "count": 4,
+        "sha256": "d32865c5e3da1b52c23da3b032c19f697accd181e946b015e75352e66a2d9110"
+      },
+      "user_preferences": {
+        "count": 1,
+        "sha256": "e2c117712153dcd56bc83f21780c0e6823402197a12284ceaff69fd4028632ef"
+      },
+      "users": {
+        "count": 5,
+        "sha256": "041d9bd04a5273c2cc0f07e5b72dcee8cfd0e3b5aae99bd48c7dd1d9413b2ab7"
+      }
+    },
+    "media": {
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_ad7561934e8e4ffe96601fb7e66db3d0.png": "f4421d9d0d5e6bad1c6408df2d45e86eb4830d8e52d1d30bfd9464163cd00af4",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_bfb3ab2002ec49a5b21a92d5f5fd531a.jpg": "4fb11968d239a712353f87d117791b0bf1280841572a59304543ebc5958d7a00",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_47d09bd5be87452289211e0ec38a456a.png": "881ffbcaafc212e49addad08846a5b82761355fa20624253af3477ba33262c5c",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_9ac9ba5b2f43464599dd5036da8d3a6e.jpg": "4a4cf72f13a5889564618795dae727cf9996eaec84fdd0ba1bef62128bd68f45",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_82ea65eb7f914a3690e3e4afff8733fd.jpg": "4a4cf72f13a5889564618795dae727cf9996eaec84fdd0ba1bef62128bd68f45",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_d5fc93bb14b7407b92625b6066721afa.jpg": "1ce9f95a6e90bf16f40ef484b23a8a8573626c70856abbc1518abe7a5243eaa7",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_366bfb2132844abc8fdc6d253aac5d27.jpg": "4a4cf72f13a5889564618795dae727cf9996eaec84fdd0ba1bef62128bd68f45"
+    }
+  },
+  "capture_ids": [
+    "fda78aa0-e176-4e9e-bf76-61d4cebda5c1",
+    "51342096-4f54-4863-ab3f-e23ae2c6879d"
+  ]
+}

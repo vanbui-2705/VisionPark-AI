@@ -32,6 +32,7 @@ def create_access_token(
     settings: Settings,
     *,
     expires_delta: timedelta | None = None,
+    token_version: int = 0,
 ) -> str:
     now = datetime.now(UTC)
     expires_at = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
@@ -41,6 +42,7 @@ def create_access_token(
         "iat": now,
         "exp": expires_at,
         "jti": str(uuid4()),
+        "ver": token_version,
     }
     return jwt.encode(
         claims,
@@ -49,7 +51,7 @@ def create_access_token(
     )
 
 
-def decode_access_token(token: str, settings: Settings) -> UUID:
+def decode_access_claims(token: str, settings: Settings) -> dict:
     try:
         claims = jwt.decode(
             token,
@@ -59,10 +61,15 @@ def decode_access_token(token: str, settings: Settings) -> UUID:
         )
         if claims.get("type") != "access":
             raise jwt.InvalidTokenError("Unexpected token type")
-        return UUID(str(claims["sub"]))
+        UUID(str(claims["sub"]))
+        return claims
     except (jwt.PyJWTError, ValueError, TypeError) as exc:
         raise AppError(
             code="UNAUTHENTICATED",
             message="Access token is invalid or expired.",
             status_code=401,
         ) from exc
+
+
+def decode_access_token(token: str, settings: Settings) -> UUID:
+    return UUID(decode_access_claims(token, settings)["sub"])

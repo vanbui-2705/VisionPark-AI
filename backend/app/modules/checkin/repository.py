@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.modules.alpr.models import Detection
@@ -54,6 +54,16 @@ class CheckInRepository(ABC):
 class DatabaseCheckInRepository(CheckInRepository):
     def __init__(self, session: Session):
         self.session = session
+
+    def summary(self) -> dict[str, int]:
+        total, parked, manual = self.session.execute(
+            select(
+                func.count(ParkingTransaction.id),
+                func.sum(case((ParkingTransaction.status == TransactionStatus.PARKED, 1), else_=0)),
+                func.sum(case((ParkingTransaction.is_manual_override.is_(True), 1), else_=0)),
+            )
+        ).one()
+        return {"total": total, "parked": parked or 0, "manual": manual or 0}
 
     def get_lane(self, lane_id: UUID) -> Lane | None:
         return self.session.get(Lane, lane_id)
@@ -120,7 +130,7 @@ class DatabaseCheckInRepository(CheckInRepository):
                 joinedload(ParkingTransaction.lane),
                 joinedload(ParkingTransaction.check_in_operator),
             )
-            .order_by(ParkingTransaction.check_in_time.desc())
+            .order_by(ParkingTransaction.check_in_time.desc(), ParkingTransaction.id.desc())
         )
         if query:
             pattern = f"%{query.upper()}%"

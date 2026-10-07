@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useEffect, useRef } from 'react'
 
 export function Drawer({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
@@ -14,7 +15,7 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
       <div className="drawer" ref={ref} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
         <div className="drawer-header">
           <h3>{title}</h3>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close">×</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close">{translate("×")}</button>
         </div>
         <div className="drawer-body">{children}</div>
       </div>

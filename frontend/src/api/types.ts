@@ -1,8 +1,9 @@
-export type UserRole = 'ADMIN' | 'OPERATOR'
+export type UserRole = 'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'
 
 export interface CurrentUser {
   id: string
   username: string
+  email?: string | null
   display_name: string
   role: UserRole
   active: boolean
@@ -22,8 +23,8 @@ export interface Lane {
 
 export interface HealthStatus {
   status: string
-  database?: { ready: boolean }
-  alpr?: { ready: boolean; provider?: string; version?: string; model_version?: string; ocr_enabled?: boolean }
+  database?: { ready: boolean; status?: string }
+  alpr?: { ready: boolean; status?: string; provider?: string; version?: string; model_version?: string; ocr_enabled?: boolean }
   // allow extra fields
   [k: string]: unknown
 }

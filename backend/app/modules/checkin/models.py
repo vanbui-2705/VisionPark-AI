@@ -87,6 +87,8 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     lane_snapshot_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     lane_snapshot_direction: Mapped[str | None] = mapped_column(String(20), nullable=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False)
+    lane_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    operator_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_manual_override: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -35,6 +36,7 @@ class CheckInService:
         *,
         operator: User,
         idempotency_key: str | None = None,
+        confirm_detection: bool = False,
     ) -> CheckInResponse:
         key = validate_idempotency_key(
             idempotency_key if idempotency_key is not None else request.idempotency_key
@@ -60,7 +62,7 @@ class CheckInService:
         ai_plate = detection.normalized_plate if detection else None
         ai_normalized = normalize_plate(ai_plate) if ai_plate else None
         confidence = detection.confidence if detection else None
-        source = self._resolve_source(detection is not None, ai_normalized, normalized_plate)
+        source = self._resolve_source(detection is not None, ai_normalized, normalized_plate, request.source)
 
         fingerprint = fingerprint_payload(
             {
@@ -109,6 +111,7 @@ class CheckInService:
                 message="The detection belongs to a different lane.",
             )
 
+
         duplicate = self.repo.get_active_by_plate(normalized_plate)
         if duplicate:
             raise AppError(
@@ -117,6 +120,7 @@ class CheckInService:
                 message="This plate already has an active PARKED transaction.",
                 details={"transaction_id": str(duplicate.id)},
             )
+
 
         image_url = None
         if detection and detection.image_key:
@@ -140,12 +144,30 @@ class CheckInService:
                     "check_in_operator_id": operator.id,
                     "operator_snapshot_name": operator.display_name,
                     "source": source,
+                    "lane_name_snapshot": lane.name,
+                    "operator_name_snapshot": operator.display_name,
                     "is_manual_override": source != CheckInSource.AI_ACCEPTED,
                     "notes": request.override_reason,
                     "idempotency_key": key,
                     "request_fingerprint": fingerprint,
                 }
             )
+            if confirm_detection and detection:
+                old_plate = detection.confirmed_plate
+                detection.is_confirmed = True
+                detection.requires_confirmation = False
+                detection.confirmed_plate = normalized_plate
+                detection.confirmed_by_id = operator.id
+                detection.confirmed_at = datetime.now(UTC)
+                log_action(
+                    db=self.session,
+                    user_id=operator.id,
+                    action="CONFIRM_PLATE",
+                    entity_type="Detection",
+                    entity_id=str(detection.id),
+                    old_value={"plate": old_plate or detection.raw_plate},
+                    new_value={"plate": normalized_plate, "source": source},
+                )
             log_action(
                 db=self.session,
                 user_id=operator.id,
@@ -273,9 +295,19 @@ class CheckInService:
         has_detection: bool,
         ai_plate: str | None,
         final_plate: str,
+        requested: str | None = None,
     ) -> str:
-        if not has_detection or not ai_plate:
+        if requested == CheckInSource.STATION_AUTO:
+            requested = CheckInSource.AI_ACCEPTED
+        if requested == CheckInSource.OPERATOR_MANUAL:
+            requested = CheckInSource.MANUAL_ENTRY
+            
+        if not has_detection or not ai_plate or requested == CheckInSource.MANUAL_ENTRY:
             return CheckInSource.MANUAL_ENTRY
+            
+        if requested == CheckInSource.OPERATOR_CORRECTED or not ai_plate:
+            return CheckInSource.OPERATOR_CORRECTED
+            
         return (
             CheckInSource.AI_ACCEPTED
             if ai_plate == final_plate

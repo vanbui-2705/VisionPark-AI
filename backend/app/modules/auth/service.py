@@ -36,7 +36,7 @@ class AuthService:
         self.session.commit()
         self.session.refresh(user)
 
-        token = create_access_token(user.id, self.settings)
+        token = create_access_token(user.id, self.settings, token_version=user.token_version)
         return TokenResponse(
             access_token=token,
             expires_in=self.settings.access_token_expire_minutes * 60,

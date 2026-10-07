@@ -1,0 +1,68 @@
+{
+  "environment": "isolated restore",
+  "checks": {
+    "restart": "pass",
+    "down_up": "pass",
+    "rebuild_force_recreate": "pass"
+  },
+  "inventory": {
+    "volumes": [
+      "visionpark_completion_test_db",
+      "visionpark_completion_test_media"
+    ],
+    "tables": {
+      "alembic_version": {
+        "count": 1,
+        "sha256": "b3f1b58a9d00994f7e61e8c3831f43903e4a9a724828db9940eb364bfd4c6a60"
+      },
+      "audit_logs": {
+        "count": 8,
+        "sha256": "ca470f0ec39c33867cadbf6a00fffd1b21244eff0388fdee958c63dccc3962cc"
+      },
+      "detections": {
+        "count": 9,
+        "sha256": "38fa6225d9f7bf2831553825ffa1ecbfd25ff9e186e1e5a98b11b2f5fe68fc70"
+      },
+      "error_events": {
+        "count": 2,
+        "sha256": "304e996955d0d868f1c2fa67246d79eaf3dc0a40365ef31e7eae9000b35403e0"
+      },
+      "lanes": {
+        "count": 2,
+        "sha256": "3f8e71804c5b235882382b718397a48dac44f825cfe1e063c5154b0f7bedddaf"
+      },
+      "notifications": {
+        "count": 2,
+        "sha256": "cae743c419efe75bcdb98ee2320410176db1ed62c3be03f3a19a8e88d4510e62"
+      },
+      "parking_transactions": {
+        "count": 3,
+        "sha256": "a68d75126ad37838e6e3dcfee40050335c38a227053b6941457aebd5f8d4b2a3"
+      },
+      "roles": {
+        "count": 4,
+        "sha256": "d32865c5e3da1b52c23da3b032c19f697accd181e946b015e75352e66a2d9110"
+      },
+      "user_preferences": {
+        "count": 1,
+        "sha256": "e2c117712153dcd56bc83f21780c0e6823402197a12284ceaff69fd4028632ef"
+      },
+      "users": {
+        "count": 5,
+        "sha256": "96f91718c79211f4bca33b6082a6109495b9bccca644e0d4aa57dea6a171865c"
+      }
+    },
+    "media": {
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_ad7561934e8e4ffe96601fb7e66db3d0.png": "f4421d9d0d5e6bad1c6408df2d45e86eb4830d8e52d1d30bfd9464163cd00af4",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_bfb3ab2002ec49a5b21a92d5f5fd531a.jpg": "4fb11968d239a712353f87d117791b0bf1280841572a59304543ebc5958d7a00",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_47d09bd5be87452289211e0ec38a456a.png": "881ffbcaafc212e49addad08846a5b82761355fa20624253af3477ba33262c5c",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_9ac9ba5b2f43464599dd5036da8d3a6e.jpg": "4a4cf72f13a5889564618795dae727cf9996eaec84fdd0ba1bef62128bd68f45",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_7e39e870482a4232aa184a64ac92801b.jpg": "d4ef206ba2da05651f4485420a9138497cc6285ff2ee89064b47629dfcc0a54d",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_82ea65eb7f914a3690e3e4afff8733fd.jpg": "4a4cf72f13a5889564618795dae727cf9996eaec84fdd0ba1bef62128bd68f45",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_d5fc93bb14b7407b92625b6066721afa.jpg": "1ce9f95a6e90bf16f40ef484b23a8a8573626c70856abbc1518abe7a5243eaa7",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_3936e0a633f74f70aae21ecf8f6b871c.jpg": "1ce9f95a6e90bf16f40ef484b23a8a8573626c70856abbc1518abe7a5243eaa7",
+      "4233e58e-d2ee-4bb1-929f-ec9477acd3d0/4233e58e-d2ee-4bb1-929f-ec9477acd3d0_366bfb2132844abc8fdc6d253aac5d27.jpg": "4a4cf72f13a5889564618795dae727cf9996eaec84fdd0ba1bef62128bd68f45"
+    }
+  },
+  "compose": "deployment/compose.persistence-test.yml"
+}

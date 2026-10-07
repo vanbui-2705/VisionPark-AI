@@ -1,43 +1,14 @@
-# Deployment
+# Deployment local
 
-## Dev
-```bash
-cd frontend
-npm install
-node dev/mock-api.mjs   # :8000
-npm run dev             # Vite
-```
-Env: `VITE_API_BASE_URL=http://localhost:8000`, `VITE_USE_MOCK_FIXTURES=false`.
+Copy root env.example → .env, sinh JWT_SECRET_KEY riêng, chạy
+`docker compose up --build -d`. Migration dùng cùng image backend và phải hoàn
+thành trước backend. Không xóa volumes khi cập nhật bản build.
 
-## Build
-```bash
-npm run build   # dist/
-npm run preview
-```
-Checks: `npm run lint`, `npm test` (25 tests).
+Port mặc định frontend 5173/backend 8000/DB 5433, override bằng .env.
+VITE_API_BASE_URL=/ trong Compose; nginx proxy /api và /health.
 
-## Docker Compose
+Real Docker: INSTALL_REAL_ALPR=true, INSTALL_OCR=true,
+ALPR_PROVIDER=real, ALPR_OCR_ENABLED=true; provision manifest/weights và OCR
+cache ngoài Git. Build có thể cần tài nguyên lớn. Mock là baseline local/CI.
 
-Từ thư mục gốc repository:
-
-```bash
-copy env.example .env
-docker compose up --build
-```
-
-Frontend được phục vụ bằng Nginx tại `http://localhost:5173`. Nginx chuyển
-tiếp `/api/*` và `/health/*` sang FastAPI, vì vậy `VITE_API_BASE_URL=/` cần được
-nhúng ở build time. Swagger vẫn có thể truy cập trực tiếp tại
-`http://localhost:8000/docs`.
-
-Compose khởi động PostgreSQL, chạy Alembic migration một lần, sau đó mới
-khởi động backend và frontend. Dữ liệu PostgreSQL và ảnh upload được giữ
-trong named volumes `postgres_data` và `media_data`.
-
-Không dùng các giá trị development trong `env.example` khi triển khai production;
-hãy thay database password, JWT secret và mật khẩu tài khoản seed.
-
-## Env production
-- `VITE_API_BASE_URL` trỏ backend thực; không hard-code URL.
-- `VITE_PUBLIC_REGISTRATION_ENABLED=false`.
-- Không commit secret thực — chỉ placeholder `JWT_SECRET=<replace-me>`.
+Current runtime: backend API only, ALPR_PROVIDER=real with OCR enabled. Preferences, notifications and error events persist in PostgreSQL.

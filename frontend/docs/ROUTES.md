@@ -1,13 +1,14 @@
 # Routes
 
-Nguồn: `src/app/router.tsx`.
+Public: `/login`, `/register` (feature-gated).
+ADMIN/OPERATOR: `/station/scan`, `/detections`, `/detections/:id`, `/parking`,
+`/parking/:id`. Role khác nhận 403 tại các route nghiệp vụ.
 
-- Public: `/login`, `/register`
-- Station: `/station/scan`, `/station/scan/fullscreen`
-- Detections: `/detections`, `/detections/:id`
-- Admin: `/admin/dashboard`, `/admin/lanes` (+ `/new`, `/:id`, `/:id/edit`), `/admin/users` (+ tương tự), `/admin/roles`, `/admin/permissions`, `/admin/alpr` (+ `/test`), `/admin/audit-logs`, `/admin/errors`, `/admin/system`
-- Account: `/profile`, `/settings`, `/notifications`, `/help`
-- Docs: `/docs` (index) + `/docs/:slug` (ADMIN only, OPERATOR→403)
-- Dev: `/dev/ui-kit`
-- Errors: `/403`, `/404`; `*`→`/404`; `/` redirect theo role.
-- Aliases: `/station/history`→`/detections`, `/admin/detections`→`/detections`, `/admin/profile`→`/profile`.
+Lanes: `/admin/lanes`, `/admin/lanes/:id` đọc cho ADMIN/OPERATOR;
+`/new`, `/:id/edit` chỉ ADMIN. Nút ghi bị ẩn với OPERATOR.
+Admin-only: dashboard, users, roles, permissions, alpr/test, audit, system, docs.
+Tài khoản: `/profile`, `/settings`, `/notifications`, `/help`.
+
+`/` redirect ADMIN tới dashboard, OPERATOR tới Station, role khác tới Profile.
+Fullscreen/Station history và legacy Admin operations URLs redirect về route
+canonical. API backend luôn enforce quyền độc lập với route guard.

@@ -29,6 +29,7 @@ def required_settings_environment(monkeypatch):
     """Tests supply their own required configuration without reading a developer's secrets."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("JWT_SECRET_KEY", TEST_JWT_SECRET)
+    monkeypatch.setenv("ALPR_PROVIDER", "real")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -87,9 +88,54 @@ def settings(migrated_database_url: str, tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def app(settings: Settings) -> FastAPI:
+    from contextlib import asynccontextmanager
+
+    from sqlalchemy import select
+
+    from app.core.readiness import RuntimeALPRProbe
+    from app.core.security import hash_password
+    from app.database.seed import seed_database
     from app.main import create_app
+    from app.modules.lanes.models import Lane
+    from app.modules.users.models import Role
+    from tests.alpr_double import FakeALPRRuntime
 
     test_app = create_app(settings)
+    test_app.state.alpr_runtime = FakeALPRRuntime()
+    test_app.state.alpr_readiness_probe = RuntimeALPRProbe(
+        test_app.state.alpr_runtime, provider="test", version="test"
+    )
+    original_lifespan = test_app.router.lifespan_context
+
+    @asynccontextmanager
+    async def test_lifespan(application):
+        async with original_lifespan(application):
+            with database.create_session() as session:
+                seed_database(session, settings)
+                role = session.scalar(select(Role).where(Role.name == "OPERATOR"))
+                session.add(
+                    User(
+                        username="operator",
+                        display_name="Test operator",
+                        password_hash=hash_password("operator-test-password"),
+                        role=role,
+                        is_active=True,
+                    )
+                )
+                session.add_all(
+                    [
+                        Lane(
+                            name="LANE_IN_01", direction="IN", video_source="test", is_active=True
+                        ),
+                        Lane(
+                            name="LANE_OUT_01", direction="OUT", video_source="test", is_active=True
+                        ),
+                    ]
+                )
+                session.commit()
+            yield
+
+    test_app.router.lifespan_context = test_lifespan
 
     @test_app.get("/api/v1/test/admin-only")
     def admin_only(_: AdminUser) -> dict[str, bool]:
@@ -133,3 +179,5 @@ def operator_headers(client: TestClient) -> dict[str, str]:
 def admin_token(client: TestClient) -> str:
     token = login(client, "admin", "admin-test-password")["access_token"]
     return str(token)
+
+

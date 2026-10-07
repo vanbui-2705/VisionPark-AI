@@ -11,3 +11,5 @@ from app.modules.lanes.models import Lane
 from app.modules.users.models import Role, User
 
 __all__ = ["Role", "User", "Lane", "Detection", "AuditLog", "ParkingTransaction"]
+
+from app.modules.operations.models import ErrorEvent, Notification, UserPreference  # noqa: F401

@@ -1,3 +1,5 @@
+import logging
+from asyncio import to_thread
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -47,6 +49,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 seed_database(session, app_settings)
             finally:
                 session.close()
+        serving_runtime = app.state.alpr_runtime
+        warmup = getattr(serving_runtime, "warmup", serving_runtime.is_ready)
+        ready = await to_thread(warmup)
+        logging.getLogger("visionpark.alpr").warning("Real inference warmup: %s", ready)
         try:
             yield
         finally:
@@ -68,7 +74,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         confirmation_threshold=app_settings.alpr_confidence_threshold,
         ocr_margin=app_settings.alpr_ocr_margin,
         ocr_enabled=app_settings.alpr_ocr_enabled,
-        mock_scenario=app_settings.alpr_mock_scenario,
     )
     app.state.alpr_runtime = runtime
     app.state.alpr_readiness_probe = RuntimeALPRProbe(

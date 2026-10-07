@@ -22,6 +22,14 @@ from app.modules.users.schemas import RoleName
 router = APIRouter(prefix="/parking", tags=["parking"])
 
 
+@router.get("/summary")
+def parking_summary(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+) -> dict[str, int]:
+    return DatabaseCheckInRepository(db).summary()
+
+
 def get_checkin_service(db: Annotated[Session, Depends(get_db)]) -> CheckInService:
     return CheckInService(DatabaseCheckInRepository(db), session=db)
 
@@ -40,7 +48,7 @@ def create_check_in(
     )
 
 
-@router.get("/transactions", response_model=PaginatedParkingTransactions)
+@router.get("/transactions", response_model=PaginatedParkingTransactions | list[ParkingTransactionResponse] | dict)
 def list_parking_transactions(
     q: str | None = None,
     lane_id: UUID | None = None,
@@ -49,11 +57,12 @@ def list_parking_transactions(
     to_time: Annotated[datetime | None, Query(alias="to")] = None,
     limit: int = Query(100, ge=1, le=200),
     page: int = Query(0, ge=0),
+    paginated: bool = False,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
-) -> PaginatedParkingTransactions:
+):
     del current_user
-    return service.list_transactions(
+    paginated_result = service.list_transactions(
         query=q,
         lane_id=lane_id,
         status=status,
@@ -62,6 +71,17 @@ def list_parking_transactions(
         limit=limit,
         offset=page * limit,
     )
+    if paginated:
+        return {
+            "items": [row.model_dump(mode="json") for row in paginated_result.data],
+            "total": paginated_result.total,
+            "limit": limit,
+            "offset": page * limit,
+            # include our fields too just in case
+            "data": paginated_result.data,
+            "page": page,
+        }
+    return paginated_result
 
 
 @router.get("/transactions/{transaction_id}", response_model=ParkingTransactionResponse)

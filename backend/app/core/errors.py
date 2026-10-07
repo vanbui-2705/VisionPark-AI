@@ -51,8 +51,45 @@ def _error_response(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    def record_failure(request: Request, code: str, status: int) -> None:
+        # Health probes and preview frames must not flood durable event storage.
+        if request.url.path.endswith("/health/ready") or request.url.path.endswith("/health/live"):
+            return
+        if request.url.path.endswith("/alpr/detections"):
+            return
+        from app.database.session import database
+        from app.modules.operations.models import ErrorEvent, Notification
+
+        try:
+            with database.create_session() as session:
+                actor = getattr(request.state, "actor_id", None)
+                event = ErrorEvent(
+                    user_id=actor,
+                    code=code,
+                    status=status,
+                    source="backend",
+                    correlation_id=_correlation_id(request)[:64],
+                    message=f"Request failed ({code}).",
+                )
+                session.add(event)
+                if actor:
+                    session.add(
+                        Notification(
+                            user_id=actor,
+                            title="Operation failed",
+                            message=f"Request failed ({code}).",
+                            event_key=f"backend-{event.id or uuid4()}",
+                        )
+                    )
+                session.commit()
+        except Exception:
+            # Failure reporting cannot replace the original response or recurse when DB is down.
+            logger.warning("Could not persist backend error event")
+
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+        if exc.status_code >= 500:
+            record_failure(request, exc.code, exc.status_code)
         return _error_response(
             request,
             status_code=exc.status_code,
@@ -107,6 +144,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(SQLAlchemyError)
     async def handle_database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+        record_failure(request, "DATABASE_UNAVAILABLE", 503)
         logger.exception(
             "Database request failed",
             exc_info=exc,
@@ -121,6 +159,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+        record_failure(request, "INTERNAL_SERVER_ERROR", 500)
         logger.exception(
             "Unexpected request failure",
             exc_info=exc,

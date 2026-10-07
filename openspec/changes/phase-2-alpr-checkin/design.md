@@ -136,3 +136,28 @@ real benchmark chạy ở môi trường có asset được cấp quyền.
 - Duplicate/idempotency/audit pass.
 - Mock CI xanh không cần GPU/model thật.
 - Có benchmark report và runbook.
+
+
+### Integration contract reconciliation
+
+Station luôn gọi backend qua shared API client và token `visionpark.access_token`.
+Provider mock/real được quyết định ở backend. Preview trả `detection_id=null`;
+frontend giữ candidate UUID và ảnh trong buffer giới hạn. Final gửi UUID bằng
+`capture_id`; database lưu fingerprint và trả lại detection cho cùng ảnh/lane khi retry,
+reject khi UUID dùng cho payload khác. Capture và confirmation là hai request;
+confirmation thất bại có thể để lại final detection chưa confirmed để retry.
+
+POST `/api/v1/alpr/detections/{id}/confirm` nhận `confirmed_plate`; với
+`check_in=true` và `Idempotency-Key`, check-in service ghi confirmed metadata,
+PARKED và audit atomically. Không bật check_in thì chỉ xác nhận metadata.
+Manual dùng `/api/v1/parking/check-in`, không gọi provider. UI khóa capture/lane/video
+trong confirmation và reset candidate khi chuyển lane/video/xe.
+
+Operator được đọc lanes và vận hành Station/detections/parking; Admin được thêm
+quyền quản lý lane/users/roles/audit. Accountant/Technician không được ép thành
+Operator. Admin user CRUD là carry-over để UI có endpoint thật; registration tắt mặc
+định, khi bật chỉ tạo OPERATOR. Migrations additive giữ dữ liệu hiện có.
+
+Benchmark real yêu cầu image_path tồn tại trong dataset, không dùng ảnh tổng hợp
+làm bằng chứng độ chính xác thật. Browser smoke dùng MP4 tổng hợp và backend mock;
+503 trong smoke là lỗi được inject có ghi rõ trong report.

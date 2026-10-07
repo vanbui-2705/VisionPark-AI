@@ -20,14 +20,23 @@ describe('Route guards', () => {
     expect(screen.getByRole('button', { name: /đăng nhập/i })).toBeInTheDocument()
   })
 
-  it('OPERATOR cannot access /admin/lanes (403)', async () => {
+  it('OPERATOR can read lanes but cannot create them', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     renderApp('/admin/lanes', async (u) => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'op', display_name: 'Op', role: 'OPERATOR', active: true })
+      if (s.includes('/lanes')) return j([])
       return j({})
     })
-    await waitFor(() => expect(screen.getByText(/403/i)).toBeInTheDocument())
+    expect(await screen.findByText(/Quản lý làn/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Tạo làn/i })).not.toBeInTheDocument()
+  })
+
+  it('ACCOUNTANT cannot access station operations', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    renderApp('/station/scan', async (u) => String(u).includes('/auth/me')
+      ? j({ id: '1', username: 'accountant', role: 'ACCOUNTANT', is_active: true }) : j({}))
+    expect(await screen.findByText(/403/i)).toBeInTheDocument()
   })
 
   it('ADMIN can access /admin/lanes', async () => {

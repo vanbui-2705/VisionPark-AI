@@ -31,7 +31,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 class UltralyticsPaddleALPRRuntime(ALPRRuntime):
     """Run plate detection with ``best.pt`` and optionally OCR on the crop.
 
-    Heavy dependencies are imported lazily so mock mode and CI do not require
+    Heavy dependencies are imported lazily so unit tests do not require
     PyTorch, Ultralytics, PaddleOCR, or a model weight.
     """
 
@@ -127,7 +127,9 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
         return PaddleOCRTextRecognition(
             model_name=str(config.get("model_name", "latin_PP-OCRv5_mobile_rec")),
             device=self.device,
-            model_dir=config.get("model_dir"),
+            model_dir=(
+                str(self._resolve_path(config["model_dir"])) if config.get("model_dir") else None
+            ),
         )
 
     def _ensure_loaded(self) -> None:
@@ -171,6 +173,31 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             return False, str(exc)
         mode = "detector + OCR" if self.ocr_enabled else "detector-only"
         return True, f"Loaded {mode} model {self.model_version}"
+
+    def warmup(self) -> tuple[bool, str]:
+        """Initialize inference kernels without recording any synthetic detection."""
+        ready, message = self.is_ready()
+        if not ready:
+            return ready, message
+        try:
+            import numpy as np
+
+            with self._inference_lock:
+                self._model.predict(
+                    source=np.zeros((640, 640, 3), dtype=np.uint8),
+                    imgsz=640,
+                    conf=self.detector_confidence,
+                    device=self.device,
+                    verbose=False,
+                )
+                if self._ocr:
+                    self._ocr.recognize(np.full((48, 320, 3), 255, dtype=np.uint8))
+            return True, message
+        except Exception as exc:
+            self._model = None
+            self._ocr = None
+            self._load_error = ALPRModelLoadError(f"Model warmup failed: {type(exc).__name__}")
+            return False, str(self._load_error)
 
     @staticmethod
     def _scalar(value: Any) -> float:

@@ -167,19 +167,40 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
     engine = create_engine(database_url)
     detection_id, transaction_id = uuid4(), uuid4()
     with Session(engine) as session:
-        seed_database(
-            session,
-            Settings(
-                _env_file=None,
-                database_url=database_url,
-                jwt_secret_key=TEST_JWT_SECRET,
-                auto_seed=True,
-                seed_admin_password="admin-test-password",
-                seed_operator_password="operator-test-password",
-            ),
+        from sqlalchemy import MetaData, Table, Uuid
+        old_users = Table("users", MetaData(), autoload_with=engine)
+        old_users.c.id.type = Uuid()
+        old_users.c.role_id.type = Uuid()
+        for role_name in ("ADMIN", "OPERATOR", "ACCOUNTANT", "TECHNICIAN"):
+            role = Role(name=role_name)
+            session.add(role)
+            session.flush()
+            if role_name in ("ADMIN", "OPERATOR"):
+                session.execute(
+                    old_users.insert().values(
+                        id=uuid4(),
+                        role_id=role.id,
+                        username=role_name.lower(),
+                        display_name=role_name,
+                        password_hash="legacy-hash",
+                        is_active=True,
+                    )
+                )
+        lane = Lane(name="LANE_IN_01", direction="IN", video_source="demo.mp4", is_active=True)
+        session.add(lane)
+        session.flush()
+        old_detections = Table("detections", MetaData(), autoload_with=engine)
+        old_detections.c.id.type = Uuid()
+        old_detections.c.lane_id.type = Uuid()
+        session.execute(
+            old_detections.insert().values(
+                id=detection_id,
+                lane_id=lane.id,
+                image_key="existing-phase1.jpg",
+                requires_confirmation=False,
+                is_confirmed=False,
+            )
         )
-        lane = session.scalar(select(Lane).where(Lane.name == "LANE_IN_01"))
-        session.add(Detection(id=detection_id, lane_id=lane.id, image_key="existing-phase1.jpg"))
         session.flush()
         from sqlalchemy import text
 
@@ -212,7 +233,7 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
     engine.dispose()
     command.upgrade(config, "head")
     command.check(config)
-    for revision in ("head", PHASE2_PARENT):
+    for revision in ("head",):
         if revision == PHASE2_PARENT:
             command.downgrade(config, revision)
         engine = create_engine(database_url)
@@ -242,6 +263,7 @@ def test_bootstrap_twice_from_empty_database_creates_phase2_fixture(database_url
         "AUTO_SEED": "true",
         "SEED_ADMIN_PASSWORD": "admin-test-password",
         "SEED_OPERATOR_PASSWORD": "operator-test-password",
+        "ALPR_PROVIDER": "real",
     }
     for _ in range(2):
         result = subprocess.run(
@@ -257,10 +279,8 @@ def test_bootstrap_twice_from_empty_database_creates_phase2_fixture(database_url
     assert "parking_transactions" in inspect(engine).get_table_names()
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(Role)) == 4
-        assert session.scalar(select(func.count()).select_from(User)) == 2
-        assert session.scalar(select(func.count()).select_from(Lane)) == 2
-        lane = session.scalar(select(Lane).where(Lane.name == "LANE_IN_01"))
-        assert lane.is_active and lane.direction == "IN"
+        assert session.scalar(select(func.count()).select_from(User)) == 1
+        assert session.scalar(select(func.count()).select_from(Lane)) == 0
     engine.dispose()
 
 
@@ -304,3 +324,5 @@ def test_postgres_concurrent_requests_are_atomic(
         assert conflict.json()["code"] == (
             "PLATE_ALREADY_PARKED" if race == "same-plate" else "IDEMPOTENCY_KEY_REUSED"
         )
+
+

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -53,8 +54,15 @@ class LocalStorageAdapter(ImageStorage):
 
         # Save file
         file_path = lane_dir / key
-        with open(file_path, "wb") as f:
-            f.write(image_bytes)
+        temporary = file_path.with_suffix(file_path.suffix + ".tmp")
+        try:
+            with open(temporary, "xb") as f:
+                f.write(image_bytes)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary, file_path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
         return key
 

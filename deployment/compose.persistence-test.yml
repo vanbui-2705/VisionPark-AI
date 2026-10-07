@@ -1,0 +1,53 @@
+# Isolated acceptance environment. Never mounts the operational volumes.
+name: visionpark-completion
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: visionpark-restore-e2e-db
+    environment:
+      POSTGRES_DB: visionpark
+      POSTGRES_USER: visionpark
+      POSTGRES_PASSWORD: isolated-completion-only
+    volumes:
+      - test_db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U visionpark -d visionpark']
+      interval: 2s
+      retries: 20
+  backend:
+    image: visionpark-backend
+    container_name: visionpark-restore-e2e-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://visionpark:isolated-completion-only@db:5432/visionpark
+      JWT_SECRET_KEY: isolated-completion-signing-key-20261007-only
+      LOCAL_STORAGE_PATH: /app/var/media
+      ALPR_PROVIDER: real
+      ALPR_OCR_ENABLED: 'true'
+      ALPR_DEVICE: cpu
+      ALPR_MANIFEST_PATH: /app/models/alpr-manifest.docker.json
+      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: 'True'
+      AUTO_SEED: 'true'
+      SEED_ADMIN_USERNAME: completion-admin
+      SEED_ADMIN_PASSWORD: completion-test-password
+    ports:
+      - '8003:8000'
+    command: [sh, -c, 'alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000']
+    volumes:
+      - test_media:/app/var/media
+      - ../backend/app/alpr/weights:/app/app/alpr/weights:ro
+      - ../backend/var/models/ocr:/models/ocr:ro
+      - ../backend/var/models/alpr-manifest.docker.json:/app/models/alpr-manifest.docker.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+  frontend:
+    image: visionpark-frontend
+    ports:
+      - '5175:80'
+    depends_on:
+      - backend
+volumes:
+  test_db:
+    name: visionpark_completion_test_db
+  test_media:
+    name: visionpark_completion_test_media

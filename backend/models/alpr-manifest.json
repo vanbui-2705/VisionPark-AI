@@ -14,8 +14,15 @@
     "provider": "paddleocr",
     "language": "en",
     "model_name": "latin_PP-OCRv5_mobile_rec",
-    "pretrained": true
+    "pretrained": true,
+    "model_dir": "models/ocr/latin_PP-OCRv5_mobile_rec",
+    "sha256": {
+      "config.json": "e0f5ccc44fe86254956f27746058bc4cf88d86145668cecf22ba5dd962483c80",
+      "inference.json": "820b2ee8e5072de5156c3d55124c2b03c82ef278d59f453f857c0789bacb4da1",
+      "inference.pdiparams": "53cdc8b481a7394bb108f96d0fb3432b0a8f392e22c7d18f06dbb2d42b8b25f9",
+      "inference.yml": "0bbe984570f597af3638e50bdf2e8276f3ab26a61966096538b3b0d1849f5c84"
+    }
   },
-  "status": "local-asset",
-  "notes": "YOLO detector finds vehicle and plate regions; PaddleOCR reads the cropped plate."
+  "status": "bundled-asset",
+  "notes": "YOLO and pretrained PaddleOCR inference assets are versioned with the demo and bundled into the runtime image."
 }

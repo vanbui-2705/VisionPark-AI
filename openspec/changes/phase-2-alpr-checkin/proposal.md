@@ -11,7 +11,9 @@ Phase 1 đã tạo được nền tảng, mock ALPR và contract chung nhưng h�
 - Bổ sung nghiệp vụ check-in: chọn lane IN, nhận kết quả ALPR, xác nhận hoặc sửa biển số, tạo parking transaction trạng thái `PARKED`.
 - Chống tạo giao dịch trùng cho cùng biển số đang `PARKED` và hỗ trợ idempotency cho request check-in.
 - Bổ sung API/UI xem lịch sử check-in, trạng thái xử lý, lỗi và thao tác xác nhận thủ công.
-- Bổ sung audit cho xác nhận/sửa biển số và các quyết định check-in.
+- Bổ sung audit cho xác nhận/sửa biển số và các quyết định check-in trong cùng transaction.
+- Sửa các carry-over integration: shared token/client, lane/RBAC, detection detail, readiness, Admin users/roles API và tài liệu Compose.
+- Final capture dùng UUID/fingerprint để retry không tạo thêm detection; canonical confirm hỗ trợ `check_in=true` và idempotency.
 - Bổ sung integration/E2E tests, CI checks và báo cáo benchmark cho Phase 2.
 - Không đưa payment, VietQR, tính phí, vé tháng, barrier thật, camera/RTSP, multi-camera/tracking, CRM, slot map, Redis hoặc WebSocket vào phase này.
 

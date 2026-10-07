@@ -24,12 +24,12 @@ def test_liveness_does_not_depend_on_database_or_alpr(client: TestClient) -> Non
     assert response.json()["status"] == "alive"
 
 
-def test_readiness_reports_wired_mock_as_ready(client: TestClient) -> None:
+def test_readiness_reports_isolated_double_as_ready(client: TestClient) -> None:
     response = client.get("/health/ready")
     assert response.status_code == 200
     assert response.json()["database"]["status"] == "ready"
     assert response.json()["alpr"]["status"] == "ready"
-    assert response.json()["alpr"]["provider"] == "mock"
+    assert response.json()["alpr"]["provider"] == "test"
 
 
 def test_readiness_is_ready_when_all_dependencies_are_ready(
@@ -44,9 +44,9 @@ def test_readiness_is_ready_when_all_dependencies_are_ready(
 
 def test_runtime_adapter_exposes_provider_and_version(client: TestClient) -> None:
     client.app.state.alpr_readiness_probe = RuntimeALPRProbe(
-        ReadyRuntime(), provider="mock", version="mock-alpr-0.1.0"
+        ReadyRuntime(), provider="test", version="mock-alpr-0.1.0"
     )
     response = client.get("/health/ready")
     assert response.status_code == 200
-    assert response.json()["alpr"]["provider"] == "mock"
+    assert response.json()["alpr"]["provider"] == "test"
     assert response.json()["alpr"]["version"] == "mock-alpr-0.1.0"
