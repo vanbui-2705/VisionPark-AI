@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { auditApi, parkingTransactionsApi } from '../../api/services.ts'
@@ -15,7 +16,7 @@ function sanitize(obj: unknown): unknown {
   return out
 }
 
-const SOURCE_LABEL: Record<string, string> = { STATION_AUTO: 'Tự động (Station)', OPERATOR_MANUAL: 'Thủ công (Operator)' }
+const SOURCE_LABEL: Record<string, string> = { AI_ACCEPTED: 'AI được xác nhận', OPERATOR_CORRECTED: 'Sửa biển số', MANUAL_ENTRY: 'Nhập tay', STATION_AUTO: 'Tự động (Station)', OPERATOR_MANUAL: 'Thủ công (Operator)' }
 
 export function ParkingDetailPage() {
   const { id } = useParams()
@@ -26,59 +27,59 @@ export function ParkingDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    parkingTransactionsApi.get(id).then(setTx).catch((e: unknown) => setErr(e instanceof Error ? e.message : 'Không tải được chi tiết.')).finally(() => setLoading(false))
-    auditApi.list({ limit: 100 }).then((rows) => setAudit(rows.filter((r) => r.resource_id === id))).catch(() => setAudit([]))
+    parkingTransactionsApi.get(id).then(setTx).catch((e: unknown) => setErr(e instanceof Error ? e.message : translate("Không tải được chi tiết."))).finally(() => setLoading(false))
+    auditApi.list({ resource_id: id, limit: 100 }).then(setAudit).catch(() => setAudit([]))
   }, [id])
 
   if (loading) return <Skeleton lines={6} />
   if (err) return <Alert variant="error">{err}</Alert>
-  if (!tx) return <Alert variant="info">Không tìm thấy giao dịch.</Alert>
+  if (!tx) return <Alert variant="info">{translate("Không tìm thấy giao dịch.")}</Alert>
 
   const statusVariant = tx.status === 'PARKED' ? 'success' : tx.status === 'COMPLETED' ? 'neutral' : 'danger'
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <Breadcrumb items={[{ label: 'Lịch sử đỗ xe', to: '/parking' }, { label: tx.license_plate }]} />
+      <Breadcrumb items={[{ label: translate("Lịch sử đỗ xe"), to: '/parking' }, { label: tx.license_plate }]} />
 
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', display: 'grid', placeItems: 'center', fontSize: 22 }}>P</div>
           <div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, letterSpacing: '0.08em', fontSize: 22, background: '#fff', color: '#0f172a', borderRadius: 10, padding: '4px 10px' }}>{tx.license_plate}</span>
+              <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, letterSpacing: '0.08em', fontSize: 22, background: 'var(--surface)', color: '#0f172a', borderRadius: 10, padding: '4px 10px' }}>{tx.license_plate}</span>
               <Badge variant={statusVariant as never}>{tx.status}</Badge>
-              {tx.is_manual_override ? <Badge variant="warning">sửa tay</Badge> : <Badge variant="info">AI</Badge>}
+              {tx.is_manual_override ? <Badge variant="warning">{translate("sửa tay")}</Badge> : <Badge variant="info">AI</Badge>}
             </div>
-            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>{new Date(tx.check_in_time).toLocaleString('vi-VN')} · Duy Anh · {SOURCE_LABEL[tx.source] ?? tx.source}</div>
+            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>{new Date(tx.check_in_time).toLocaleString('vi-VN')} · {SOURCE_LABEL[tx.source] ?? tx.source}</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {tx.detection_id ? <Link to={`/detections/${tx.detection_id}`} className="btn btn-sm" style={{ textDecoration: 'none', background: '#fff', color: '#0f172a', borderColor: '#fff' }}>Xem detection</Link> : null}
-          <Link to="/parking" className="btn btn-sm" style={{ textDecoration: 'none', background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,0.35)' }}>Quay lại</Link>
+          {tx.detection_id ? <Link to={`/detections/${tx.detection_id}`} className="btn btn-sm" style={{ textDecoration: 'none', background: 'var(--surface)', color: '#0f172a', borderColor: '#fff' }}>Xem detection</Link> : null}
+          <Link to="/parking" className="btn btn-sm" style={{ textDecoration: 'none', background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,0.35)' }}>{translate("Quay lại")}</Link>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px,1fr))', gap: 14 }}>
         <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, marginBottom: 10 }}>Biển số & nguồn</div>
+          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, marginBottom: 10 }}>{translate("Biển số & nguồn")}</div>
           <div style={{ display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)', fontSize: 13 }}>Final plate</span><strong style={{ fontFamily: 'ui-monospace, monospace' }}>{tx.license_plate}</strong></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)', fontSize: 13 }}>AI plate</span><span style={{ fontFamily: 'ui-monospace, monospace', color: tx.original_ai_plate ? 'var(--text)' : 'var(--muted)' }}>{tx.original_ai_plate ?? '—'}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)', fontSize: 13 }}>Normalized</span><span style={{ fontFamily: 'ui-monospace, monospace' }}>{tx.normalized_plate}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)', fontSize: 13 }}>Confidence</span><span>{tx.confidence != null ? `${Math.round(tx.confidence * 100)}%` : '—'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)', fontSize: 13 }}>Sửa tay</span>{tx.is_manual_override ? <Badge variant="warning">Có</Badge> : <Badge>Không</Badge>}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)', fontSize: 13 }}>{translate("Sửa tay")}</span>{tx.is_manual_override ? <Badge variant="warning">{translate("Có")}</Badge> : <Badge>{translate("Không")}</Badge>}</div>
           </div>
         </section>
 
         <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, marginBottom: 10 }}>Vận hành</div>
+          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, marginBottom: 10 }}>{translate("Vận hành")}</div>
           <div style={{ display: 'grid', gap: 10, fontSize: 13 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Làn</span><strong>{tx.lane_name ?? tx.lane_id}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>{translate("Làn")}</span><strong>{tx.lane_name ?? tx.lane_id}</strong></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Lane ID</span><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{tx.lane_id}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Nhân viên</span><span>{tx.check_in_operator_name ?? '—'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>ID giao dịch</span><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{tx.id.slice(0, 8)}…</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>{translate("Nhân viên")}</span><span>{tx.check_in_operator_name ?? '—'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>{translate("ID giao dịch")}</span><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{tx.id.slice(0, 8)}…</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Detection</span>{tx.detection_id ? <Link to={`/detections/${tx.detection_id}`} style={{ fontSize: 12 }}>{tx.detection_id.slice(0, 8)}…</Link> : <span>—</span>}</div>
-            {tx.notes ? <div style={{ background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Ghi chú</div><div>{tx.notes}</div></div> : null}
+            {tx.notes ? <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{translate("Ghi chú")}</div><div>{tx.notes}</div></div> : null}
           </div>
         </section>
       </div>
@@ -87,12 +88,12 @@ export function ParkingDetailPage() {
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontWeight: 800 }}>Audit — AI plate / Final plate / Actor / Source / Timestamp</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>Vết kiểm toán liên kết theo resource_id = {tx.id}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>{translate("Vết kiểm toán liên kết theo resource_id =")}{tx.id}</div>
           </div>
-          <Badge variant={audit.length ? 'info' : 'neutral'}>{audit.length} bản ghi</Badge>
+          <Badge variant={audit.length ? 'info' : 'neutral'}>{audit.length}{translate("bản ghi")}</Badge>
         </div>
 
-        {audit.length === 0 ? <div style={{ padding: 18 }}><p className="muted" style={{ margin: 0 }}>Chưa có audit cho giao dịch này.</p></div> : (
+        {audit.length === 0 ? <div style={{ padding: 18 }}><p className="muted" style={{ margin: 0 }}>{translate("Chưa có audit cho giao dịch này.")}</p></div> : (
           <div style={{ padding: 14, display: 'grid', gap: 12 }}>
             <div style={{ overflow: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
               <table className="table" style={{ margin: 0 }}>

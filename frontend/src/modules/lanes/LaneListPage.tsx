@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useMemo, useState } from 'react'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Button } from '../../components/ui/Button.tsx'
@@ -8,8 +9,11 @@ import { Spinner } from '../../components/ui/Spinner.tsx'
 import { Table } from '../../components/ui/Table.tsx'
 import { LaneForm } from './LaneForm.tsx'
 import { useLanes } from './useLanes.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
+import { can } from '../../lib/permissions.ts'
 
 export function LaneListPage() {
+  const { user } = useAuth()
   const { lanes, loading, error, refresh, createLane, updateLane, inactive } = useLanes()
   const [dir, setDir] = useState('ALL')
   const [status, setStatus] = useState('ALL')
@@ -33,7 +37,7 @@ export function LaneListPage() {
     return (
       <div>
         <Alert variant="error">{error}</Alert>
-        <Button type="button" onClick={() => void refresh()}>Thử lại</Button>
+        <Button type="button" onClick={() => void refresh()}>{translate("Thử lại")}</Button>
       </div>
     )
   }
@@ -43,10 +47,10 @@ export function LaneListPage() {
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Lane Management · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Quản lý làn</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Cấu hình làn IN/OUT, nguồn video và trạng thái vận hành.</p>
+          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>{translate("Quản lý làn")}</h2>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Cấu hình làn IN/OUT, nguồn video và trạng thái vận hành.")}</p>
         </div>
-        <Button variant="primary" onClick={() => setOpenCreate(true)}>Tạo làn</Button>
+        {can(user, 'lanes.create') && <Button variant="primary" onClick={() => setOpenCreate(true)}>{translate("Tạo làn")}</Button>}
       </div>
 
       {feedback ? <Alert variant="success">{feedback}</Alert> : null}
@@ -66,12 +70,12 @@ export function LaneListPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="Chưa có làn nào" description={lanes.length === 0 ? 'Nhấn Tạo làn để thêm làn đầu tiên.' : 'Không có làn phù hợp bộ lọc.'} />
+        <EmptyState title={translate("Chưa có làn nào")} description={lanes.length === 0 ? translate("Nhấn Tạo làn để thêm làn đầu tiên.") : translate("Không có làn phù hợp bộ lọc.")} />
       ) : (
         <Table>
           <thead>
             <tr>
-              <th>Tên làn</th>
+              <th>{translate("Tên làn")}</th>
               <th>Direction</th>
               <th>Video source</th>
               <th>Status</th>
@@ -87,9 +91,9 @@ export function LaneListPage() {
                 <td>{lane.active ? 'Active' : 'Inactive'}</td>
                 <td>
                   <div className="row-actions">
-                    <Button type="button" onClick={() => setEditing(lane.id)}>Sửa</Button>
-                    {lane.active ? (
-                      <Button type="button" variant="danger" onClick={() => setConfirmInactive(lane.id)}>Ngưng hoạt động</Button>
+                    {can(user, 'lanes.update') && <Button type="button" onClick={() => setEditing(lane.id)}>{translate("Sửa")}</Button>}
+                    {lane.active && can(user, 'lanes.manage') ? (
+                      <Button type="button" variant="danger" onClick={() => setConfirmInactive(lane.id)}>{translate("Ngưng hoạt động")}</Button>
                     ) : null}
                   </div>
                 </td>
@@ -99,13 +103,13 @@ export function LaneListPage() {
         </Table>
       )}
 
-      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} title="Tạo làn">
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} title={translate("Tạo làn")}>
         <LaneForm
           onCancel={() => setOpenCreate(false)}
           onSubmit={async (payload) => {
             await createLane(payload)
             setOpenCreate(false)
-            setFeedback('Tạo làn thành công.')
+            setFeedback(translate("Tạo làn thành công."))
             setTimeout(() => setFeedback(null), 3000)
           }}
         />
@@ -123,7 +127,7 @@ export function LaneListPage() {
                 onSubmit={async (payload) => {
                   await updateLane(lane.id, payload)
                   setEditing(null)
-                  setFeedback('Cập nhật làn thành công.')
+                  setFeedback(translate("Cập nhật làn thành công."))
                   setTimeout(() => setFeedback(null), 3000)
                 }}
               />
@@ -132,11 +136,11 @@ export function LaneListPage() {
         })()
       ) : null}
 
-      <Dialog open={!!confirmInactive} onClose={() => setConfirmInactive(null)} title="Xác nhận">
-        <p>Bạn có chắc muốn ngưng hoạt động làn &quot;{lanes.find((l) => l.id === confirmInactive)?.name}&quot;?</p>
+      <Dialog open={!!confirmInactive} onClose={() => setConfirmInactive(null)} title={translate("Xác nhận")}>
+        <p>{translate("Bạn có chắc muốn ngưng hoạt động làn \"")}{lanes.find((l) => l.id === confirmInactive)?.name}&quot;?</p>
         {laneError ? <Alert variant="error">{laneError}</Alert> : null}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-          <Button type="button" onClick={() => setConfirmInactive(null)}>Hủy</Button>
+          <Button type="button" onClick={() => setConfirmInactive(null)}>{translate("Hủy")}</Button>
           <Button
             type="button"
             variant="danger"
@@ -146,15 +150,13 @@ export function LaneListPage() {
               try {
                 await inactive(confirmInactive)
                 setConfirmInactive(null)
-                setFeedback('Đã ngưng hoạt động làn.')
+                setFeedback(translate("Đã ngưng hoạt động làn."))
                 setTimeout(() => setFeedback(null), 3000)
               } catch (e) {
-                setLaneError(e instanceof Error ? e.message : 'Thao tác thất bại.')
+                setLaneError(e instanceof Error ? e.message : translate("Thao tác thất bại."))
               }
             }}
-          >
-            Xác nhận
-          </Button>
+          >{translate("Xác nhận")}</Button>
         </div>
       </Dialog>
     </div>

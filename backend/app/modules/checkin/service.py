@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -34,6 +35,7 @@ class CheckInService:
         *,
         operator: User,
         idempotency_key: str | None = None,
+        confirm_detection: bool = False,
     ) -> CheckInResponse:
         key = validate_idempotency_key(
             idempotency_key if idempotency_key is not None else request.idempotency_key
@@ -103,7 +105,7 @@ class CheckInService:
                 message="The detection belongs to a different lane.",
             )
 
-        ai_plate = request.original_ai_plate or (detection.normalized_plate if detection else None)
+        ai_plate = detection.normalized_plate if detection else None
         ai_normalized = normalize_plate(ai_plate) if ai_plate else None
         source = self._resolve_source(
             request.source, detection is not None, ai_normalized, normalized_plate
@@ -117,9 +119,7 @@ class CheckInService:
                 details={"transaction_id": str(duplicate.id)},
             )
 
-        confidence = request.confidence
-        if confidence is None and detection:
-            confidence = detection.confidence
+        confidence = detection.confidence if detection else None
         image_url = None
         if detection and detection.image_key:
             image_url = f"/api/v1/alpr/media/{detection.image_key}"
@@ -138,12 +138,30 @@ class CheckInService:
                     "confidence": confidence,
                     "check_in_operator_id": operator.id,
                     "source": source,
+                    "lane_name_snapshot": lane.name,
+                    "operator_name_snapshot": operator.display_name,
                     "is_manual_override": source != CheckInSource.AI_ACCEPTED,
                     "notes": request.override_reason,
                     "idempotency_key": key,
                     "request_fingerprint": fingerprint,
                 }
             )
+            if confirm_detection and detection:
+                old_plate = detection.confirmed_plate
+                detection.is_confirmed = True
+                detection.requires_confirmation = False
+                detection.confirmed_plate = normalized_plate
+                detection.confirmed_by_id = operator.id
+                detection.confirmed_at = datetime.now(UTC)
+                log_action(
+                    db=self.session,
+                    user_id=operator.id,
+                    action="CONFIRM_PLATE",
+                    entity_type="Detection",
+                    entity_id=str(detection.id),
+                    old_value={"plate": old_plate or detection.raw_plate},
+                    new_value={"plate": normalized_plate, "source": source},
+                )
             log_action(
                 db=self.session,
                 user_id=operator.id,
@@ -235,10 +253,10 @@ class CheckInService:
             requested = CheckInSource.AI_ACCEPTED
         if requested == CheckInSource.OPERATOR_MANUAL:
             requested = CheckInSource.MANUAL_ENTRY
-        if requested:
-            return requested
-        if not has_detection or not ai_plate:
+        if not has_detection or requested == CheckInSource.MANUAL_ENTRY:
             return CheckInSource.MANUAL_ENTRY
+        if requested == CheckInSource.OPERATOR_CORRECTED or not ai_plate:
+            return CheckInSource.OPERATOR_CORRECTED
         return (
             CheckInSource.AI_ACCEPTED
             if ai_plate == final_plate
@@ -254,16 +272,20 @@ class CheckInService:
             normalized_plate=transaction.normalized_plate,
             status=transaction.status,
             lane_id=transaction.lane_id,
-            lane_name=transaction.lane.name if transaction.lane else None,
+            lane_name=transaction.lane_name_snapshot
+            or (transaction.lane.name if transaction.lane else None),
             detection_id=transaction.detection_id,
             image_url=transaction.image_url,
             confidence=transaction.confidence,
             check_in_time=transaction.check_in_time,
             check_in_operator_id=transaction.check_in_operator_id,
             check_in_operator_name=(
-                transaction.check_in_operator.display_name
-                if transaction.check_in_operator
-                else None
+                transaction.operator_name_snapshot
+                or (
+                    transaction.check_in_operator.display_name
+                    if transaction.check_in_operator
+                    else None
+                )
             ),
             source=transaction.source,
             is_manual_override=transaction.is_manual_override,

@@ -1,15 +1,15 @@
 # VisionPark — Overview
 
-Smart Parking Control Center — Phase 1 frontend (React + Vite + TS + Router + Vitest).
+React portal cho Station và quản trị, nối FastAPI/PostgreSQL.
+Chạy local qua Docker Compose; dữ liệu parking, lane, users và audit thuộc DB.
 
-## Mục tiêu Phase 1
-- Admin/Operator portal: đăng nhập, dashboard, quét biển số (shell), lịch sử/sửa xác nhận, quản lý lanes/users/roles, ALPR, audit, system, profile.
-- Không Phase 2: Payment, VietQR, Barrier, RTSP, Monthly Ticket, Fee, CRM, Slot Map, Redis, WebSocket.
+Phase 2 hiện có ảnh JPEG/PNG và video MP4, ALPR preview/final, consensus 2/3, xác nhận/sửa/nhập
+biển số thủ công, check-in PARKED, duplicate/idempotency, lịch sử/audit.
+Backend chỉ hỗ trợ YOLO/PaddleOCR thật; frontend không còn fixture fallback hay mock API.
 
-## Vai trò
-- ADMIN: toàn quyền quản lý.
-- OPERATOR: station.use, detections.read/confirm, lanes.read, profile.read/update, help/notifications/settings.
+ADMIN quản trị; OPERATOR vận hành và đọc lanes. ACCOUNTANT/TECHNICIAN giữ role
+thật và chỉ có trang tài khoản trong portal hiện tại.
 
-## Nguồn
-- Source: `frontend/docs/*.md`
-- Health live: `GET /health/ready`
+Profile, preferences, notifications và lỗi đã lưu database. Model readiness, video demo thật và
+accuracy/latency benchmark là các mức xác minh riêng. Check-out/payment/barrier,
+RTSP/vé tháng nằm ngoài phạm vi hiện tại.

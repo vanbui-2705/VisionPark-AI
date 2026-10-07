@@ -1,3 +1,4 @@
+import { t as translate } from "../../../lib/i18n"
 import type { Lane } from "../types";
 export type { Lane } from "../types";
 type Props = {
@@ -19,7 +20,7 @@ export default function LaneSelector({
   }} htmlFor="lane-select">
     <strong>Lane</strong>
     <select id="lane-select" aria-label="Lane" value={selectedLaneId} disabled={disabled} onChange={e => onChange(e.target.value)}>
-      <option value="">-- Chọn Lane --</option>
+      <option value="">{translate("-- Chọn Lane --")}</option>
       {active.map(lane => <option key={lane.id} value={lane.id}>{lane.name} - {lane.direction}</option>)}
     </select>
   </label>;

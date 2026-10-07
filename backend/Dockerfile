@@ -10,16 +10,27 @@ RUN addgroup --system visionpark \
     && adduser --system --ingroup visionpark --home /app visionpark
 
 COPY pyproject.toml ./
+RUN mkdir app && touch app/__init__.py
+
+ARG INSTALL_REAL_ALPR=false
+ARG INSTALL_OCR=false
+ARG INSTALL_TORCH_CPU=false
+RUN python -m pip install --upgrade pip \
+    && if [ "$INSTALL_REAL_ALPR" = "true" ] || [ "$INSTALL_OCR" = "true" ]; then apt-get update && apt-get install -y --no-install-recommends libgl1 libgomp1 && rm -rf /var/lib/apt/lists/*; fi \
+    && if [ "$INSTALL_TORCH_CPU" = "true" ]; then python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu; fi \
+    && if [ "$INSTALL_REAL_ALPR" = "true" ]; then python -m pip install ".[real]"; else python -m pip install .; fi \
+    && if [ "$INSTALL_OCR" = "true" ]; then python -m pip install ".[ocr]"; fi \
+    && mkdir -p /app/var/media \
+    && chown -R visionpark:visionpark /app
+
+RUN if [ "$INSTALL_REAL_ALPR" = "true" ] || [ "$INSTALL_OCR" = "true" ]; then \
+    apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*; fi
+
 COPY app ./app
 COPY models ./models
 COPY alembic.ini ./
 COPY alembic ./alembic
-
-ARG INSTALL_REAL_ALPR=false
-RUN python -m pip install --upgrade pip \
-    && if [ "$INSTALL_REAL_ALPR" = "true" ]; then python -m pip install ".[real]"; else python -m pip install .; fi \
-    && mkdir -p /app/var/media \
-    && chown -R visionpark:visionpark /app
 
 FROM base AS ci
 

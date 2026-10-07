@@ -19,29 +19,29 @@ services:
     restart: unless-stopped
 
   migrate:
+    image: visionpark-backend
     build:
       context: ./backend
       args:
-        INSTALL_REAL_ALPR: ${INSTALL_REAL_ALPR:-false}
+        INSTALL_REAL_ALPR: ${INSTALL_REAL_ALPR:-true}
+        INSTALL_OCR: ${INSTALL_OCR:-true}
     environment: &backend-environment
       ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-visionpark}:${POSTGRES_PASSWORD:-visionpark}@db:5432/${POSTGRES_DB:-visionpark}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set a unique JWT_SECRET_KEY in .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       LOCAL_STORAGE_PATH: /app/var/media
-      ALPR_PROVIDER: ${ALPR_PROVIDER:-mock}
+      ALPR_PROVIDER: ${ALPR_PROVIDER:-real}
       ALPR_MANIFEST_PATH: ${ALPR_MANIFEST_PATH:-models/alpr-manifest.json}
       ALPR_DEVICE: ${ALPR_DEVICE:-cpu}
       ALPR_DETECTOR_CONFIDENCE: ${ALPR_DETECTOR_CONFIDENCE:-0.25}
       ALPR_CONFIDENCE_THRESHOLD: ${ALPR_CONFIDENCE_THRESHOLD:-0.85}
       ALPR_OCR_MARGIN: ${ALPR_OCR_MARGIN:-0.08}
-      ALPR_OCR_ENABLED: ${ALPR_OCR_ENABLED:-false}
-      ALPR_MOCK_SCENARIO: ${ALPR_MOCK_SCENARIO:-success}
-      AUTO_SEED: ${AUTO_SEED:-true}
+      ALPR_OCR_ENABLED: ${ALPR_OCR_ENABLED:-true}
+      PUBLIC_REGISTRATION_ENABLED: ${PUBLIC_REGISTRATION_ENABLED:-false}
+      AUTO_SEED: ${AUTO_SEED:-false}
       SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-change-me-admin}
-      SEED_OPERATOR_USERNAME: ${SEED_OPERATOR_USERNAME:-operator}
-      SEED_OPERATOR_PASSWORD: ${SEED_OPERATOR_PASSWORD:-change-me-operator}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     command: ["alembic", "upgrade", "head"]
     depends_on:
       db:
@@ -52,7 +52,8 @@ services:
     build:
       context: ./backend
       args:
-        INSTALL_REAL_ALPR: ${INSTALL_REAL_ALPR:-false}
+        INSTALL_REAL_ALPR: ${INSTALL_REAL_ALPR:-true}
+        INSTALL_OCR: ${INSTALL_OCR:-true}
     environment: *backend-environment
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -94,8 +95,6 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/}
         VITE_API_TIMEOUT_MS: ${VITE_API_TIMEOUT_MS:-15000}
-        VITE_USE_MOCK_ALPR: ${VITE_USE_MOCK_ALPR:-true}
-        VITE_USE_MOCK_FIXTURES: ${VITE_USE_MOCK_FIXTURES:-false}
         VITE_PUBLIC_REGISTRATION_ENABLED: ${VITE_PUBLIC_REGISTRATION_ENABLED:-false}
     ports:
       - "${FRONTEND_PORT:-5173}:80"
@@ -106,4 +105,6 @@ services:
 
 volumes:
   postgres_data:
+    name: visionpark_postgres_data
   media_data:
+    name: visionpark_media_data

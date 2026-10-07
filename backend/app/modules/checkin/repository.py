@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.modules.alpr.models import Detection
@@ -54,6 +54,16 @@ class CheckInRepository(ABC):
 class DatabaseCheckInRepository(CheckInRepository):
     def __init__(self, session: Session):
         self.session = session
+
+    def summary(self) -> dict[str, int]:
+        total, parked, manual = self.session.execute(
+            select(
+                func.count(ParkingTransaction.id),
+                func.sum(case((ParkingTransaction.status == TransactionStatus.PARKED, 1), else_=0)),
+                func.sum(case((ParkingTransaction.is_manual_override.is_(True), 1), else_=0)),
+            )
+        ).one()
+        return {"total": total, "parked": parked or 0, "manual": manual or 0}
 
     def get_lane(self, lane_id: UUID) -> Lane | None:
         return self.session.get(Lane, lane_id)
@@ -113,6 +123,7 @@ class DatabaseCheckInRepository(CheckInRepository):
         to_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
+        count_only: bool = False,
     ) -> list[ParkingTransaction]:
         stmt = (
             select(ParkingTransaction)
@@ -120,9 +131,7 @@ class DatabaseCheckInRepository(CheckInRepository):
                 joinedload(ParkingTransaction.lane),
                 joinedload(ParkingTransaction.check_in_operator),
             )
-            .order_by(ParkingTransaction.check_in_time.desc())
-            .limit(limit)
-            .offset(offset)
+            .order_by(ParkingTransaction.check_in_time.desc(), ParkingTransaction.id.desc())
         )
         if query:
             pattern = f"%{query.upper()}%"
@@ -140,48 +149,8 @@ class DatabaseCheckInRepository(CheckInRepository):
             stmt = stmt.where(ParkingTransaction.check_in_time >= from_time)
         if to_time:
             stmt = stmt.where(ParkingTransaction.check_in_time <= to_time)
-        return list(self.session.scalars(stmt).all())
-
-
-class FakeCheckInRepository(CheckInRepository):
-    """Small in-memory repository retained for isolated service tests."""
-
-    def __init__(self):
-        self._fake_db: list[ParkingTransaction] = []
-
-    def get_lane(self, lane_id: UUID) -> Lane | None:
-        return Lane(
-            id=lane_id,
-            name="TEST_IN",
-            direction="IN",
-            video_source="fixture",
-            is_active=True,
-        )
-
-    def get_detection(self, detection_id: UUID) -> Detection | None:
-        return None
-
-    def get_by_idempotency_key(self, key: str) -> ParkingTransaction | None:
-        return next((item for item in self._fake_db if item.idempotency_key == key), None)
-
-    def get_by_id(self, transaction_id: UUID) -> ParkingTransaction | None:
-        return next((item for item in self._fake_db if item.id == transaction_id), None)
-
-    def get_active_by_plate(self, normalized_plate: str) -> ParkingTransaction | None:
-        return next(
-            (
-                item
-                for item in self._fake_db
-                if item.normalized_plate == normalized_plate
-                and item.status == TransactionStatus.PARKED
-            ),
-            None,
-        )
-
-    def save_transaction(self, values: dict) -> ParkingTransaction:
-        transaction = ParkingTransaction(id=uuid4(), **values)
-        self._fake_db.append(transaction)
-        return transaction
-
-    def list_transactions(self, **kwargs) -> list[ParkingTransaction]:
-        return list(self._fake_db)
+        if count_only:
+            return self.session.scalar(
+                select(func.count()).select_from(stmt.order_by(None).subquery())
+            )
+        return list(self.session.scalars(stmt.limit(limit).offset(offset)).all())

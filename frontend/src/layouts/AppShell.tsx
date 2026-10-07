@@ -1,3 +1,4 @@
+import { t as translate } from "../lib/i18n"
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../modules/auth/AuthContext.tsx'
@@ -64,11 +65,11 @@ function crumbs(pathname: string): { label: string; to?: string }[] {
     const next = segs[i + 1]
     const isId = next && next.length >= 2 && !['new', 'edit', 'test', 'scan', 'fullscreen'].includes(next) && cur.startsWith('/admin/')
     // simple: title-map lookup, else capitalized segment
-    const label = TITLE_MAP[cur] ?? (segs[i] === 'edit' ? 'Chỉnh sửa' : segs[i] === 'new' ? 'Tạo mới' : cur.endsWith('/fullscreen') ? 'Toàn màn hình' : segs[i])
+    const label = TITLE_MAP[cur] ?? (segs[i] === 'edit' ? translate("Chỉnh sửa") : segs[i] === 'new' ? translate("Tạo mới") : cur.endsWith('/fullscreen') ? translate("Toàn màn hình") : segs[i])
     const isLast = i === segs.length - 1
     if (isId && i === segs.length - 2) {
       items.push({ label: TITLE_MAP[cur] ?? label, to: cur })
-      items.push({ label: 'Chi tiết' })
+      items.push({ label: translate("Chi tiết") })
       break
     }
     items.push({ label: String(label), to: isLast ? undefined : cur })
@@ -82,7 +83,7 @@ function crumbs(pathname: string): { label: string; to?: string }[] {
   }
   if (pathname.startsWith('/detections/') && segs.length === 2) {
     // /detections/:id → Lịch sử / Chi tiết
-    return [{ label: 'Lịch sử nhận diện', to: '/detections' }, { label: 'Chi tiết' }]
+    return [{ label: translate("Lịch sử nhận diện"), to: '/detections' }, { label: translate("Chi tiết") }]
   }
   return items
 }
@@ -125,15 +126,15 @@ function Sidebar({
         </button>
       </div>
       <nav>
-        {group('TỔNG QUAN', visible.filter((x) => x.to === '/admin/dashboard'))}
-        {group('VẬN HÀNH', visible.filter((x) => ['/station/scan', '/detections', '/parking'].includes(x.to)))}
-        {group('QUẢN LÝ', visible.filter((x) => ['/admin/lanes', '/admin/users', '/admin/roles', '/admin/permissions'].includes(x.to)))}
-        {group('AI & HỆ THỐNG', visible.filter((x) => ['/admin/alpr', '/admin/audit-logs', '/admin/errors', '/admin/system'].includes(x.to)))}
-        {group('TÀI KHOẢN', visible.filter((x) => ['/profile', '/settings', '/help'].includes(x.to)))}
+        {group(translate("TỔNG QUAN"), visible.filter((x) => x.to === '/admin/dashboard'))}
+        {group(translate("VẬN HÀNH"), visible.filter((x) => ['/station/scan', '/detections', '/parking'].includes(x.to)))}
+        {group(translate("QUẢN LÝ"), visible.filter((x) => ['/admin/lanes', '/admin/users', '/admin/roles', '/admin/permissions'].includes(x.to)))}
+        {group(translate("AI & HỆ THỐNG"), visible.filter((x) => ['/admin/alpr', '/admin/audit-logs', '/admin/errors', '/admin/system'].includes(x.to)))}
+        {group(translate("TÀI KHOẢN"), visible.filter((x) => ['/profile', '/settings', '/help'].includes(x.to)))}
         {group('DEVELOPER', visible.filter((x) => x.to === '/docs'))}
       </nav>
       <div className="sidebar-footer">
-        {!isCollapsed && <NavLink to="/profile">Hồ sơ cá nhân</NavLink>}
+        {!isCollapsed && <NavLink to="/profile">{translate("Hồ sơ cá nhân")}</NavLink>}
         {!isCollapsed && (
           <NavLink to="/dev/ui-kit" style={{ fontSize: 12, color: '#9ca3af' }}>
             UI Kit
@@ -215,17 +216,17 @@ export function AppShell() {
       <div className="admin-main-wrap">
         <header className="app-header">
           <div className="header-left" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)} aria-label="Mở menu" style={{ display: 'none' }} id="hamburger">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)} aria-label={translate("Mở menu")} style={{ display: 'none' }} id="hamburger">
               ☰
             </button>
             <Breadcrumb items={crumbs(loc.pathname)} />
           </div>
           <div className="header-right" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <span title={healthOk === null ? 'Đang kiểm tra ALPR...' : healthOk ? 'ALPR sẵn sàng' : 'ALPR không sẵn sàng'} style={{ fontSize: 12, color: 'var(--muted)' }}>
+            <span title={healthOk === null ? translate("Đang kiểm tra ALPR...") : healthOk ? translate("ALPR sẵn sàng") : translate("ALPR không sẵn sàng")} style={{ fontSize: 12, color: 'var(--muted)' }}>
               <span className={`status-dot ${healthOk === null ? 'dot-warn' : healthOk ? 'dot-ok' : 'dot-bad'}`} />
               ALPR
             </span>
-            <NavLink to="/notifications" className="notif-wrap btn btn-ghost btn-sm" aria-label="Thông báo">
+            <NavLink to="/notifications" className="notif-wrap btn btn-ghost btn-sm" aria-label={translate("Thông báo")}>
               🔔{unread > 0 ? <span className="notif-count">{unread > 99 ? '99+' : unread}</span> : null}
             </NavLink>
             <div className="dropdown" ref={menuRef}>
@@ -237,12 +238,8 @@ export function AppShell() {
               </button>
               {menuOpen ? (
                 <div className="dropdown-menu">
-                  <NavLink to="/profile" onClick={() => setMenuOpen(false)}>
-                    Hồ sơ cá nhân
-                  </NavLink>
-                  <NavLink to="/settings" onClick={() => setMenuOpen(false)}>
-                    Cài đặt
-                  </NavLink>
+                  <NavLink to="/profile" onClick={() => setMenuOpen(false)}>{translate("Hồ sơ cá nhân")}</NavLink>
+                  <NavLink to="/settings" onClick={() => setMenuOpen(false)}>{translate("Cài đặt")}</NavLink>
                   <button
                     type="button"
                     onClick={() => {
@@ -250,9 +247,7 @@ export function AppShell() {
                       logout()
                       nav('/login')
                     }}
-                  >
-                    Đăng xuất
-                  </button>
+                  >{translate("Đăng xuất")}</button>
                 </div>
               ) : null}
             </div>

@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
 export type ToastVariant = 'success' | 'error' | 'warning' | 'info'
@@ -26,7 +27,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.variant}`}>
             {t.message}
-            <button type="button" className="toast-close" aria-label="Close" onClick={() => dismiss(t.id)}>×</button>
+            <button type="button" className="toast-close" aria-label="Close" onClick={() => dismiss(t.id)}>{translate("×")}</button>
           </div>
         ))}
       </div>

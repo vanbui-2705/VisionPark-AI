@@ -1,0 +1,17 @@
+{
+  "input": "synthetic gray MP4",
+  "provider": "backend mock",
+  "checks": {
+    "admin_users_roles_endpoints": "pass",
+    "operator_cannot_manage_users": "pass",
+    "preview_without_persistence": "pass",
+    "ui_confirm_persisted_parked": "pass",
+    "idempotent_retry": "pass",
+    "duplicate_rejected": "pass",
+    "manual_fallback_after_injected_503": "pass",
+    "detection_detail_media": "pass",
+    "browser_errors": 0
+  },
+  "browser_channel": "msedge",
+  "qa_records_removed": true
+}

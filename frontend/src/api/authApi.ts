@@ -7,7 +7,7 @@ export interface LoginResponse {
   [k: string]: unknown
 }
 
-function mapUser(raw: unknown): CurrentUser {
+export function mapUser(raw: unknown): CurrentUser {
   const r = raw as Record<string, unknown>
   // handle role as object {name} or string
   let role = r.role as unknown
@@ -15,10 +15,11 @@ function mapUser(raw: unknown): CurrentUser {
   const roleStr = String(role ?? '').toUpperCase()
   return {
     id: String(r.id ?? r.user_id ?? ''),
+    email: r.email as string | null | undefined,
     username: String(r.username ?? ''),
     display_name: String(r.display_name ?? r.displayName ?? r.name ?? r.username ?? ''),
-    role: (roleStr === 'ADMIN' ? 'ADMIN' : 'OPERATOR') as CurrentUser['role'],
-    active: (r.active as boolean) ?? true,
+    role: roleStr as CurrentUser['role'],
+    active: (r.is_active as boolean) ?? (r.active as boolean) ?? false,
   }
 }
 

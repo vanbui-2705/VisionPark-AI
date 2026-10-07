@@ -1,9 +1,18 @@
 # Users
 
-Nguồn: `src/modules/users/` (`UserListPage`, `CreateUserPage`, `UserDetailPage`, `UserEditPage`), `src/api/services.ts#usersApi`.
+ADMIN quản lý qua `/admin/users`, `/new`, `/:id`, `/:id/edit`.
+API thật: GET/POST `/api/v1/users`, GET/PATCH `/api/v1/users/{id}`.
 
-- Routes: `/admin/users`, `/admin/users/new`, `/admin/users/:id`, `/admin/users/:id/edit` (ADMIN only).
-- Fields: `username` (readonly khi edit), `display_name`, `email`, `role` (ADMIN/OPERATOR), `active`.
-- Edit: Save qua `PATCH /api/v1/users/:id`; Lock/Reset Password disabled "Backend API required".
-- Create: validate bắt buộc + confirm password + 409 `DUPLICATE_USER`. Dirty guard `useUnsavedGuard`.
-- Service boundary `call<T>(key, real)` — fixture chỉ fallback khi 404/501 và `VITE_USE_MOCK_FIXTURES=true`, và `usersCreate/usersPatch` throw 501 (không fake success).
+Username readonly khi edit; display_name/email/role/active có thể sửa.
+Backend normalize username/email, hash mật khẩu, chặn trùng username/email,
+không trả hash/mật khẩu và audit không ghi secret. Admin không tự khóa/hạ quyền
+chính mình. Active=false vô hiệu hóa login và bearer token hiện tại.
+
+Bốn role tồn tại: ADMIN, OPERATOR, ACCOUNTANT, TECHNICIAN. Hai role đầu có
+nghiệp vụ Station; hai role sau hiện chỉ có trang tài khoản. Frontend không
+chuyển role khác thành OPERATOR. API roles trả danh sách được provision trong DB.
+Đăng ký công khai tắt mặc định; nếu bật, backend gán OPERATOR và từ chối role
+trong payload. Password reset của Admin dùng PATCH password; chưa có API đổi
+mật khẩu cá nhân từ Profile.
+
+Trang edit cho đổi mật khẩu bằng trường optional (8–128 ký tự), giữ trống để giữ nguyên; checkbox active khóa/mở tài khoản qua cùng PATCH.

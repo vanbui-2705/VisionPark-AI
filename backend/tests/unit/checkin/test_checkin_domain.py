@@ -54,6 +54,8 @@ def test_check_in_success(service, mock_repo, mock_session, operator, lane_in):
     transaction_mock.id = uuid.uuid4()
     transaction_mock.lane = lane_in
     transaction_mock.lane_id = lane_id
+    transaction_mock.lane_name_snapshot = lane_in.name
+    transaction_mock.operator_name_snapshot = operator.display_name
     transaction_mock.license_plate = "29A12345"
     transaction_mock.normalized_plate = "29A12345"
     transaction_mock.original_ai_plate = None

@@ -1,3 +1,4 @@
+import { t as translate } from "../../../lib/i18n"
 import type { ApiError } from "../types";
 type Props = {
   error: ApiError | null;
@@ -6,19 +7,19 @@ type Props = {
 const messageFor = (error: ApiError) => {
   switch (error.status) {
     case 401:
-      return "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.";
+      return translate("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
     case 403:
-      return "Bạn không có quyền sử dụng chức năng Station.";
+      return translate("Bạn không có quyền sử dụng chức năng Station.");
     case 409:
-      return error.code === "DETECTION_ALREADY_CONFIRMED" ? "Detection này đã được xác nhận trước đó." : error.message;
+      return error.code === "DETECTION_ALREADY_CONFIRMED" ? translate("Detection này đã được xác nhận trước đó.") : error.message;
     case 422:
-      return error.message || "Ảnh hoặc dữ liệu gửi lên không hợp lệ.";
+      return error.message || translate("Ảnh hoặc dữ liệu gửi lên không hợp lệ.");
     case 503:
-      return "Dịch vụ ALPR hiện chưa sẵn sàng.";
+      return translate("Dịch vụ ALPR hiện chưa sẵn sàng.");
     case 408:
-      return "Yêu cầu ALPR bị timeout.";
+      return translate("Yêu cầu ALPR bị timeout.");
     case 0:
-      return "Không thể kết nối tới Backend.";
+      return translate("Không thể kết nối tới Backend.");
     default:
       return error.message;
   }
@@ -35,9 +36,9 @@ export default function ErrorPanel({
     border: "2px solid #b42318",
     borderRadius: 8
   }}>
-    <strong>Lỗi Station</strong><p>{messageFor(error)}</p><small>{error.code} ({error.status})</small>
+    <strong>{translate("Lỗi Station")}</strong><p>{messageFor(error)}</p><small>{error.code} ({error.status})</small>
     {retryable && <div style={{
       marginTop: 10
-    }}><button type="button" onClick={onRetry}>↻ Thử lại</button></div>}
+    }}><button type="button" onClick={onRetry}>{translate("↻ Thử lại")}</button></div>}
   </div>;
 }

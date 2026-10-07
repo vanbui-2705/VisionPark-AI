@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.database.session import get_db
@@ -15,10 +16,14 @@ from app.modules.users.schemas import RoleName
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 
-@router.get("/", response_model=list[AuditLogResponse])
+@router.get("/", response_model=list[AuditLogResponse] | dict)
 def list_audit_logs(
     actor: str | None = None,
     action: str | None = None,
+    actor_id: UUID | None = None,
+    resource_id: str | None = None,
+    offset: int = Query(0, ge=0),
+    paginated: bool = False,
     from_time: Annotated[datetime | None, Query(alias="from")] = None,
     to_time: Annotated[datetime | None, Query(alias="to")] = None,
     limit: int = Query(100, ge=1, le=200),
@@ -29,9 +34,12 @@ def list_audit_logs(
     stmt = (
         select(AuditLog)
         .options(joinedload(AuditLog.user))
-        .order_by(AuditLog.created_at.desc())
-        .limit(limit)
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
     )
+    if actor_id:
+        stmt = stmt.where(AuditLog.user_id == actor_id)
+    if resource_id:
+        stmt = stmt.where(AuditLog.entity_id == resource_id)
     if actor:
         stmt = stmt.join(AuditLog.user).where(User.username.ilike(f"%{actor}%"))
     if action:
@@ -40,8 +48,9 @@ def list_audit_logs(
         stmt = stmt.where(AuditLog.created_at >= from_time)
     if to_time:
         stmt = stmt.where(AuditLog.created_at <= to_time)
-    rows = db.scalars(stmt).unique().all()
-    return [
+    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
+    rows = db.scalars(stmt.offset(offset).limit(limit)).unique().all()
+    items = [
         AuditLogResponse(
             id=row.id,
             time=row.created_at,
@@ -55,3 +64,14 @@ def list_audit_logs(
         )
         for row in rows
     ]
+
+    return (
+        {
+            "items": [item.model_dump(mode="json") for item in items],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+        if paginated
+        else items
+    )

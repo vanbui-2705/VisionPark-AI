@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState } from "react";
+import type { InputContext } from "../api";
 import { createDetection } from "../api";
 import type { ApiError, DetectionResult, StationState } from "../types";
 type LastRequest = {
   image: Blob;
   laneId: string;
+  context: InputContext;
 };
 function normalizeError(error: unknown): ApiError {
   if (typeof error === "object" && error !== null && "code" in error) {
@@ -24,22 +26,25 @@ export function useAlprDetection() {
   const [state, setState] = useState<StationState>("idle");
   const [result, setResult] = useState<DetectionResult | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const generationRef = useRef(0);
   const processingRef = useRef(false);
   const lastRequestRef = useRef<LastRequest | null>(null);
   const candidatesRef = useRef<DetectionResult[]>([]);
   const lastBboxRef = useRef<DetectionResult["bbox"]>(null);
-  const execute = useCallback(async (image: Blob, laneId: string) => {
+  const execute = useCallback(async (image: Blob, laneId: string, context: InputContext = { inputKind: "VIDEO_FRAME" }) => {
     if (processingRef.current) throw {
       status: 409,
       code: "REQUEST_IN_PROGRESS",
       message: "Một yêu cầu ALPR đang được xử lý."
     } satisfies ApiError;
+    const generation = generationRef.current;
     processingRef.current = true;
     setState("detecting");
     setError(null);
     try {
       setState("reading");
-      const detection = await createDetection(image, laneId);
+      const detection = await createDetection(image, laneId, context);
+      if (generation !== generationRef.current) return;
       const previous = lastBboxRef.current;
       if (previous && detection.bbox && bboxChanged(previous, detection.bbox)) {
         candidatesRef.current = [];
@@ -49,9 +54,10 @@ export function useAlprDetection() {
       const consensus = getConsensus(candidatesRef.current);
       const stable = consensus ?? detection;
       setResult(stable);
-      setState(stable.requires_confirmation ? "needs_confirmation" : consensus ? "stable" : "stable");
+      setState(stable.requires_confirmation || (!consensus && context.inputKind !== "IMAGE_UPLOAD") ? "needs_confirmation" : "stable");
       return stable;
     } catch (unknownError) {
+      if (generation !== generationRef.current) return;
       const apiError = normalizeError(unknownError);
       setError(apiError);
       setState("error");
@@ -60,7 +66,7 @@ export function useAlprDetection() {
       processingRef.current = false;
     }
   }, []);
-  const detect = useCallback(async (image: Blob, laneId: string) => {
+  const detect = useCallback(async (image: Blob, laneId: string, context: InputContext = { inputKind: "VIDEO_FRAME" }) => {
     if (!laneId) {
       const error = {
         status: 422,
@@ -73,15 +79,16 @@ export function useAlprDetection() {
     }
     lastRequestRef.current = {
       image,
-      laneId
+      laneId, context
     };
-    return execute(image, laneId);
+    return execute(image, laneId, context);
   }, [execute]);
   const retry = useCallback(async () => {
     if (!lastRequestRef.current) return;
-    return execute(lastRequestRef.current.image, lastRequestRef.current.laneId);
+    return execute(lastRequestRef.current.image, lastRequestRef.current.laneId, lastRequestRef.current.context);
   }, [execute]);
   const reset = useCallback(() => {
+    generationRef.current += 1;
     setState("idle");
     setResult(null);
     setError(null);
@@ -118,5 +125,5 @@ function getConsensus(candidates: DetectionResult[]): DetectionResult | null {
   if (!plates.length) return null;
   const winner = [...new Set(plates)].sort((a, b) => plates.filter(item => item === b).length - plates.filter(item => item === a).length)[0];
   if (plates.filter(item => item === winner).length < 2) return null;
-  return candidates.find(item => item.normalized_plate_number === winner) ?? null;
+  return [...candidates].reverse().find(item => item.normalized_plate_number === winner) ?? null;
 }

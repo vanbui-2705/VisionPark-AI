@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useEffect, useState } from 'react'
 import { healthApi } from '../../api/healthApi.ts'
 import { getApiBaseUrl } from '../../api/client.ts'
@@ -11,7 +12,7 @@ export function SystemPage() {
   const [data, setData] = useState<unknown>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const load = async () => { setLoading(true); setErr(null); try { const r = await healthApi.ready(); setData(r) } catch (e) { setErr(e instanceof Error ? e.message : 'Không kết nối được backend') } finally { setLoading(false) } }
+  const load = async () => { setLoading(true); setErr(null); try { const r = await healthApi.ready(); setData(r) } catch (e) { setErr(e instanceof Error ? e.message : translate("Không kết nối được backend")) } finally { setLoading(false) } }
   useEffect(() => { void load() }, [])
   const alpr = (data as { alpr?: { provider?: string; ready?: boolean } })?.alpr
   return (
@@ -20,8 +21,8 @@ export function SystemPage() {
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Runtime · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Trạng thái hệ thống</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Backend / ALPR / Frontend — kiểm tra nhanh trước khi vận hành.</p>
+          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>{translate("Trạng thái hệ thống")}</h2>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Backend / ALPR / Frontend — kiểm tra nhanh trước khi vận hành.")}</p>
         </div>
         <Badge variant={err ? 'danger' : 'success'}>{err ? 'Error' : 'Healthy'}</Badge>
       </div>
@@ -38,7 +39,7 @@ export function SystemPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)' }}>Environment</span><code>{import.meta.env.MODE}</code></div>
         </div>
         {loading ? <Spinner /> : err ? <Alert variant="error">{err}</Alert> : <pre className="code-block" style={{ margin: 0 }}>{JSON.stringify(data, null, 2) ?? '—'}</pre>}
-        <Button onClick={load} style={{ marginTop: 12 }}>Kiểm tra lại</Button>
+        <Button onClick={load} style={{ marginTop: 12 }}>{translate("Kiểm tra lại")}</Button>
       </section>
     </div>
   )

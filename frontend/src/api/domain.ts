@@ -7,6 +7,7 @@ export type DetectionStatus =
   | 'ERROR'
 
 export interface Detection {
+  input_kind?: string | null;
   id: string
   lane_id: string
   lane_name?: string
@@ -40,6 +41,7 @@ export type CheckInSource =
   | 'MANUAL_ENTRY'
   | 'STATION_AUTO'
   | 'OPERATOR_MANUAL'
+
 
 export type TransactionStatus = 'PARKED' | 'COMPLETED' | 'CANCELLED'
 
@@ -109,7 +111,7 @@ export interface ManagedUser {
   username: string
   display_name: string
   email?: string | null
-  role: 'ADMIN' | 'OPERATOR'
+  role: import('./types.ts').UserRole
   active: boolean
   last_login?: string | null
   created_at?: string

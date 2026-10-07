@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useEffect, useState } from 'react'
 import { auditApi } from '../../api/services.ts'
 import type { AuditLog } from '../../api/domain.ts'
@@ -19,10 +20,10 @@ export function AuditLogsPage() {
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
-  useEffect(() => { auditApi.list({ limit: 50 }).then(setData).catch((e) => setErr(e instanceof Error ? e.message : 'Không tải được audit logs')).finally(() => setLoading(false)) }, [])
+  useEffect(() => { auditApi.list({ limit: 50 }).then(setData).catch((e) => setErr(e instanceof Error ? e.message : translate("Không tải được audit logs"))).finally(() => setLoading(false)) }, [])
   if (loading) return <Spinner />
   if (err) return <Alert variant="error">{err}</Alert>
-  if (!data || data.length === 0) return <EmptyState title="Chưa có audit logs" />
+  if (!data || data.length === 0) return <EmptyState title={translate("Chưa có audit logs")} />
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -30,9 +31,9 @@ export function AuditLogsPage() {
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Audit Trail · Duy Anh</div>
           <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Audit Logs</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Theo dõi actor, action, resource và correlationId. Dữ liệu nhạy cảm được redact khi hiển thị.</p>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Theo dõi actor, action, resource và correlationId. Dữ liệu nhạy cảm được redact khi hiển thị.")}</p>
         </div>
-        <Badge variant="info">{data.length} bản ghi</Badge>
+        <Badge variant="info">{data.length}{translate("bản ghi")}</Badge>
       </div>
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
@@ -43,7 +44,7 @@ export function AuditLogsPage() {
               <tr key={r.id}>
                 <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{new Date(r.time).toLocaleString('vi-VN')}</td>
                 <td><strong>{r.actor}</strong></td><td><Badge>{r.action}</Badge></td><td>{r.resource}</td><td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{r.resource_id}</td><td>{r.correlation_id ?? '—'}</td>
-                <td><button className="btn btn-ghost btn-sm" onClick={() => setExpanded(expanded === r.id ? null : r.id)}>{expanded === r.id ? 'Thu gọn' : 'Chi tiết'}</button></td>
+                <td><button className="btn btn-ghost btn-sm" onClick={() => setExpanded(expanded === r.id ? null : r.id)}>{expanded === r.id ? translate("Thu gọn") : translate("Chi tiết")}</button></td>
               </tr>
             ))}</tbody>
           </table>

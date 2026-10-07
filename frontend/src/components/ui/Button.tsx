@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import type { ButtonHTMLAttributes } from 'react'
 
 export function Button({
@@ -13,7 +14,7 @@ export function Button({
       data-variant={variant}
       className={`btn btn-${variant} ${props.className ?? ''}`}
     >
-      {loading ? 'Đang xử lý...' : children}
+      {loading ? translate("Đang xử lý...") : children}
     </button>
   )
 }

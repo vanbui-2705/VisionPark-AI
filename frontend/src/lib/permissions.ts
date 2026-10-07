@@ -77,7 +77,8 @@ const OPERATOR_PERMS: Permission[] = [
 export function can(user: CurrentUser | null | undefined, perm: Permission): boolean {
   if (!user) return false
   if (user.role === 'ADMIN') return (ADMIN_ALL as string[]).includes(perm)
-  return (OPERATOR_PERMS as string[]).includes(perm)
+  if (user.role === 'OPERATOR') return (OPERATOR_PERMS as string[]).includes(perm)
+  return ['profile.read', 'profile.update', 'settings.update', 'help.read', 'notifications.read'].includes(perm)
 }
 
 export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolean; operator: boolean }[] = [

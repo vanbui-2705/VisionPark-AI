@@ -1,3 +1,5 @@
+import hashlib
+
 from .interface import ALPRRuntime
 from .ports.detection_recorder import DetectionRecorder
 from .ports.image_storage import ImageStorage
@@ -9,7 +11,7 @@ class ALPRApplicationService:
     """
     Điều phối toàn bộ luồng use case (use case flow) của hệ thống ALPR:
     1. Kiểm tra tính hợp lệ của làn xe.
-    2. Gọi Runtime AI ONNX để nhận diện biển số.
+    2. Gọi ALPR runtime được cấu hình để nhận diện biển số.
     3. Lưu lại ảnh gốc vào kho lưu trữ (Storage).
     4. Ghi nhận kết quả nhận diện xuống cơ sở dữ liệu.
     """
@@ -27,15 +29,44 @@ class ALPRApplicationService:
         self.detection_recorder = detection_recorder
 
     def process_detection(
-        self, image_bytes: bytes, lane_id: str, *, persist: bool = True
+        self,
+        image_bytes: bytes,
+        lane_id: str,
+        *,
+        persist: bool = True,
+        capture_id: str | None = None,
+        input_kind: str | None = None,
+        video_time_ms: int | None = None,
+        actor_id: str | None = None,
     ) -> ALPRResult:
         # 1. Xác thực làn xe (Validate lane)
         if not self.lane_checker.check_active_lane(lane_id):
             raise ValueError(f"Làn xe {lane_id} không tồn tại hoặc đang không hoạt động.")
 
+        fingerprint = hashlib.sha256(
+            lane_id.encode()
+            + b"\0"
+            + str(input_kind).encode()
+            + b"\0"
+            + str(video_time_ms).encode()
+            + b"\0"
+            + image_bytes
+        ).hexdigest()
+        if capture_id and persist:
+            existing = self.detection_recorder.get_capture(capture_id, fingerprint)
+            if existing is not None:
+                return existing
+
         # 2. Gọi AI Runtime
         # Sẽ văng ra lỗi ALPRNotReadyError hoặc ALPRProcessingError nếu AI có vấn đề
-        result = self.runtime.detect_and_read(image_bytes)
+        result = self.runtime.detect_and_read(image_bytes).model_copy(
+            update={
+                "input_kind": input_kind,
+                "video_time_ms": video_time_ms,
+                "actor_id": actor_id,
+                "image_size_bytes": len(image_bytes),
+            }
+        )
 
         if not persist:
             return result.model_copy(update={"detection_id": None})
@@ -45,7 +76,16 @@ class ALPRApplicationService:
 
         # 4. Ghi nhận lịch sử (Record Detection)
         try:
-            detection_id = self.detection_recorder.record_detection(lane_id, image_key, result)
+            if capture_id:
+                detection_id = self.detection_recorder.record_detection(
+                    lane_id,
+                    image_key,
+                    result,
+                    capture_id=capture_id,
+                    capture_fingerprint=fingerprint,
+                )
+            else:
+                detection_id = self.detection_recorder.record_detection(lane_id, image_key, result)
         except Exception:
             self.image_storage.delete_image(image_key, lane_id)
             raise

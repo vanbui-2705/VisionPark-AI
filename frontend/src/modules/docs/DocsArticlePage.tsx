@@ -1,3 +1,4 @@
+import { t as translate } from "../../lib/i18n"
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { healthApi } from '../../api/healthApi.ts'
@@ -74,7 +75,7 @@ export function DocsArticlePage() {
   const html = useMemo(() => (md ? renderMarkdown(md) : ''), [md])
 
   if (err) return <div><h1>{key}</h1><div className="alert alert-error">{err}</div><p className="muted">Source: docs/{canonicalFile(key)}</p><Link to="/docs">← Docs</Link></div>
-  if (md == null) return <div style={{ padding: 24 }}>Đang tải docs...</div>
+  if (md == null) return <div style={{ padding: 24 }}>{translate("Đang tải docs...")}</div>
 
   return (
     <div>

@@ -4,13 +4,12 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.security import hash_password
 from app.database.session import database
-from app.modules.lanes.models import Lane
 from app.modules.users.models import Role, User
 from app.modules.users.schemas import RoleName
 
 
 def seed_database(session: Session, settings: Settings) -> None:
-    """Create the Phase 1 roles and demo users without duplicating existing rows."""
+    """Provision roles and an administrator only; never overwrite existing identities."""
 
     # ===== SEED ROLES =====
     roles: dict[RoleName, Role] = {}
@@ -37,7 +36,7 @@ def seed_database(session: Session, settings: Settings) -> None:
             RoleName.OPERATOR,
         ),
     )
-    for username, display_name, password, role_name in demo_users:
+    for username, display_name, password, role_name in demo_users[:1]:
         if password is None:
             continue
         normalized_username = username.strip().lower()
@@ -52,27 +51,6 @@ def seed_database(session: Session, settings: Settings) -> None:
                     is_active=True,
                 )
             )
-
-    # ===== SEED LANES (Idempotent) =====
-    demo_lanes = [
-        {
-            "name": "LANE_IN_01",
-            "direction": "IN",
-            "video_source": "fixture://phase-2/in.mp4",
-            "is_active": True,
-        },
-        {
-            "name": "LANE_OUT_01",
-            "direction": "OUT",
-            "video_source": "rtsp://demo/out",
-            "is_active": True,
-        },
-    ]
-
-    for lane_data in demo_lanes:
-        existing = session.scalar(select(Lane).where(Lane.name == lane_data["name"]))
-        if existing is None:
-            session.add(Lane(**lane_data))
 
     session.commit()
 

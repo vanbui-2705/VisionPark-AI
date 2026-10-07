@@ -35,3 +35,18 @@ Operations UI MUST hiển thị danh sách check-in với biển số, lane, th�
 #### Scenario: Xem lịch sử theo lane
 - **WHEN** Operator hoặc Admin chọn một lane và khoảng thời gian
 - **THEN** UI chỉ hiển thị các check-in phù hợp và giữ thông tin trạng thái xác nhận
+
+
+### Requirement: Preview và confirmation dùng backend contract thật
+
+Station MUST dùng shared authenticated client và backend provider. Preview MUST không
+persist detection/transaction. Candidate final MUST có capture UUID ổn định để retry;
+confirmation MUST gọi canonical detection confirm với check_in=true và idempotency key.
+
+#### Scenario: Retry sau mất response
+- **WHEN** final capture hoặc confirmation đã được xử lý nhưng client mất response
+- **THEN** retry cùng capture UUID/key và payload trả cùng detection/transaction, không tạo bản ghi trùng
+
+#### Scenario: Manual fallback khi provider lỗi
+- **WHEN** ALPR trả 503 và Operator nhập biển số cùng lane IN active
+- **THEN** UI cho phép tạo manual check-in qua parking API mà không gọi ALPR lần nữa
