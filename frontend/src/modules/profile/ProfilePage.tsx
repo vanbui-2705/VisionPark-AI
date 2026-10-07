@@ -8,29 +8,37 @@ export function ProfilePage() {
   const nav = useNavigate()
   const initial = user ? (user.display_name?.[0] ?? user.username[0]).toUpperCase() : '?'
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.16)', display: 'grid', placeItems: 'center', fontSize: 24, fontWeight: 800 }}>{initial}</div>
+    <div className="data-page profile-page">
+      <section className="data-hero data-hero--forest profile-hero">
+        <div className="profile-hero-main">
+          <div className="profile-avatar">{initial}</div>
           <div>
-            <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Account · Duy Anh</div>
-            <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Hồ sơ cá nhân</h2>
-            <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{user?.display_name ?? user?.username ?? '—'}</p>
+            <span className="data-kicker">Tài khoản · VisionPark</span>
+            <h2>Hồ sơ cá nhân</h2>
+            <p>{user?.display_name ?? user?.username ?? '—'}</p>
           </div>
         </div>
-        <Badge variant={user?.active ? 'success' : 'danger'}>{user?.active ? 'Active' : 'Inactive'}</Badge>
-      </div>
+        <Badge variant={user?.active ? 'success' : 'danger'}>{user?.active ? 'Đang hoạt động' : 'Tạm khóa'}</Badge>
+      </section>
 
-      <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-        <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)' }}>Display Name</span><strong>{user?.display_name ?? '—'}</strong></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)' }}>Username</span><code>{user?.username ?? '—'}</code></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)' }}>Role</span><Badge>{user?.role ?? '—'}</Badge></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><span style={{ color: 'var(--muted)' }}>Status</span><span>{user?.active ? 'Active' : 'Inactive'}</span></div>
+      <section className="data-table-card profile-card">
+        <div className="profile-card-head">
+          <div>
+            <span className="data-section-kicker">ACCOUNT DETAILS</span>
+            <h3>Thông tin tài khoản</h3>
+            <p className="profile-card-lede">Thông tin định danh và quyền truy cập hiện tại.</p>
+          </div>
+          <span className="profile-account-mark" aria-hidden="true">VP</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-          <Button variant="secondary" disabled title="Chờ Backend API">Đổi mật khẩu — Chờ Backend</Button>
-          <Button variant="secondary" onClick={() => { logout(); nav('/login') }}>Đăng xuất</Button>
+        <div className="profile-details">
+          <div className="profile-detail-row"><span>Tên hiển thị</span><strong className="profile-detail-value">{user?.display_name ?? '—'}</strong></div>
+          <div className="profile-detail-row"><span>Tên đăng nhập</span><code className="profile-detail-value">{user?.username ?? '—'}</code></div>
+          <div className="profile-detail-row"><span>Vai trò</span><Badge>{user?.role === 'ADMIN' ? 'Quản trị viên' : user?.role === 'OPERATOR' ? 'Nhân viên vận hành' : (user?.role ?? '—')}</Badge></div>
+          <div className="profile-detail-row"><span>Trạng thái</span><span className={`profile-status ${user?.active ? 'is-active' : 'is-inactive'}`}><span className="profile-status-dot" aria-hidden="true" />{user?.active ? 'Đang hoạt động' : 'Tạm khóa'}</span></div>
+        </div>
+        <div className="profile-actions">
+          <div className="profile-actions-copy"><span className="data-section-kicker">SECURITY</span><p>Quản lý phiên đăng nhập và thông tin bảo mật.</p></div>
+          <div className="profile-action-buttons"><Button variant="secondary" disabled title="Chờ Backend API">Đổi mật khẩu — Chờ Backend</Button><Button variant="secondary" onClick={() => { logout(); nav('/login') }}>Đăng xuất</Button></div>
         </div>
       </section>
     </div>

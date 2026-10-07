@@ -10,7 +10,7 @@ import { getUnreadCount, subscribeNotifications } from '../lib/notifications.ts'
 type NavItem = { to: string; label: string; icon: string; perm: Permission }
 
 const NAV: NavItem[] = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: '▣', perm: 'dashboard.read' },
+  { to: '/admin/dashboard', label: 'Tổng quan', icon: '▣', perm: 'dashboard.read' },
   { to: '/station/scan', label: 'Quét biển số', icon: '◎', perm: 'station.use' },
   { to: '/detections', label: 'Lịch sử nhận diện', icon: '≡', perm: 'detections.read' },
   { to: '/parking', label: 'Lịch sử đỗ xe', icon: '▤', perm: 'transactions.read' },
@@ -19,20 +19,21 @@ const NAV: NavItem[] = [
   { to: '/admin/roles', label: 'Vai trò', icon: '◈', perm: 'roles.read' },
   { to: '/admin/permissions', label: 'Phân quyền', icon: '⬡', perm: 'permissions.read' },
   { to: '/admin/alpr', label: 'ALPR', icon: '◉', perm: 'alpr.read' },
-  { to: '/admin/audit-logs', label: 'Audit Logs', icon: '☷', perm: 'audit.read' },
-  { to: '/admin/errors', label: 'Error Center', icon: '⚠', perm: 'errors.read' },
-  { to: '/admin/system', label: 'System Health', icon: '⚙', perm: 'system.read' },
+  { to: '/admin/audit-logs', label: 'Nhật ký kiểm tra', icon: '☷', perm: 'audit.read' },
+  { to: '/admin/errors', label: 'Trung tâm lỗi', icon: '⚠', perm: 'errors.read' },
+  { to: '/admin/system', label: 'Tình trạng hệ thống', icon: '⚙', perm: 'system.read' },
   // Tài khoản — luôn hiện khi có phiên, lọc qua can()
   { to: '/profile', label: 'Thông tin cá nhân', icon: '☺', perm: 'profile.read' },
   { to: '/settings', label: 'Cài đặt', icon: '⬢', perm: 'settings.update' },
   { to: '/help', label: 'Trợ giúp', icon: '?', perm: 'help.read' },
-  { to: '/docs', label: 'Docs', icon: '▤', perm: 'docs.read' },
+  { to: '/docs', label: 'Tài liệu', icon: '▤', perm: 'docs.read' },
 ]
 
 const TITLE_MAP: Record<string, string> = {
-  '/admin/dashboard': 'Dashboard',
+  '/admin/dashboard': 'Tổng quan',
   '/station/scan': 'Quét biển số',
   '/detections': 'Lịch sử nhận diện',
+  '/parking': 'Lịch sử đỗ xe',
   '/admin/lanes': 'Làn xe',
   '/admin/lanes/new': 'Tạo làn xe',
   '/admin/users': 'Người dùng',
@@ -40,15 +41,15 @@ const TITLE_MAP: Record<string, string> = {
   '/admin/roles': 'Vai trò',
   '/admin/permissions': 'Phân quyền',
   '/admin/alpr': 'ALPR',
-  '/admin/alpr/test': 'ALPR Test Lab',
-  '/admin/audit-logs': 'Audit Logs',
-  '/admin/errors': 'Error Center',
-  '/admin/system': 'System Health',
+  '/admin/alpr/test': 'Kiểm thử ALPR',
+  '/admin/audit-logs': 'Nhật ký kiểm tra',
+  '/admin/errors': 'Trung tâm lỗi',
+  '/admin/system': 'Tình trạng hệ thống',
   '/profile': 'Thông tin cá nhân',
   '/settings': 'Cài đặt',
   '/notifications': 'Thông báo',
   '/help': 'Trợ giúp',
-  '/docs': 'Docs',
+  '/docs': 'Tài liệu',
 }
 
 function crumbs(pathname: string): { label: string; to?: string }[] {
@@ -64,7 +65,7 @@ function crumbs(pathname: string): { label: string; to?: string }[] {
     const next = segs[i + 1]
     const isId = next && next.length >= 2 && !['new', 'edit', 'test', 'scan', 'fullscreen'].includes(next) && cur.startsWith('/admin/')
     // simple: title-map lookup, else capitalized segment
-    const label = TITLE_MAP[cur] ?? (segs[i] === 'edit' ? 'Chỉnh sửa' : segs[i] === 'new' ? 'Tạo mới' : cur.endsWith('/fullscreen') ? 'Toàn màn hình' : segs[i])
+    const label = TITLE_MAP[cur] ?? (segs[i] === 'admin' ? 'Điều hành' : segs[i] === 'edit' ? 'Chỉnh sửa' : segs[i] === 'new' ? 'Tạo mới' : cur.endsWith('/fullscreen') ? 'Toàn màn hình' : segs[i])
     const isLast = i === segs.length - 1
     if (isId && i === segs.length - 2) {
       items.push({ label: TITLE_MAP[cur] ?? label, to: cur })
@@ -120,8 +121,8 @@ function Sidebar({
     <>
       <div className="brand">
         <span>◉ VisionPark</span>
-        <button type="button" className="collapse-btn" onClick={onToggle} aria-label="Toggle sidebar">
-          {isCollapsed ? '›' : '‹'}
+        <button type="button" className="collapse-btn" onClick={mobileOpen ? onCloseMobile : onToggle} aria-label={mobileOpen ? "Đóng menu" : "Thu gọn menu"}>
+          {mobileOpen ? '✕' : isCollapsed ? '›' : '‹'}
         </button>
       </div>
       <nav>
@@ -214,26 +215,29 @@ export function AppShell() {
       />
       <div className="admin-main-wrap">
         <header className="app-header">
-          <div className="header-left" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)} aria-label="Mở menu" style={{ display: 'none' }} id="hamburger">
-              ☰
+          <div className="header-left">
+            <button type="button" className="header-menu-button btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)} aria-label="Mở menu" id="hamburger">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
             </button>
             <Breadcrumb items={crumbs(loc.pathname)} />
           </div>
-          <div className="header-right" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <span title={healthOk === null ? 'Đang kiểm tra ALPR...' : healthOk ? 'ALPR sẵn sàng' : 'ALPR không sẵn sàng'} style={{ fontSize: 12, color: 'var(--muted)' }}>
+          <div className="header-right">
+            <span className="header-status" title={healthOk === null ? 'Đang kiểm tra ALPR...' : healthOk ? 'ALPR sẵn sàng' : 'ALPR không sẵn sàng'}>
               <span className={`status-dot ${healthOk === null ? 'dot-warn' : healthOk ? 'dot-ok' : 'dot-bad'}`} />
               ALPR
             </span>
-            <NavLink to="/notifications" className="notif-wrap btn btn-ghost btn-sm" aria-label="Thông báo">
-              🔔{unread > 0 ? <span className="notif-count">{unread > 99 ? '99+' : unread}</span> : null}
+            <NavLink to="/notifications" className="notif-wrap header-icon-button btn btn-ghost btn-sm" aria-label="Thông báo">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+              {unread > 0 ? <span className="notif-count">{unread > 99 ? '99+' : unread}</span> : null}
             </NavLink>
             <div className="dropdown" ref={menuRef}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMenuOpen((v) => !v)} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button type="button" className={`profile-trigger btn btn-ghost btn-sm${menuOpen ? ' is-open' : ''}`} onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen}>
                 <span className="avatar">{initial}</span>
-                <span>
-                  {user?.display_name} <small style={{ color: 'var(--muted)' }}>{user?.role}</small>
+                <span className="profile-copy">
+                  <strong>{user?.display_name}</strong>
+                  <small>{user?.role}</small>
                 </span>
+                <svg className="profile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
               </button>
               {menuOpen ? (
                 <div className="dropdown-menu">

@@ -10,8 +10,8 @@ export function DocsLayout() {
   return (
     <div className="docs-layout">
       <aside className="docs-sidebar">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b>Docs Center</b><button className="btn btn-ghost btn-sm" onClick={() => nav('/admin/dashboard')}>← Admin</button></div>
-        <p className="muted" style={{ fontSize: 12 }}>Nguồn: <code>frontend/docs/*.md</code></p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b>Trung tâm tài liệu</b><button className="btn btn-ghost btn-sm" onClick={() => nav('/admin/dashboard')}>← Quay lại</button></div>
+        <p className="muted" style={{ fontSize: 12 }}>Tài liệu kỹ thuật hệ thống VisionPark</p>
         {DOCS.map((g) => (
           <div key={g.group}>
             <div className="docs-group">{g.group}</div>

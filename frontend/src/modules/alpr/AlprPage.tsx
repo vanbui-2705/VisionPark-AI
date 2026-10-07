@@ -22,35 +22,37 @@ export function AlprPage() {
   const isMock = (alpr?.provider ?? '').toLowerCase().includes('mock')
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div className="data-page alpr-page">
       <Breadcrumb items={[{ label: 'AI' }, { label: 'ALPR' }]} />
 
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>License Plate Recognition · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>ALPR</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Trạng thái provider/threshold, readonly khi backend chưa có API cấu hình.</p>
+      <section className="data-hero alpr-hero">
+        <div className="data-hero-copy">
+          <span className="data-kicker">Hệ thống nhận dạng biển số · VisionPark</span>
+          <h2>ALPR</h2>
+          <p>Thông số mô hình AI, nhà cung cấp và ngưỡng tin cậy phục vụ nhận dạng.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><Badge variant={alpr?.ready ? 'success' : 'warning'}>{alpr?.ready ? 'Ready' : 'Not ready'}</Badge><Badge>{alpr?.provider ?? '—'}</Badge></div>
-      </div>
+        <div className="data-hero-stat alpr-hero-status"><Badge variant={alpr?.ready ? 'success' : 'warning'}>{alpr?.ready ? 'Sẵn sàng' : 'Chưa sẵn sàng'}</Badge><Badge>{alpr?.provider ?? '—'}</Badge></div>
+      </section>
 
       {isMock ? <Alert variant="warning">Hệ thống đang chạy MOCK provider — kết quả không từ model AI thực tế.</Alert> : null}
 
-      <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, marginBottom: 10 }}>Runtime</div>
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
+      <section className="data-table-card alpr-config-card">
+        <div className="data-table-head"><div><span className="data-section-kicker">CẤU HÌNH ĐANG CHẠY</span><h3>Thông số môi trường thực thi</h3></div></div>
+        <ul className="alpr-spec-list">
           {[
-            ['Provider', alpr?.provider ?? '—'],
-            ['Ready', String(alpr?.ready ?? '—')],
-            ['Model version', alpr?.model_version ?? '—'],
-            ['Runtime', alpr?.runtime ?? '—'],
-            ['Confidence threshold', String(alpr?.confidence_threshold ?? '0.85')],
+            ['Nhà cung cấp (Provider)', alpr?.provider ?? '—'],
+            ['Trạng thái sẵn sàng', alpr?.ready ? 'Sẵn sàng' : 'Chưa sẵn sàng'],
+            ['Phiên bản mô hình', alpr?.model_version ?? '—'],
+            ['Môi trường thực thi', alpr?.runtime ?? '—'],
+            ['Ngưỡng độ tin cậy', String(alpr?.confidence_threshold ?? '0.85')],
           ].map(([k, v]) => (
-            <li key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: '#f8fafc', fontSize: 13 }}><span style={{ color: 'var(--muted)' }}>{k}</span><strong style={{ fontFamily: 'ui-monospace, monospace' }}>{v}</strong></li>
+            <li key={k} className="alpr-spec-row"><span>{k}</span><strong>{v}</strong></li>
           ))}
         </ul>
-        <pre className="code-block" style={{ marginTop: 12 }}>{JSON.stringify(data, null, 2)}</pre>
-        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}><Link to="/admin/alpr/test" className="btn btn-sm btn-primary" style={{ textDecoration: 'none' }}>ALPR Test Lab</Link><Link to="/detections" className="btn btn-sm" style={{ textDecoration: 'none' }}>Lịch sử nhận diện</Link></div>
+        <div className="alpr-config-body">
+          <pre className="code-block alpr-json">{JSON.stringify(data, null, 2)}</pre>
+          <div className="data-pager-actions"><Link to="/admin/alpr/test" className="btn btn-sm btn-primary">Phòng thử nghiệm ALPR</Link><Link to="/detections" className="btn btn-sm">Lịch sử nhận diện</Link></div>
+        </div>
       </section>
     </div>
   )

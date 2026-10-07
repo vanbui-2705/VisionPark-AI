@@ -39,55 +39,63 @@ export function LaneListPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Lane Management · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Quản lý làn</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Cấu hình làn IN/OUT, nguồn video và trạng thái vận hành.</p>
+    <div className="data-page lanes-page">
+      <section className="data-hero data-hero--forest">
+        <div className="data-hero-copy">
+          <span className="data-kicker">Cổng kiểm soát · VisionPark</span>
+          <h2>Quản lý làn</h2>
+          <p>Cấu hình làn vào/ra, nguồn luồng camera và trạng thái vận hành.</p>
         </div>
-        <Button variant="primary" onClick={() => setOpenCreate(true)}>Tạo làn</Button>
-      </div>
+        <Button variant="secondary" onClick={() => setOpenCreate(true)}>Tạo làn</Button>
+      </section>
 
       {feedback ? <Alert variant="success">{feedback}</Alert> : null}
       {laneError ? <Alert variant="error">{laneError}</Alert> : null}
 
-      <div className="filters">
-        <Select label="Direction" value={dir} onChange={(e) => setDir(e.target.value)}>
-          <option value="ALL">ALL</option>
-          <option value="IN">IN</option>
-          <option value="OUT">OUT</option>
+      <section className="data-filter-card data-filter-card--compact">
+        <div className="data-section-kicker">Bộ lọc vận hành</div>
+        <div className="data-filter-grid data-filter-grid--two">
+        <Select label="Hướng làn" value={dir} onChange={(e) => setDir(e.target.value)}>
+          <option value="ALL">Tất cả</option>
+          <option value="IN">Làn vào</option>
+          <option value="OUT">Làn ra</option>
         </Select>
-        <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="ALL">ALL</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="INACTIVE">INACTIVE</option>
+        <Select label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="ALL">Tất cả</option>
+          <option value="ACTIVE">Đang hoạt động</option>
+          <option value="INACTIVE">Ngưng hoạt động</option>
         </Select>
-      </div>
+        </div>
+      </section>
 
       {filtered.length === 0 ? (
         <EmptyState title="Chưa có làn nào" description={lanes.length === 0 ? 'Nhấn Tạo làn để thêm làn đầu tiên.' : 'Không có làn phù hợp bộ lọc.'} />
       ) : (
+        <section className="data-table-card">
+        <div className="data-table-head">
+          <div><span className="data-section-kicker">LANE MONITOR</span><h3>Danh sách làn</h3></div>
+          <span className="data-table-meta">{filtered.length} / {lanes.length} làn</span>
+        </div>
         <Table>
           <thead>
             <tr>
               <th>Tên làn</th>
-              <th>Direction</th>
-              <th>Video source</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>Hướng</th>
+              <th>Nguồn video</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((lane) => (
               <tr key={lane.id}>
-                <td>{lane.name}</td>
-                <td>{lane.direction}</td>
-                <td>{lane.video_source ?? '-'}</td>
-                <td>{lane.active ? 'Active' : 'Inactive'}</td>
+                <td><strong>{lane.name}</strong></td>
+                <td>{lane.direction === 'IN' ? 'Làn vào' : lane.direction === 'OUT' ? 'Làn ra' : lane.direction}</td>
+                <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{lane.video_source ?? '—'}</td>
+                <td><span className={`badge ${lane.active ? 'badge-success' : 'badge-muted'}`}>{lane.active ? 'Đang hoạt động' : 'Ngưng hoạt động'}</span></td>
                 <td>
-                  <div className="row-actions">
-                    <Button type="button" onClick={() => setEditing(lane.id)}>Sửa</Button>
+                  <div className="row-actions data-row-actions">
+                    <Button type="button" variant="secondary" onClick={() => setEditing(lane.id)}>Sửa</Button>
                     {lane.active ? (
                       <Button type="button" variant="danger" onClick={() => setConfirmInactive(lane.id)}>Ngưng hoạt động</Button>
                     ) : null}
@@ -97,6 +105,7 @@ export function LaneListPage() {
             ))}
           </tbody>
         </Table>
+        </section>
       )}
 
       <Dialog open={openCreate} onClose={() => setOpenCreate(false)} title="Tạo làn">
@@ -135,7 +144,7 @@ export function LaneListPage() {
       <Dialog open={!!confirmInactive} onClose={() => setConfirmInactive(null)} title="Xác nhận">
         <p>Bạn có chắc muốn ngưng hoạt động làn &quot;{lanes.find((l) => l.id === confirmInactive)?.name}&quot;?</p>
         {laneError ? <Alert variant="error">{laneError}</Alert> : null}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+        <div className="data-dialog-actions">
           <Button type="button" onClick={() => setConfirmInactive(null)}>Hủy</Button>
           <Button
             type="button"

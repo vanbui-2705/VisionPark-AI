@@ -24,24 +24,24 @@ export function SettingsPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div className="data-page settings-page">
       <Breadcrumb items={[{ label: 'Cài đặt' }]} />
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <section className="data-hero data-hero--forest settings-hero">
         <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Preferences · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>Cài đặt</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Chỉ lưu frontend-local (localStorage). Không ghi lên backend.</p>
+          <span className="data-kicker">Tùy chọn hiển thị · VisionPark</span>
+          <h2>Cài đặt</h2>
+          <p>Lưu tùy chọn cá nhân trên trình duyệt hiện tại.</p>
         </div>
-        <Badge>Local only</Badge>
-      </div>
+        <Badge>Thiết bị này</Badge>
+      </section>
       {ok ? <Alert variant="success">{ok}</Alert> : null}
-      <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, maxWidth: 560, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-        <div style={{ display: 'grid', gap: 12 }}>
-          <Input label="Tên hiển thị (local)" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          <label className="field"><span>Giao diện</span><select value={theme} onChange={(e) => setTheme(e.target.value)}><option value="light">Sáng</option><option value="dark">Tối</option></select></label>
-          <label className="field"><span>Ngôn ngữ</span><select value={language} onChange={(e) => setLanguage(e.target.value)}><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
+      <section className="data-filter-card settings-form">
+        <div className="settings-fields">
+          <Input label="Tên hiển thị cá nhân" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <label className="field"><span>Chế độ giao diện</span><select value={theme} onChange={(e) => setTheme(e.target.value)}><option value="light">Sáng</option><option value="dark">Tối</option></select></label>
+          <label className="field"><span>Ngôn ngữ hiển thị</span><select value={language} onChange={(e) => setLanguage(e.target.value)}><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}><Button onClick={onSave} variant="primary">Lưu</Button></div>
+        <div className="settings-actions"><Button onClick={onSave} variant="primary">Lưu thay đổi</Button></div>
       </section>
     </div>
   )
