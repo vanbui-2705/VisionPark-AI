@@ -1,3 +1,4 @@
+from uuid import UUID
 from app.core.errors import AppError
 from app.modules.checkin.repository import CheckInRepository
 from app.modules.checkin.schemas import CheckInRequest, CheckInResponse
@@ -9,7 +10,7 @@ class CheckInService:
         self.repo = repository
 
     def process_check_in(
-        self, request: CheckInRequest, is_lane_active: bool, lane_type: str
+        self, request: CheckInRequest, is_lane_active: bool, lane_type: str, actor_id: UUID
     ) -> CheckInResponse:
 
         # 0. CHỐNG DOUBLE CLICK (IDEMPOTENCY) ƯU TIÊN SỐ 1
@@ -54,7 +55,7 @@ class CheckInService:
         # 4. TẠO GIAO DỊCH VÀO BÃI (Task P2-BD-002)
         # Service không tự lưu, mà gọi Hợp đồng (Repo) để lưu
         tx_data = self.repo.save_transaction(
-            lane_id=request.lane_id, plate_number=plate, idempotency_key=request.idempotency_key
+            lane_id=request.lane_id, plate_number=plate, idempotency_key=request.idempotency_key, actor_id=actor_id
         )
 
         # Trả về kết quả chuẩn để Frontend hiển thị

@@ -41,5 +41,16 @@ def create_checkin_ticket(
 
     # Đẩy toàn bộ công việc khó cho Service xử lý
     return service.process_check_in(
-        request=request, is_lane_active=mock_is_lane_active, lane_type=mock_lane_type
+        request=request, is_lane_active=mock_is_lane_active, lane_type=mock_lane_type, actor_id=current_user.id
     )
+
+
+@router.get("/")
+def get_parking_history(
+    plate_number: str | None = None,
+):
+    """API Lấy lịch sử đỗ xe (Task 4.5)"""
+    all_tx = fake_repo._fake_db
+    if plate_number:
+        all_tx = [tx for tx in all_tx if plate_number in tx.get("plate_number", "")]
+    return all_tx

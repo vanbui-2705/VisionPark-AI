@@ -8,11 +8,11 @@ class CheckInRepository(ABC):
     @abstractmethod
     def is_plate_parked(self, plate_number: str) -> bool:
         pass
-
+    
     @abstractmethod
-    def save_transaction(self, lane_id: UUID, plate_number: str, idempotency_key: str) -> dict:
+    def save_transaction(self, lane_id: UUID, plate_number: str, idempotency_key: str, actor_id: UUID) -> dict:
         pass
-
+    
     @abstractmethod
     def get_by_idempotency_key(self, key: str) -> dict | None:
         pass
@@ -37,14 +37,10 @@ class FakeCheckInRepository(CheckInRepository):
                 return tx
         return None
 
-    def save_transaction(self, lane_id: UUID, plate_number: str, idempotency_key: str) -> dict:
-        # 1. CƠ CHẾ CHỐNG RUNG TAY / LỖI MẠNG (Idempotency)
+    def save_transaction(self, lane_id: UUID, plate_number: str, idempotency_key: str, actor_id: UUID) -> dict:
         for existing_tx in self._fake_db:
             if existing_tx.get("idempotency_key") == idempotency_key:
-                # Gửi trùng mã -> Trả về luôn cái vé đã tạo lúc nãy, không tạo vé mới
                 return existing_tx
-
-        # 2. TẠO VÉ MỚI (Lưu vào DB giả)
         new_tx = {
             "transaction_id": uuid4(),
             "plate_number": plate_number,
@@ -52,6 +48,8 @@ class FakeCheckInRepository(CheckInRepository):
             "check_in_time": datetime.utcnow(),
             "status": "PARKED",
             "idempotency_key": idempotency_key,
+            "actor_id": actor_id,
+            "actor_id": actor_id, 
         }
         self._fake_db.append(new_tx)
         return new_tx
