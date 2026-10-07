@@ -43,8 +43,8 @@ export function DashboardPage() {
     ]).then((r) => {
       if (!alive) return
       if (r[0].status === 'fulfilled') setLanes(r[0].value)
-      if (r[1].status === 'fulfilled') setDetections(r[1].value)
-      if (r[2].status === 'fulfilled') setParking(r[2].value)
+      if (r[1].status === 'fulfilled') setDetections((r[1].value as unknown as { items: Detection[] }).items ?? r[1].value as unknown as Detection[])
+      if (r[2].status === 'fulfilled') setParking((r[2].value as unknown as { items: ParkingTransaction[] }).items ?? r[2].value as unknown as ParkingTransaction[])
       if (r[3].status === 'fulfilled') setHealth(r[3].value)
       if (r.some((x) => x.status === 'rejected')) setErr('Một số dữ liệu chưa tải được (backend pending).')
       setLoading(false)

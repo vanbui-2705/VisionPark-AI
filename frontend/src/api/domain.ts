@@ -72,15 +72,45 @@ export interface CheckInResponse {
   message: string
 }
 
-export interface ParkingHistoryFilter {
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface PaginationParams {
+  page?: number
+  pageSize?: number
+  limit?: number
+  offset?: number
+}
+
+export interface ParkingHistoryFilter extends PaginationParams {
   q?: string
   lane_id?: string
   status?: TransactionStatus | 'ALL'
   from?: string
   to?: string
-  limit?: number
-  page?: number
-  [k: string]: string | number | boolean | undefined | null
+}
+
+export interface AuditFilter extends PaginationParams {
+  actor?: string
+  action?: string
+  resource?: string
+  from?: string
+  to?: string
+  q?: string
+}
+
+export interface DetectionFilter extends PaginationParams {
+  lane_id?: string
+  direction?: string
+  status?: string
+  q?: string
+  from?: string
+  to?: string
 }
 
 export interface AuditLog {

@@ -4,9 +4,15 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../src/modules/auth/AuthContext.tsx'
 import { ParkingHistoryPage } from '../../src/modules/parking/ParkingHistoryPage.tsx'
+import { ApiError } from '../../src/api/errors.ts'
+import * as services from '../../src/api/services.ts'
 
 function j(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+}
+
+function paginated(items: unknown[], page = 0, pageSize = 20) {
+  return { items, total: items.length, page, pageSize, totalPages: Math.max(1, Math.ceil(items.length / pageSize)) }
 }
 
 const txs = [
@@ -22,19 +28,18 @@ function renderPage(fetcher?: (u: unknown) => Promise<Response>) {
 describe('ParkingHistoryPage — Duy Anh', () => {
   beforeEach(() => { localStorage.clear(); vi.restoreAllMocks() })
 
-  it('render success', async () => {
+  it('render success with paginated response', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     renderPage(async (u) => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j(txs)
+      if (s.includes('/parking/transactions')) return j(paginated(txs))
       return j({})
     })
-    await waitFor(() => expect(screen.getAllByText(/Lịch sử đỗ xe/i).length).toBeGreaterThan(0))
-    expect(screen.getByText('29A12345')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
   })
 
-  it('filter by plate', async () => {
+  it('backward compat: handles bare array', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     renderPage(async (u) => {
       const s = String(u)
@@ -43,29 +48,110 @@ describe('ParkingHistoryPage — Duy Anh', () => {
       return j({})
     })
     await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
-    const input = screen.getByPlaceholderText('29A12345')
-    await userEvent.type(input, '30F')
-    expect(screen.queryByText('29A12345')).not.toBeInTheDocument()
-    expect(screen.getByText('30F88888')).toBeInTheDocument()
   })
 
-  it('empty state', async () => {
+  it('sends page/pageSize and filters to server', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    const calls: string[] = []
+    renderPage(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
+      if (s.includes('/parking/transactions')) { calls.push(s); return j(paginated([], 0, 20)) }
+      return j({})
+    })
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
+    expect(calls[0]).toContain('page=')
+    expect(calls[0]).toContain('pageSize=')
+  })
+
+  it('filter by plate triggers server request with q', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    const calls: string[] = []
+    renderPage(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
+      if (s.includes('/parking/transactions')) {
+        calls.push(s)
+        if (s.includes('q=')) return j(paginated([txs[1]]))
+        return j(paginated(txs))
+      }
+      return j({})
+    })
+    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
+    const input = screen.getByPlaceholderText('29A12345')
+    await userEvent.type(input, '30F')
+    await waitFor(() => expect(calls.some((c) => c.includes('q='))).toBe(true), { timeout: 5000 })
+  })
+
+  it('empty state when no transactions at all', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     renderPage(async (u) => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j([])
+      if (s.includes('/parking/transactions')) return j(paginated([]))
       return j({})
     })
     await waitFor(() => expect(screen.getByText(/Chưa có lịch sử đỗ xe/i)).toBeInTheDocument())
   })
 
-  it('error state with retry', async () => {
+  it('empty filtered result shows no-result message', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    let first = true
+    renderPage(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
+      if (s.includes('/parking/transactions')) {
+        if (first) { first = false; return j(paginated(txs)) }
+        return j(paginated([]))
+      }
+      return j({})
+    })
+    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
+    const input = screen.getByPlaceholderText('29A12345')
+    await userEvent.type(input, 'ZZZ')
+    await waitFor(() => expect(screen.getByText(/Không có kết quả/)).toBeInTheDocument(), { timeout: 5000 })
+  })
+
+  it('error 500 shows retry', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     renderPage(async (u) => {
       const s = String(u)
       if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
-      if (s.includes('/parking/transactions')) return j({ message: 'fail' }, 500)
+      if (s.includes('/parking/transactions')) return j({ message: 'fail', code: 'INTERNAL' }, 500)
+      return j({})
+    })
+    await waitFor(() => expect(screen.getByText(/Thử lại/i)).toBeInTheDocument())
+  })
+
+  it('error 403 shows forbidden message', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    renderPage(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
+      if (s.includes('/parking/transactions')) return j({ message: 'forbidden', code: 'FORBIDDEN' }, 403)
+      return j({})
+    })
+    await waitFor(() => expect(screen.getByText(/không có quyền/i)).toBeInTheDocument())
+  })
+
+  it('error 404 shows not found (mocked service)', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    vi.spyOn(services.parkingTransactionsApi, 'list').mockRejectedValue(new ApiError('not found', { status: 404, code: 'NOT_FOUND' }))
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
+      return j({})
+    })
+    render(<MemoryRouter><AuthProvider><ParkingHistoryPage /></AuthProvider></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText(/Không tìm thấy/i)).toBeInTheDocument())
+  })
+
+  it('invalid page returns 422', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    renderPage(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
+      if (s.includes('/parking/transactions')) return j({ message: 'Invalid page', code: 'VALIDATION_ERROR' }, 422)
       return j({})
     })
     await waitFor(() => expect(screen.getByText(/Thử lại/i)).toBeInTheDocument())

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { detectionsApi } from '../../api/services.ts'
 import type { Detection } from '../../api/domain.ts'
@@ -18,55 +18,59 @@ const STATUS_VARIANT: Record<string, 'neutral' | 'success' | 'warning' | 'danger
 export function DetectionHistoryPage({ admin = false }: { admin?: boolean }) {
   void admin
   const toast = useToast()
-  const [data, setData] = useState<Detection[] | null>(null)
+  const [items, setItems] = useState<Detection[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [err, setErr] = useState<string | null>(null)
+  const [errStatus, setErrStatus] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('ALL')
   const [lane, setLane] = useState('ALL')
   const [direction, setDirection] = useState('ALL')
-  const [minConf, setMinConf] = useState('')
-  const [maxConf, setMaxConf] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [page, setPage] = useState(0)
   const pageSize = 20
 
-  useEffect(() => {
-    let alive = true
+  const fetchData = useCallback(async () => {
     setLoading(true)
-    detectionsApi.list({ limit: 200 }).then((d) => { if (alive) setData(d) }).catch((e: unknown) => {
-      if (!alive) return
+    setErr(null)
+    setErrStatus(null)
+    try {
+      const res = await detectionsApi.list({
+        q: q || undefined,
+        lane_id: lane !== 'ALL' ? lane : undefined,
+        status: status !== 'ALL' ? status : undefined,
+        direction: direction !== 'ALL' ? direction : undefined,
+        from: from || undefined,
+        to: to || undefined,
+        page,
+        pageSize,
+      })
+      // client-side confidence filter not supported server-side for now; keep minimal if needed we filter locally but pagination already server-side
+      setItems(res.items)
+      setTotal(res.total)
+      setTotalPages(res.totalPages)
+    } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Tải lịch sử thất bại.'
       setErr(msg)
-      if (e instanceof ApiError) recordError({ code: e.code, status: e.status, message: e.message, source: 'detections', correlationId: e.correlationId })
-    }).finally(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
-  }, [])
+      if (e instanceof ApiError) { setErrStatus(e.status); recordError({ code: e.code, status: e.status, message: e.message, source: 'detections', correlationId: e.correlationId }) }
+    } finally {
+      setLoading(false)
+    }
+  }, [q, lane, status, direction, from, to, page])
 
-  const filtered = useMemo(() => {
-    if (!data) return []
-    const min = minConf ? Number(minConf) / 100 : null
-    const max = maxConf ? Number(maxConf) / 100 : null
-    return data.filter((d) => {
-      if (status !== 'ALL' && d.status !== status) return false
-      if (lane !== 'ALL' && d.lane_id !== lane) return false
-      if (direction !== 'ALL' && d.direction !== direction) return false
-      if (min != null && (d.confidence ?? 0) < min) return false
-      if (max != null && (d.confidence ?? 1) > max) return false
-      if (from && new Date(d.created_at) < new Date(from)) return false
-      if (to && new Date(d.created_at) > new Date(to + 'T23:59:59')) return false
-      if (q && !(d.final_plate ?? d.normalized_plate ?? d.ai_plate ?? '').toLowerCase().includes(q.toLowerCase())) return false
-      return true
-    })
-  }, [data, q, status, lane, direction, minConf, maxConf, from, to])
+  useEffect(() => { void fetchData() }, [fetchData])
 
-  const paged = filtered.slice(page * pageSize, (page + 1) * pageSize)
-  const pages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const onFilterChange = (cb: () => void) => { cb(); setPage(0) }
   const copyId = async (id: string) => { try { await navigator.clipboard.writeText(id); toast.push('Đã copy ID', 'success') } catch { toast.push('Không copy được', 'error') } }
 
   if (loading) return <Skeleton lines={8} />
-  if (err) return <Alert variant="error">{err}</Alert>
+  if (err) {
+    const msg = errStatus === 403 ? 'Bạn không có quyền xem lịch sử nhận diện.' : errStatus === 401 ? 'Vui lòng đăng nhập.' : err
+    return <div><Alert variant="error">{msg}</Alert><button className="btn btn-sm" onClick={() => void fetchData()} style={{ marginTop: 12 }}>Thử lại</button></div>
+  }
 
   return (
     <div className="data-page detections-page">
@@ -75,9 +79,9 @@ export function DetectionHistoryPage({ admin = false }: { admin?: boolean }) {
         <div className="data-hero-copy">
           <span className="data-kicker">Nhận diện ALPR · VisionPark</span>
           <h2>Lịch sử nhận diện</h2>
-          <p>Danh sách biển số được hệ thống AI ghi nhận và xác thực. {data ? `${data.length} bản ghi` : ''}</p>
+          <p>Danh sách biển số được hệ thống AI ghi nhận và xác thực.</p>
         </div>
-        <div className="data-hero-stat"><strong>{filtered.length}</strong><span>kết quả hiện tại</span></div>
+        <div className="data-hero-stat"><strong>{total}</strong><span>tổng bản ghi</span></div>
       </section>
 
       <section className="data-filter-card detection-filter-card">
@@ -86,37 +90,32 @@ export function DetectionHistoryPage({ admin = false }: { admin?: boolean }) {
           <span className="detection-filter-hint">Tất cả bộ lọc áp dụng tức thì</span>
         </div>
         <div className="data-filter-grid">
-          <Input label="Biển số" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="VD: 29A12345" />
-          <Select label="Làn xe" value={lane} onChange={(e) => { setLane(e.target.value); setPage(0) }}>
-            <option value="ALL">Tất cả</option>
-            {(data ?? []).length ? [...new Set((data ?? []).map((d) => d.lane_id))].map((id) => <option key={id} value={id}>{id}</option>) : null}
-          </Select>
-          <Select label="Hướng" value={direction} onChange={(e) => { setDirection(e.target.value); setPage(0) }}>
+          <Input label="Biển số" value={q} onChange={(e) => onFilterChange(() => setQ(e.target.value))} placeholder="VD: 29A12345" />
+          <Input label="Làn xe" value={lane === 'ALL' ? '' : lane} onChange={(e) => onFilterChange(() => setLane(e.target.value))} placeholder="Tất cả" />
+          <Select label="Hướng" value={direction} onChange={(e) => onFilterChange(() => setDirection(e.target.value))}>
             <option value="ALL">Tất cả</option>
             <option value="IN">Vào</option>
             <option value="OUT">Ra</option>
           </Select>
-          <Select label="Trạng thái" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0) }}>
+          <Select label="Trạng thái" value={status} onChange={(e) => onFilterChange(() => setStatus(e.target.value))}>
             <option value="ALL">Tất cả</option>
             {Object.keys(STATUS_LABEL).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </Select>
-          <Input label="Độ tin cậy ≥ (%)" value={minConf} onChange={(e) => setMinConf(e.target.value)} placeholder="0" />
-          <Input label="Độ tin cậy ≤ (%)" value={maxConf} onChange={(e) => setMaxConf(e.target.value)} placeholder="100" />
-          <Input label="Từ ngày" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <Input label="Đến ngày" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input label="Từ ngày" type="date" value={from} onChange={(e) => onFilterChange(() => setFrom(e.target.value))} />
+          <Input label="Đến ngày" type="date" value={to} onChange={(e) => onFilterChange(() => setTo(e.target.value))} />
         </div>
       </section>
 
-      {!filtered.length ? <EmptyState title="Chưa có nhận diện" description="Không có bản ghi khớp bộ lọc." /> : (
+      {!items.length ? <EmptyState title="Chưa có nhận diện" description="Không có bản ghi khớp bộ lọc." /> : (
         <section className="data-table-card detection-table-card">
           <div className="data-table-head">
             <div><span className="data-section-kicker">DỮ LIỆU LIVE</span><h3>Danh sách detection</h3></div>
-            <span className="data-table-meta">{filtered.length} bản ghi</span>
+            <span className="data-table-meta">{total} bản ghi · trang {page + 1}/{totalPages}</span>
           </div>
           <div className="table-wrap data-table-wrap">
             <table className="table data-table detection-table">
               <thead><tr><th>Thời gian</th><th>Làn xe</th><th>Hướng</th><th>Ảnh chụp</th><th>Biển số AI</th><th>Biển số chốt</th><th>Độ tin cậy</th><th>Trạng thái</th><th>Mã ID</th><th></th></tr></thead>
-              <tbody>{paged.map((d) => (
+              <tbody>{items.map((d) => (
                 <tr key={d.id}>
                   <td className="data-time">{new Date(d.created_at).toLocaleString('vi-VN')}</td>
                   <td className="data-lane">{d.lane_name ?? d.lane_id}</td>
@@ -133,8 +132,8 @@ export function DetectionHistoryPage({ admin = false }: { admin?: boolean }) {
             </table>
           </div>
           <div className="data-pager">
-            <div>{filtered.length} bản ghi · trang {page + 1}/{pages}</div>
-            <div className="data-pager-actions"><button type="button" className="btn btn-sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>← Trước</button><button type="button" className="btn btn-sm btn-primary" disabled={page >= pages - 1} onClick={() => setPage((p) => p + 1)}>Sau →</button></div>
+            <div>{total} bản ghi · trang {page + 1}/{totalPages}</div>
+            <div className="data-pager-actions"><button type="button" className="btn btn-sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>← Trước</button><button type="button" className="btn btn-sm btn-primary" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>Sau →</button></div>
           </div>
         </section>
       )}

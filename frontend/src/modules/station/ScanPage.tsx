@@ -92,7 +92,7 @@ export function ScanPage() {
   useEffect(() => {
     healthApi.ready().then((h) => setProvider((h as { alpr?: { provider?: string } })?.alpr?.provider)).catch(() => {})
     lanesApi.getLanes().then((ls) => { setLanes(ls.map((l) => ({ id: l.id, name: l.name }))); if (ls[0]) setLaneId(ls[0].id) }).catch(() => {})
-    detectionsApi.list({ limit: 5 }).then(setRecent).catch(() => setRecent([])).finally(() => setRecentLoading(false))
+    detectionsApi.list({ limit: 5 }).then((r) => setRecent(r.items)).catch(() => setRecent([])).finally(() => setRecentLoading(false))
   }, [])
 
   const confirm = async (detectionId: string, final: string) => {

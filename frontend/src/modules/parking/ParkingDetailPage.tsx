@@ -6,6 +6,7 @@ import { Alert } from '../../components/ui/Alert.tsx'
 import { Skeleton } from '../../components/ui/Skeleton.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
+import { ApiError } from '../../api/errors.ts'
 
 function sanitize(obj: unknown): unknown {
   if (!obj || typeof obj !== 'object') return obj
@@ -21,17 +22,29 @@ export function ParkingDetailPage() {
   const { id } = useParams()
   const [tx, setTx] = useState<ParkingTransaction | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [errStatus, setErrStatus] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [audit, setAudit] = useState<AuditLog[]>([])
 
   useEffect(() => {
     if (!id) return
-    parkingTransactionsApi.get(id).then(setTx).catch((e: unknown) => setErr(e instanceof Error ? e.message : 'Không tải được chi tiết.')).finally(() => setLoading(false))
-    auditApi.list({ limit: 100 }).then((rows) => setAudit(rows.filter((r) => r.resource_id === id))).catch(() => setAudit([]))
+    let alive = true
+    parkingTransactionsApi.get(id).then((v) => { if (alive) setTx(v) }).catch((e: unknown) => {
+      if (!alive) return
+      setErr(e instanceof Error ? e.message : 'Không tải được chi tiết.')
+      if (e instanceof ApiError) setErrStatus(e.status)
+    }).finally(() => { if (alive) setLoading(false) })
+    auditApi.list({ q: id, page: 0, pageSize: 100 }).then((res) => { if (alive) setAudit(res.items) }).catch(() => { if (alive) setAudit([]) })
+    return () => { alive = false }
   }, [id])
 
   if (loading) return <Skeleton lines={6} />
-  if (err) return <Alert variant="error">{err}</Alert>
+  if (err) {
+    if (errStatus === 404) return <Alert variant="error">Không tìm thấy giao dịch.</Alert>
+    if (errStatus === 403) return <Alert variant="error">Bạn không có quyền xem giao dịch này.</Alert>
+    if (errStatus === 401) return <Alert variant="error">Vui lòng đăng nhập lại.</Alert>
+    return <Alert variant="error">{err}</Alert>
+  }
   if (!tx) return <Alert variant="info">Không tìm thấy giao dịch.</Alert>
 
   const statusVariant = tx.status === 'PARKED' ? 'success' : tx.status === 'COMPLETED' ? 'neutral' : 'danger'

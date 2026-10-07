@@ -7,6 +7,7 @@ import { Skeleton } from '../../components/ui/Skeleton.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
+import { ApiError } from '../../api/errors.ts'
 
 const TABS = ['Overview', 'Media', 'Audit', 'Raw Data'] as const
 
@@ -14,16 +15,28 @@ export function DetectionDetailPage() {
   const { id } = useParams()
   const [d, setD] = useState<Detection | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [errStatus, setErrStatus] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<(typeof TABS)[number]>('Overview')
   const [audit, setAudit] = useState<AuditLog[]>([])
   useEffect(() => {
     if (!id) return
-    detectionsApi.get(id).then(setD).catch((e: unknown) => setErr(e instanceof Error ? e.message : 'Không tải được chi tiết.')).finally(() => setLoading(false))
-    auditApi.list({ limit: 100 }).then((rows) => setAudit(rows.filter((r) => r.resource_id === id))).catch(() => setAudit([]))
+    let alive = true
+    detectionsApi.get(id).then((v) => { if (alive) setD(v) }).catch((e: unknown) => {
+      if (!alive) return
+      setErr(e instanceof Error ? e.message : 'Không tải được chi tiết.')
+      if (e instanceof ApiError) setErrStatus(e.status)
+    }).finally(() => { if (alive) setLoading(false) })
+    auditApi.list({ q: id, page: 0, pageSize: 100 }).then((res) => { if (alive) setAudit(res.items) }).catch(() => { if (alive) setAudit([]) })
+    return () => { alive = false }
   }, [id])
   if (loading) return <Skeleton lines={6} />
-  if (err) return <Alert variant="error">{err}</Alert>
+  if (err) {
+    if (errStatus === 404) return <Alert variant="error">Không tìm thấy detection.</Alert>
+    if (errStatus === 403) return <Alert variant="error">Bạn không có quyền xem detection này.</Alert>
+    if (errStatus === 401) return <Alert variant="error">Vui lòng đăng nhập.</Alert>
+    return <Alert variant="error">{err}</Alert>
+  }
   if (!d) return <Alert variant="info">Không tìm thấy detection.</Alert>
   const plate = d.final_plate ?? d.normalized_plate ?? d.ai_plate ?? '—'
   return (
