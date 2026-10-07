@@ -1,0 +1,38 @@
+# CI runs the bundled detector/OCR on CPU with isolated database/media volumes.
+services:
+  migrate:
+    build:
+      args:
+        INSTALL_REAL_ALPR: "true"
+        INSTALL_OCR: "true"
+        INSTALL_TORCH_CPU: "true"
+    environment:
+      ALPR_MANIFEST_PATH: /app/models/alpr-manifest.json
+      AUTO_SEED: "false"
+  backend:
+    build:
+      args:
+        INSTALL_REAL_ALPR: "true"
+        INSTALL_OCR: "true"
+        INSTALL_TORCH_CPU: "true"
+    environment:
+      ALPR_MANIFEST_PATH: /app/models/alpr-manifest.json
+      ALPR_OCR_ENABLED: "true"
+      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True"
+      AUTO_SEED: "false"
+    healthcheck:
+      timeout: 10s
+      start_period: 180s
+  backend-ci:
+    build:
+      args:
+        INSTALL_REAL_ALPR: "false"
+        INSTALL_OCR: "false"
+    environment:
+      ALPR_MANIFEST_PATH: /app/models/alpr-manifest.json
+      AUTO_SEED: "false"
+volumes:
+  postgres_data:
+    name: ${COMPOSE_PROJECT_NAME:-visionpark-ci}_postgres_data
+  media_data:
+    name: ${COMPOSE_PROJECT_NAME:-visionpark-ci}_media_data

@@ -127,7 +127,9 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
         return PaddleOCRTextRecognition(
             model_name=str(config.get("model_name", "latin_PP-OCRv5_mobile_rec")),
             device=self.device,
-            model_dir=config.get("model_dir"),
+            model_dir=(
+                str(self._resolve_path(config["model_dir"])) if config.get("model_dir") else None
+            ),
         )
 
     def _ensure_loaded(self) -> None:

@@ -16,9 +16,10 @@ htmlcov/
 backend/var/
 *.egg-info/
 
-# ALPR model assets are provisioned outside Git.
+# Bundle the approved demo detector; keep other training artifacts ignored.
 backend/app/alpr/weights/*
 !backend/app/alpr/weights/.gitkeep
+!backend/app/alpr/weights/best.pt
 
 # Database
 *.db

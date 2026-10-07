@@ -25,7 +25,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-The example selects `docker-compose.yml` plus `deployment/compose.real.yml`. Model weights, OCR assets and the Docker manifest are mounted read-only. Missing or invalid models report ALPR unavailable; there is no fake recognition fallback.
+The example selects `docker-compose.yml` plus `deployment/compose.real.yml` for existing mounted-model installations. Plain `docker compose -f docker-compose.yml up --build -d` uses the detector and OCR assets bundled in the image. GitHub CI also uses bundled assets and requires real YOLO/OCR readiness HTTP 200. Missing or invalid models report ALPR unavailable; there is no fake recognition fallback.
 Default ports are frontend 5173, backend 8000 and PostgreSQL 5433; this workspace can override them in `.env`.
 
 `AUTO_SEED=false` is the default. For a new installation, provide `SEED_ADMIN_PASSWORD` and temporarily enable `AUTO_SEED=true` to create an initial administrator. It preserves existing accounts and passwords and creates no demonstration lanes or operator account. Create lanes and operators through administration.
