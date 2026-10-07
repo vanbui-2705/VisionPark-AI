@@ -207,10 +207,10 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
             text(
                 """
                 INSERT INTO parking_transactions (
-                    id, lane_id, detection_id, license_plate, normalized_plate, 
+                    id, lane_id, detection_id, license_plate, normalized_plate,
                     status, source, idempotency_key, request_fingerprint, is_manual_override
                 ) VALUES (
-                    :id, :lane, :det, :plate, :norm, 
+                    :id, :lane, :det, :plate, :norm,
                     :status, :src, :key, :fp, :is_man
                 )
                 """
