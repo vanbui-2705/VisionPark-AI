@@ -8,8 +8,7 @@ import { LaneCreatePage, LaneEditPage, LaneDetailPage } from '../modules/lanes/L
 import { AppShell } from '../layouts/AppShell.tsx'
 import { ForbiddenPage, NotFoundPage } from '../modules/error/ErrorPages.tsx'
 import { DashboardPage } from '../modules/dashboard/DashboardPage.tsx'
-import { ScanPage } from '../modules/station/ScanPage.tsx'
-import { ScanFullscreenPage } from '../modules/station/ScanFullscreenPage.tsx'
+import StationPage from '../modules/station/StationPage.tsx'
 import { DetectionHistoryPage } from '../modules/detections/DetectionHistoryPage.tsx'
 import { DetectionDetailPage } from '../modules/detections/DetectionDetailPage.tsx'
 import { UserListPage } from '../modules/users/UserListPage.tsx'
@@ -56,7 +55,7 @@ export function AppRoutes() {
       <Route path="/403" element={<ForbiddenPage />} />
       <Route path="/404" element={<NotFoundPage />} />
 
-      {/* Scan fullscreen — shell ẩn sidebar/header (xử lý trong AppShell) */}
+      {/* Station has one canonical flow; legacy fullscreen URLs redirect to it. */}
       <Route
         element={
           <ProtectedRoute>
@@ -65,8 +64,8 @@ export function AppRoutes() {
         }
       >
         <Route path="/station" element={<Navigate to="/station/scan" replace />} />
-        <Route path="/station/scan" element={<ScanPage />} />
-        <Route path="/station/scan/fullscreen" element={<ScanFullscreenPage />} />
+        <Route path="/station/scan" element={<StationPage />} />
+        <Route path="/station/scan/fullscreen" element={<Navigate to="/station/scan" replace />} />
         <Route path="/station/history" element={<Navigate to="/detections" replace />} />
 
         {/* Detections / Parking operations — ADMIN + OPERATOR */}

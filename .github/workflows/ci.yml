@@ -22,6 +22,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Generate an ephemeral CI signing key
+        run: |
+          python -c "import os,secrets; f=open(os.environ['GITHUB_ENV'],'a'); f.write('JWT_SECRET_KEY='+secrets.token_urlsafe(48)+'\n'); f.close()"
+
       - name: Validate Compose configuration
         run: docker compose config
 

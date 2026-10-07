@@ -58,7 +58,7 @@ def seed_database(session: Session, settings: Settings) -> None:
         {
             "name": "LANE_IN_01",
             "direction": "IN",
-            "video_source": "rtsp://demo/in",
+            "video_source": "fixture://phase-2/in.mp4",
             "is_active": True,
         },
         {
