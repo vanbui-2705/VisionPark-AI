@@ -37,6 +37,8 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
   })
 
   it('validates permission matrix covers 4 roles for every permission', () => {
+    expect(new Set(PERMISSION_MATRIX.map((entry) => entry.perm)).size).toBe(PERMISSION_MATRIX.length)
+    expect(PERMISSION_MATRIX.some((entry) => entry.perm === 'lanes.manage')).toBe(true)
     PERMISSION_MATRIX.forEach((entry) => {
       expect(entry).toHaveProperty('perm')
       expect(entry).toHaveProperty('label')
@@ -73,5 +75,10 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
     expect(can(makeUser('TECHNICIAN'), 'station.use')).toBe(true)
     expect(can(makeUser('TECHNICIAN'), 'system.read')).toBe(true)
     expect(can(makeUser('TECHNICIAN'), 'dashboard.read')).toBe(false)
+    expect(can(makeUser('TECHNICIAN'), 'checkin.create')).toBe(true)
+    expect(can(makeUser('TECHNICIAN'), 'transactions.read')).toBe(false)
+    expect(can(makeUser('ACCOUNTANT'), 'audit.read')).toBe(true)
+    expect(can(makeUser('ACCOUNTANT'), 'checkin.create')).toBe(false)
+    expect(can(makeUser('ADMIN'), 'lanes.manage')).toBe(true)
   })
 })

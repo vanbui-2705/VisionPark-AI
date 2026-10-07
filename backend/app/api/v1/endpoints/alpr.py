@@ -60,7 +60,9 @@ async def create_detection(
     input_kind: Literal["IMAGE_UPLOAD", "VIDEO_FRAME"] | None = Form(None),
     video_time_ms: int | None = Form(None, ge=0),
     alpr_service: ALPRApplicationService = Depends(resolve_alpr_service),
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    current_user: Annotated[
+        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+    ] = None,
 ):
     # 1. Check định dạng
     if image.content_type not in ["image/jpeg", "image/png"]:
@@ -288,7 +290,9 @@ def get_detection_history(
     to_time: Annotated[datetime | None, Query(alias="to")] = None,
     db: Session = Depends(get_db),
     # Yêu cầu phải đăng nhập mới xem được lịch sử
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    current_user: Annotated[
+        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+    ] = None,
 ):
     """API lấy danh sách lịch sử nhận diện (có phân trang và lọc theo làn)."""
     del current_user
@@ -377,7 +381,9 @@ def get_detection_history(
 def get_detection(
     detection_id: UUID,
     db: Session = Depends(get_db),
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    current_user: Annotated[
+        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+    ] = None,
 ):
     detection = db.get(Detection, detection_id)
     if detection is None:
@@ -393,10 +399,12 @@ def confirm_detection(
     payload: DetectionConfirmRequest,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     db: Session = Depends(get_db),
-    # Yêu cầu quyền OPERATOR (Nhân viên) hoặc ADMIN để xác nhận
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    # Station operators and technicians may confirm detections.
+    current_user: Annotated[
+        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+    ] = None,
 ):
-    """API Nhân viên (Operator) xác nhận và sửa biển số bằng tay."""
+    """Confirm or correct a detected plate for an authorized Station user."""
     detection = db.scalar(select(Detection).where(Detection.id == detection_id))
     if not detection:
         from app.core.errors import AppError

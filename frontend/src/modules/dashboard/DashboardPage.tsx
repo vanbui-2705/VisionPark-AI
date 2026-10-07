@@ -7,6 +7,7 @@ import { detectionsApi, parkingTransactionsApi } from '../../api/services.ts'
 import type { Detection, ParkingTransaction } from '../../api/domain.ts'
 import type { Lane, HealthStatus } from '../../api/types.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
+import { can } from '../../lib/permissions.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Spinner } from '../../components/ui/Spinner.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
@@ -14,6 +15,8 @@ import { Badge } from '../../components/ui/Badge.tsx'
 
 export function DashboardPage() {
   const { user } = useAuth()
+  const mayReadLanes = can(user, 'lanes.read')
+  const mayReadDetections = can(user, 'detections.read')
   const [lanes, setLanes] = useState<Lane[] | null>(null)
   const [detections, setDetections] = useState<Detection[] | null>(null)
   const [parking, setParking] = useState<ParkingTransaction[] | null>(null)
@@ -26,8 +29,8 @@ export function DashboardPage() {
   useEffect(() => {
     let alive = true
     Promise.allSettled([
-      lanesApi.getLanes(),
-      detectionsApi.list({ limit: 5 }),
+      mayReadLanes ? lanesApi.getLanes() : Promise.resolve(null),
+      mayReadDetections ? detectionsApi.list({ limit: 5 }) : Promise.resolve(null),
       parkingTransactionsApi.list({ limit: 5 }),
       healthApi.ready(),
       parkingTransactionsApi.summary(),
@@ -42,7 +45,7 @@ export function DashboardPage() {
       setLoading(false)
     })
     return () => { alive = false }
-  }, [refresh])
+  }, [refresh, mayReadLanes, mayReadDetections])
 
   if (loading) return <Spinner />
 
@@ -61,7 +64,7 @@ export function DashboardPage() {
           <p>{translate("Giám sát nhận diện biển số, làn xe, check-in PARKED và audit vận hành trong một màn hình.")}</p>
           <div className="hero-actions">
             <Link to="/parking" className="btn btn-primary">{translate("Lịch sử đỗ xe")}</Link>
-            <Link to="/station/scan" className="btn hero-secondary">{translate("Quét biển số")}</Link>
+            {can(user, 'station.use') && <Link to="/station/scan" className="btn hero-secondary">{translate("Quét biển số")}</Link>}
           </div>
         </div>
         <div className="hero-status-card">
@@ -76,9 +79,9 @@ export function DashboardPage() {
       {err ? <Alert variant="warning">{err}</Alert> : null}
 
       <div className="stat-grid stat-grid-v2">
-        <div className="stat-card stat-card-v2"><div className="stat-icon">⇆</div><div><div className="stat-label">{translate("Làn hoạt động")}</div><div className="stat-value">{lanes ? activeLanes : '—'}</div></div></div>
-        <div className="stat-card stat-card-v2"><div className="stat-icon">◎</div><div><div className="stat-label">{translate("Nhận diện gần đây")}</div><div className="stat-value">{detections ? detections.length : '—'}</div></div></div>
-        <div className="stat-card stat-card-v2"><div className="stat-icon warning">!</div><div><div className="stat-label">{translate("Cần xác nhận (5 gần nhất)")}</div><div className="stat-value">{detections ? needConfirm : '—'}</div></div></div>
+        {mayReadLanes && <div className="stat-card stat-card-v2"><div className="stat-icon">⇆</div><div><div className="stat-label">{translate("Làn hoạt động")}</div><div className="stat-value">{lanes ? activeLanes : '—'}</div></div></div>}
+        {mayReadDetections && <div className="stat-card stat-card-v2"><div className="stat-icon">◎</div><div><div className="stat-label">{translate("Nhận diện gần đây")}</div><div className="stat-value">{detections ? detections.length : '—'}</div></div></div>}
+        {mayReadDetections && <div className="stat-card stat-card-v2"><div className="stat-icon warning">!</div><div><div className="stat-label">{translate("Cần xác nhận (5 gần nhất)")}</div><div className="stat-value">{detections ? needConfirm : '—'}</div></div></div>}
         <div className="stat-card stat-card-v2"><div className="stat-icon success">P</div><div><div className="stat-label">{translate("Xe đang đỗ")}</div><div className="stat-value">{parked ?? '—'}</div></div></div>
       </div>
 
@@ -100,7 +103,7 @@ export function DashboardPage() {
           )}
         </section>
 
-        <section className="card card-polished">
+        {mayReadDetections && <section className="card card-polished">
           <div className="card-head">
             <div><h3>{translate("Nhận diện gần đây")}</h3><p className="muted">ALPR detections</p></div>
             <Link to="/detections">{translate("Xem tất cả →")}</Link>
@@ -115,9 +118,9 @@ export function DashboardPage() {
               ))}
             </ul>
           )}
-        </section>
+        </section>}
 
-        <section className="card card-polished">
+        {mayReadLanes && <section className="card card-polished">
           <div className="card-head"><div><h3>Lane Status</h3><p className="muted">{translate("Cổng vào / ra")}</p></div></div>
           {!lanes || lanes.length === 0 ? <EmptyState title={translate("Chưa có dữ liệu")} /> : (
             <ul className="list rich-list">
@@ -126,7 +129,7 @@ export function DashboardPage() {
               ))}
             </ul>
           )}
-        </section>
+        </section>}
 
         <section className="card card-polished system-card">
           <div className="card-head"><div><h3>System Health</h3><p className="muted">Runtime snapshot</p></div></div>

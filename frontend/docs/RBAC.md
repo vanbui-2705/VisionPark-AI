@@ -5,8 +5,10 @@ Nguồn: `src/lib/permissions.ts` (`PERMISSION_MATRIX` + `can()`), `src/layouts/
 - Roles: `ADMIN`, `OPERATOR`, `ACCOUNTANT`, `TECHNICIAN` (derive từ `GET /api/v1/auth/me`).
 - Sidebar lọc bằng `can(user, perm)` — không `role ===` rải rác.
 - `AdminGuard` render `ForbiddenPage` (403) cho OPERATOR vào route ADMIN-only.
-- OPERATOR được: `station.use`, `station.history.read`, `detections.read`, `detections.confirm`, `lanes.read`, `profile.read`, `profile.update`, `settings.update`, `notifications.read`, `help.read`.
+- OPERATOR vận hành Station/check-in, đọc detection, parking, lanes và audit liên quan; không quản trị users/lanes.
+- ACCOUNTANT đọc dashboard, parking và audit; không check-in hoặc xem detection.
+- TECHNICIAN dùng Station/check-in, đọc và xác nhận detection, xem lanes, ALPR status và system health; không đọc parking/audit tổng quát.
 
 Không fake role ở client; quyền thực thi ở backend.
 
-`PermissionGuard` bảo vệ các route vận hành. Accountant/Technician vào `/profile`, không được ép thành Operator. Admin được quản lý users/roles/lanes và xem audit. Operator chỉ đọc lane, không thêm/sửa/deactivate.
+`PERMISSION_MATRIX` trong `src/lib/permissions.ts` là cấu hình quyền của frontend; `can()` đọc trực tiếp ma trận này. `PermissionGuard` bảo vệ route theo từng quyền, kể cả dashboard/audit/ALPR/system. Backend kiểm tra role ở từng API; ma trận frontend không thay thế kiểm tra đó. Admin được quản lý users/roles/lanes. Operator chỉ đọc lane, không thêm/sửa/deactivate.

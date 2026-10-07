@@ -36,10 +36,10 @@ import { DocsHomePage } from '../modules/docs/DocsHomePage.tsx'
 import { DocsArticlePage } from '../modules/docs/DocsArticlePage.tsx'
 
 function RootRedirect() {
-  const { initialized, isAuthenticated, isAdmin, user } = useAuth()
+  const { initialized, isAuthenticated, user } = useAuth()
   if (!initialized) return <div style={{ padding: 24 }}>{translate("Đang tải...")}</div>
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  return <Navigate to={isAdmin ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'} replace />
+  return <Navigate to={can(user, 'dashboard.read') ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'} replace />
 }
 
 function PermissionGuard({ permission, children }: { permission: Permission; children: React.ReactNode }) {
@@ -89,7 +89,7 @@ export function AppRoutes() {
 
         {/* Admin-only */}
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/admin/dashboard" element={<AdminGuard><DashboardPage /></AdminGuard>} />
+        <Route path="/admin/dashboard" element={<PermissionGuard permission="dashboard.read"><DashboardPage /></PermissionGuard>} />
         <Route path="/admin/lanes" element={<PermissionGuard permission="lanes.read"><LaneListPage /></PermissionGuard>} />
         <Route path="/admin/lanes/new" element={<AdminGuard><LaneCreatePage /></AdminGuard>} />
         <Route path="/admin/lanes/:id" element={<PermissionGuard permission="lanes.read"><LaneDetailPage /></PermissionGuard>} />
@@ -100,11 +100,11 @@ export function AppRoutes() {
         <Route path="/admin/users/:id/edit" element={<AdminGuard><UserEditPage /></AdminGuard>} />
         <Route path="/admin/roles" element={<AdminGuard><RolesPage /></AdminGuard>} />
         <Route path="/admin/permissions" element={<AdminGuard><PermissionsPage /></AdminGuard>} />
-        <Route path="/admin/alpr" element={<AdminGuard><AlprPage /></AdminGuard>} />
+        <Route path="/admin/alpr" element={<PermissionGuard permission="alpr.read"><AlprPage /></PermissionGuard>} />
         <Route path="/admin/alpr/test" element={<AdminGuard><AlprTestPage /></AdminGuard>} />
-        <Route path="/admin/audit-logs" element={<AdminGuard><AuditLogsPage /></AdminGuard>} />
+        <Route path="/admin/audit-logs" element={<PermissionGuard permission="audit.read"><AuditLogsPage /></PermissionGuard>} />
         <Route path="/admin/errors" element={<AdminGuard><ErrorCenterPage /></AdminGuard>} />
-        <Route path="/admin/system" element={<AdminGuard><SystemPage /></AdminGuard>} />
+        <Route path="/admin/system" element={<PermissionGuard permission="system.read"><SystemPage /></PermissionGuard>} />
 
         {/* Tài khoản — mọi role đăng nhập */}
         <Route path="/profile" element={<ProfilePage />} />

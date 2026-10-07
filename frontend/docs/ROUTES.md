@@ -1,14 +1,15 @@
 # Routes
 
 Public: `/login`, `/register` (feature-gated).
-ADMIN/OPERATOR: `/station/scan`, `/detections`, `/detections/:id`, `/parking`,
-`/parking/:id`. Role khác nhận 403 tại các route nghiệp vụ.
+ADMIN/OPERATOR/TECHNICIAN: `/station/scan`, `/detections`, `/detections/:id`.
+ADMIN/OPERATOR/ACCOUNTANT: `/parking`, `/parking/:id`.
 
-Lanes: `/admin/lanes`, `/admin/lanes/:id` đọc cho ADMIN/OPERATOR;
+Lanes: `/admin/lanes`, `/admin/lanes/:id` đọc cho ADMIN/OPERATOR/TECHNICIAN;
 `/new`, `/:id/edit` chỉ ADMIN. Nút ghi bị ẩn với OPERATOR.
-Admin-only: dashboard, users, roles, permissions, alpr/test, audit, system, docs.
+Dashboard: ADMIN/ACCOUNTANT. Audit: ADMIN/ACCOUNTANT. ALPR status và system health:
+ADMIN/TECHNICIAN. Admin-only: users, roles, permissions, alpr/test, errors, docs.
 Tài khoản: `/profile`, `/settings`, `/notifications`, `/help`.
 
-`/` redirect ADMIN tới dashboard, OPERATOR tới Station, role khác tới Profile.
+`/` redirect ADMIN/ACCOUNTANT tới dashboard, OPERATOR/TECHNICIAN tới Station.
 Fullscreen/Station history và legacy Admin operations URLs redirect về route
 canonical. API backend luôn enforce quyền độc lập với route guard.
