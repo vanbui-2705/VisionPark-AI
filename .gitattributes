@@ -1,0 +1,3 @@
+# Model checksums must remain identical on Windows and Linux checkouts.
+backend/app/alpr/weights/*.pt -text
+backend/models/ocr/** -text
