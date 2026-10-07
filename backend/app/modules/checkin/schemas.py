@@ -40,14 +40,14 @@ class ParkingTransactionResponse(BaseModel):
     normalized_plate: str
     status: TransactionStatus
     lane_id: UUID
-    lane_name: str | None = Field(default=None, alias="lane_snapshot_name")
-    lane_direction: str | None = Field(default=None, alias="lane_snapshot_direction")
+    lane_name: str | None = Field(default=None, validation_alias="lane_snapshot_name")
+    lane_direction: str | None = Field(default=None, validation_alias="lane_snapshot_direction")
     detection_id: UUID | None = None
     image_url: str | None = None
     confidence: float | None = None
     check_in_time: datetime
     check_in_operator_id: UUID | None = None
-    check_in_operator_name: str | None = Field(default=None, alias="operator_snapshot_name")
+    check_in_operator_name: str | None = Field(default=None, validation_alias="operator_snapshot_name")
     source: str
     is_manual_override: bool
     notes: str | None = None

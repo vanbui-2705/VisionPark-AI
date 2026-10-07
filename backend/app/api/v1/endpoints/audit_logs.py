@@ -16,7 +16,7 @@ from app.modules.users.schemas import RoleName
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 
-@router.get("/", response_model=PaginatedAuditLogs | list[AuditLogResponse] | dict)
+@router.get("/", response_model=dict | PaginatedAuditLogs | list[AuditLogResponse])
 def list_audit_logs(
     actor: str | None = None,
     action: str | None = None,
