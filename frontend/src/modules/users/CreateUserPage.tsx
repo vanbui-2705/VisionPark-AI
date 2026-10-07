@@ -27,7 +27,10 @@ export function CreateUserPage() {
   const dirty = !!displayName.trim() || !!username.trim() || !!email.trim() || !!password || !!confirm
   useUnsavedGuard(dirty)
 
-  const perms = PERMISSION_MATRIX.map((p) => ({ ...p, granted: can({ id: '', username: '', display_name: '', active, role }, p.perm) }))
+  const perms = PERMISSION_MATRIX.map((p) => ({
+    ...p,
+    granted: can({ id: '', username: '', display_name: '', active, role }, p.perm),
+  }))
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,10 +74,10 @@ export function CreateUserPage() {
         <section className="card">
           <h3>{translate("Vai trò")}</h3>
           <Select label={translate("Vai trò *")} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
-            <option value="OPERATOR">OPERATOR</option>
-            <option value="ADMIN">ADMIN</option>
-            <option value="ACCOUNTANT">ACCOUNTANT</option>
-            <option value="TECHNICIAN">TECHNICIAN</option>
+            <option value="OPERATOR">OPERATOR — Vận hành</option>
+            <option value="ADMIN">ADMIN — Quản trị</option>
+            <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
+            <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>
           </Select>
           <div className="perm-list">
             {perms.map((p) => <div key={p.perm} className="perm-row"><span>{translate(p.label)}</span><span>{p.granted ? '✓' : '✗'}</span></div>)}

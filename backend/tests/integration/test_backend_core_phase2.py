@@ -6,11 +6,11 @@ from threading import Barrier
 from uuid import UUID, uuid4
 
 import pytest
+from alembic import command
 from sqlalchemy import create_engine, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from alembic import command
 from app.database.idempotency import fingerprint_payload
 from app.modules.alpr.models import Detection
 from app.modules.audit_logs.models import AuditLog

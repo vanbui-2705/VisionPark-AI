@@ -85,7 +85,7 @@ export function UserListPage() {
                 <td>{u.username}</td>
                 <td>{u.display_name}</td>
                 <td>{u.email ?? '—'}</td>
-                <td><span className="badge">{u.role}</span></td>
+                <td><span className={`badge ${u.role === 'ADMIN' ? 'badge-info' : u.role === 'ACCOUNTANT' ? 'badge-success' : u.role === 'TECHNICIAN' ? 'badge-warn' : 'badge-muted'}`}>{u.role}</span></td>
                 <td><span className={`badge ${u.active ? 'badge-success' : 'badge-muted'}`}>{u.active ? 'Active' : 'Locked'}</span></td>
                 <td><Link to={`/admin/users/${u.id}`}>{translate("Sửa")}</Link></td>
               </tr>

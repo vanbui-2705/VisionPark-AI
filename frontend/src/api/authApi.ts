@@ -13,13 +13,14 @@ export function mapUser(raw: unknown): CurrentUser {
   let role = r.role as unknown
   if (role && typeof role === 'object') role = (role as Record<string, unknown>).name ?? (role as Record<string, unknown>).role
   const roleStr = String(role ?? '').toUpperCase()
+  const allowed = new Set(['ADMIN', 'OPERATOR', 'ACCOUNTANT', 'TECHNICIAN'])
   return {
     id: String(r.id ?? r.user_id ?? ''),
     email: r.email as string | null | undefined,
     username: String(r.username ?? ''),
     display_name: String(r.display_name ?? r.displayName ?? r.name ?? r.username ?? ''),
-    role: roleStr as CurrentUser['role'],
-    active: (r.is_active as boolean) ?? (r.active as boolean) ?? false,
+    role: (allowed.has(roleStr) ? roleStr : 'OPERATOR') as CurrentUser['role'],
+    active: (r.is_active as boolean) ?? (r.active as boolean) ?? true,
   }
 }
 

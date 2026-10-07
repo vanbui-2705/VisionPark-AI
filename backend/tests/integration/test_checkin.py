@@ -25,11 +25,15 @@ def test_checkin_creates_parked_transaction_and_audit(client, db_session, operat
     assert body["transaction"]["status"] == "PARKED"
     assert body["transaction"]["source"] == "MANUAL_ENTRY"
 
-    history = client.get("/api/v1/parking/transactions?q=29A12345", headers=operator_headers)
+    history = client.get(
+        "/api/v1/parking/transactions?paginated=true&q=29A12345", headers=operator_headers
+    )
     assert history.status_code == 200
     assert len(history.json()["data"]) == 1
 
-    audit = client.get("/api/v1/audit-logs/?action=CREATE_CHECKIN", headers=operator_headers)
+    audit = client.get(
+        "/api/v1/audit-logs/?paginated=true&action=CREATE_CHECKIN", headers=operator_headers
+    )
     assert audit.status_code == 200
     assert audit.json()["data"][0]["resource"] == "ParkingTransaction"
 

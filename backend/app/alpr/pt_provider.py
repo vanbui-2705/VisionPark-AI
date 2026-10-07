@@ -203,7 +203,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
     def _scalar(value: Any) -> float:
         if hasattr(value, "item"):
             return float(value.item())
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, list | tuple):
             return float(value[0])
         return float(value)
 

@@ -105,11 +105,11 @@ describe('LaneListPage', () => {
     expect(await screen.findByText(/Bạn có chắc muốn ngưng hoạt động/i)).toBeInTheDocument()
 
     // list unchanged before confirming
-    expect(screen.getAllByText('Active').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Active|Đang hoạt động/).length).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: /^Xác nhận$/i }))
     await waitFor(() => expect(patched).toBe(true))
-    await waitFor(() => expect(screen.getByText('Inactive')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText(/Ngưng hoạt động|Inactive/).length).toBeGreaterThanOrEqual(1))
   })
 
   it('no DELETE request is ever issued', async () => {

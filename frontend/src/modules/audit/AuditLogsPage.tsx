@@ -137,13 +137,14 @@ export function AuditLogsPage() {
           </div>
         </div>
       </section>
-      {expanded ? (() => { const row = items.find((x) => x.id === expanded); if (!row) return null; return (
+      {expanded ? (() => { const row = items.find((x) => x.id === expanded); if (!row) return null; const after = row.after && typeof row.after === 'object' ? row.after as Record<string, unknown> : null; return (
         <section className="data-table-card audit-detail">
+          <div className="data-table-head"><div><span className="data-section-kicker">{translate("BẢN GHI")} {row.id}</span><h3>{translate("Chi tiết nhật ký")}</h3></div></div>
           <div className="audit-detail-grid">
-            <div>AI plate: <span>{String((row.after as Record<string, unknown> | null)?.ai_plate ?? '—')}</span></div>
-            <div>Final plate: <span>{String((row.after as Record<string, unknown> | null)?.final_plate ?? '—')}</span></div>
+            <div>AI plate: <span>{String(after?.ai_plate ?? '—')}</span></div>
+            <div>Final plate: <span>{String(after?.final_plate ?? '—')}</span></div>
             <div>Actor: {row.actor ?? '—'}</div>
-            <div>Source: <span>{String((row.after as Record<string, unknown> | null)?.source ?? row.source ?? '—')}</span></div>
+            <div>Source: <span>{String(after?.source ?? row.source ?? '—')}</span></div>
             <div>Timestamp: {new Date(row.time).toLocaleString('vi-VN')}</div>
           </div>
           <div className="data-table-head"><div><span className="data-section-kicker">{translate("BẢN GHI")}{row.id}</span><h3>{translate("Chi tiết nhật ký")}</h3></div></div>

@@ -15,6 +15,4 @@ api_router.include_router(alpr_router, prefix="/alpr", tags=["ALPR"])
 api_router.include_router(parking_router)
 api_router.include_router(audit_logs_router)
 api_router.include_router(users_router)
-
-
 api_router.include_router(operations_router)

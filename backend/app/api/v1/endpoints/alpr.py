@@ -270,9 +270,12 @@ async def get_detection_image(image_key: str):
 
 @router.get("/detections", response_model=list[DetectionResponse] | dict)
 def get_detection_history(
+    request: Request,
     lane_id: UUID | None = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    page: int | None = Query(None, ge=0),
+    pageSize: int | None = Query(None, ge=1, le=100),
     q: str | None = None,
     paginated: bool = False,
     input_kind: str | None = None,
@@ -288,6 +291,17 @@ def get_detection_history(
     current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
 ):
     """API lấy danh sách lịch sử nhận diện (có phân trang và lọc theo làn)."""
+    del current_user
+    is_paginated = (
+        paginated
+        or ("page" in request.query_params)
+        or ("pageSize" in request.query_params)
+        or (request.query_params.get("format") == "paginated")
+    )
+    eff_page_size = pageSize if pageSize is not None else limit
+    eff_page = page if page is not None else (skip // max(1, eff_page_size) if skip else 0)
+    eff_skip = eff_page * eff_page_size if page is not None else skip
+
     query = select(Detection).order_by(Detection.created_at.desc(), Detection.id.desc())
 
     if lane_id:
@@ -299,11 +313,12 @@ def get_detection_history(
     if max_confidence is not None:
         query = query.where(Detection.confidence <= max_confidence)
     if q:
-        q = normalize_plate(q) or q
+        clean_q = normalize_plate(q) or q
         query = query.where(
             or_(
-                Detection.normalized_plate.ilike(f"%{q}%"),
-                Detection.confirmed_plate.ilike(f"%{q}%"),
+                Detection.raw_plate.ilike(f"%{q}%"),
+                Detection.normalized_plate.ilike(f"%{clean_q}%"),
+                Detection.confirmed_plate.ilike(f"%{clean_q}%"),
             )
         )
     if direction:
@@ -340,16 +355,20 @@ def get_detection_history(
             else or_(~same_plate, Detection.normalized_plate.is_(None))
         )
 
-    detections = db.scalars(query.offset(skip).limit(limit)).all()
-    if paginated:
-        total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+    detections = db.scalars(query.offset(eff_skip).limit(eff_page_size)).all()
+    if is_paginated:
+        total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery())) or 0
+        total_pages = max(1, (total + eff_page_size - 1) // eff_page_size)
         return {
             "items": [
                 DetectionResponse.model_validate(d).model_dump(mode="json") for d in detections
             ],
             "total": total,
-            "limit": limit,
-            "offset": skip,
+            "page": eff_page,
+            "pageSize": eff_page_size,
+            "totalPages": total_pages,
+            "limit": eff_page_size,
+            "offset": eff_skip,
         }
     return detections
 

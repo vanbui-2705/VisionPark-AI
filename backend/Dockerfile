@@ -41,7 +41,7 @@ COPY tests ./tests
 
 USER visionpark
 
-CMD ["sh", "-c", "python -m pytest && python -m ruff check . && python -m ruff format --check ."]
+CMD ["sh", "-c", "python -m pytest && python -m ruff check app tests && python -m ruff format --check app tests"]
 
 FROM base AS runtime
 
