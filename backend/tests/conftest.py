@@ -29,6 +29,7 @@ def required_settings_environment(monkeypatch):
     """Tests supply their own required configuration without reading a developer's secrets."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("JWT_SECRET_KEY", TEST_JWT_SECRET)
+    monkeypatch.setenv("ALPR_PROVIDER", "real")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

@@ -11,8 +11,8 @@ Trong Compose dùng `/` để đi qua reverse proxy cùng origin.
 - ALPR: POST `/api/v1/alpr/detections` multipart JPEG/PNG, lane_id, mode, persist. Preview không lưu; final có capture_id UUID để retry cùng frame không tạo detection mới.
 - Detection history: GET `/api/v1/alpr/detections` với q/lane_id/direction/status/from/to/skip/limit; GET `/api/v1/alpr/detections/{id}`.
 - Confirm: POST `/api/v1/alpr/detections/{id}/confirm` với `confirmed_plate`; thêm `check_in=true` và `Idempotency-Key` để tạo transaction cùng audit. Reply khi check-in là `{transaction,message}`; metadata-only trả DetectionResponse.
-- Parking: POST `/api/v1/parking/check-in` (manual/direct), GET `/api/v1/parking/transactions`, GET `/api/v1/parking/transactions/{id}`, GET `/api/v1/parking/summary`.
-- Audit: GET `/api/v1/audit-logs/` (ADMIN/OPERATOR); frontend chỉ hiện menu quản trị cho ADMIN.
+- Parking: POST `/api/v1/parking/check-in` (manual/direct), GET `/api/v1/parking/transactions`, GET `/api/v1/parking/transactions/{id}`, GET `/api/v1/parking/summary`. Danh sách transactions trả array mặc định; khi `paginated=true` hoặc có `page`/`pageSize`, trả object có `items`, `data`, `total`, `page`, `pageSize`, `totalPages`, `limit`, `offset`.
+- Audit: GET `/api/v1/audit-logs/` (ADMIN/OPERATOR); frontend chỉ hiện menu quản trị cho ADMIN. Danh sách audit trả array mặc định; khi `paginated=true` hoặc có `page`/`pageSize`, trả cùng cấu trúc phân trang như transactions.
 - Health: GET `/health/live`, `/health/ready`; readiness trả status ready/not_ready, provider/version/ocr_enabled.
 
 Service adapter chuyển `is_active` → `active`, raw_plate → ai_plate,

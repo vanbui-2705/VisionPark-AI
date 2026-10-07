@@ -11,14 +11,14 @@ from app.core.errors import AppError
 from app.database.session import get_db
 from app.modules.audit_logs.models import AuditLog
 from app.modules.auth.dependencies import require_roles
-from app.modules.checkin.schemas import AuditLogResponse
+from app.modules.checkin.schemas import AuditLogResponse, PaginatedAuditLogs
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
 
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 
-@router.get("/", response_model=list[AuditLogResponse] | dict)
+@router.get("/", response_model=dict | PaginatedAuditLogs | list[AuditLogResponse])
 def list_audit_logs(
     request: Request,
     actor: str | None = None,
@@ -37,7 +37,7 @@ def list_audit_logs(
     paginated: bool = False,
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
-) -> list[AuditLogResponse] | dict:
+):
     del current_user
     is_paginated = (
         paginated
@@ -135,6 +135,7 @@ def list_audit_logs(
     if is_paginated:
         return {
             "items": [item.model_dump(mode="json") for item in items],
+            "data": items,
             "total": total,
             "page": eff_page,
             "pageSize": eff_page_size,

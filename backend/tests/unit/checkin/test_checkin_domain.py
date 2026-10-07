@@ -65,7 +65,11 @@ def test_check_in_success(service, mock_repo, mock_session, operator, lane_in):
     transaction_mock.confidence = None
     transaction_mock.check_in_time = datetime.now()
     transaction_mock.check_in_operator_id = operator.id
+    transaction_mock.lane_snapshot_name = "Mock Lane"
+    transaction_mock.lane_snapshot_direction = "IN"
+    transaction_mock.check_in_operator = MagicMock()
     transaction_mock.check_in_operator.display_name = "Test Operator"
+    transaction_mock.operator_snapshot_name = "Test Operator"
     transaction_mock.source = "MANUAL_ENTRY"
     transaction_mock.is_manual_override = True
     transaction_mock.notes = None
@@ -135,9 +139,10 @@ def test_check_in_duplicate_plate(service, mock_repo, operator, lane_in):
     assert exc_info.value.code == "PLATE_ALREADY_PARKED"
 
 
-def test_check_in_idempotency_replay(service, mock_repo, operator):
+def test_check_in_idempotency_replay(service, mock_repo, operator, lane_in):
     # Setup
     lane_id = uuid.uuid4()
+    mock_repo.get_lane.return_value = lane_in
     idempotency_key = "test-key-123"
 
     existing_txn = MagicMock()

@@ -10,7 +10,12 @@ from app.database.session import get_db
 from app.modules.auth.dependencies import require_roles
 from app.modules.checkin.models import TransactionStatus
 from app.modules.checkin.repository import DatabaseCheckInRepository
-from app.modules.checkin.schemas import CheckInRequest, CheckInResponse, ParkingTransactionResponse
+from app.modules.checkin.schemas import (
+    CheckInRequest,
+    CheckInResponse,
+    PaginatedParkingTransactions,
+    ParkingTransactionResponse,
+)
 from app.modules.checkin.service import CheckInService
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
@@ -36,7 +41,10 @@ def create_check_in(
     )
 
 
-@router.get("/transactions", response_model=list[ParkingTransactionResponse] | dict)
+@router.get(
+    "/transactions",
+    response_model=dict | PaginatedParkingTransactions | list[ParkingTransactionResponse],
+)
 def list_parking_transactions(
     request: Request,
     q: str | None = None,
@@ -66,7 +74,7 @@ def list_parking_transactions(
     if eff_page < 0 or eff_page_size < 1 or eff_page_size > 100:
         raise AppError(status_code=422, code="VALIDATION_ERROR", message="Invalid page/pageSize")
 
-    rows = service.list_transactions(
+    paginated_result = service.list_transactions(
         query=q,
         lane_id=lane_id,
         status=status,
@@ -76,27 +84,17 @@ def list_parking_transactions(
         offset=eff_skip,
     )
     if is_paginated:
-        total = service.repo.list_transactions(
-            query=q,
-            lane_id=lane_id,
-            status=status,
-            from_time=from_time,
-            to_time=to_time,
-            count_only=True,
-        )
-        total_pages = max(1, (total + eff_page_size - 1) // eff_page_size)
         return {
-            "items": [
-                row.model_dump(mode="json") if hasattr(row, "model_dump") else row for row in rows
-            ],
-            "total": total,
-            "page": eff_page,
+            "items": [row.model_dump(mode="json") for row in paginated_result.data],
+            "data": paginated_result.data,
+            "total": paginated_result.total,
+            "page": paginated_result.page,
             "pageSize": eff_page_size,
-            "totalPages": total_pages,
+            "totalPages": max(1, (paginated_result.total + eff_page_size - 1) // eff_page_size),
             "limit": eff_page_size,
             "offset": eff_skip,
         }
-    return rows
+    return paginated_result.data
 
 
 @router.get("/transactions/{transaction_id}", response_model=ParkingTransactionResponse)
