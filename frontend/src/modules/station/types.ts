@@ -15,7 +15,7 @@ export type Lane = {
   active: boolean;
 };
 export type DetectionResult = {
-  detection_id: string;
+  detection_id: string | null;
   raw_plate_number: string | null;
   normalized_plate_number: string | null;
   bbox: [number, number, number, number] | null;
@@ -44,7 +44,7 @@ export type ConfirmationPayload = {
 };
 export type RecentHistoryItem = {
   id: string;
-  detectionId: string;
+  detectionId: string | null;
   laneId: string;
   plateNumber: string;
   accepted: boolean;
