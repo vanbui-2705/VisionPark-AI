@@ -66,8 +66,10 @@ export function UserListPage() {
         <Input label="Tìm kiếm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên / username / email" />
         <Select label="Vai trò" value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="ALL">Tất cả</option>
-          <option value="ADMIN">Quản trị viên</option>
-          <option value="OPERATOR">Nhân viên vận hành</option>
+          <option value="ADMIN">ADMIN</option>
+          <option value="OPERATOR">OPERATOR</option>
+          <option value="ACCOUNTANT">ACCOUNTANT</option>
+          <option value="TECHNICIAN">TECHNICIAN</option>
         </Select>
         <Select label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="ALL">Tất cả</option>
@@ -90,7 +92,7 @@ export function UserListPage() {
                 <td>{u.username}</td>
                 <td>{u.display_name}</td>
                 <td>{u.email ?? '—'}</td>
-                <td><span className={`badge ${u.role === 'ADMIN' ? 'badge-info' : 'badge-muted'}`}>{u.role === 'ADMIN' ? 'Quản trị viên' : 'Vận hành'}</span></td>
+                <td><span className={`badge ${u.role === 'ADMIN' ? 'badge-info' : u.role === 'ACCOUNTANT' ? 'badge-success' : u.role === 'TECHNICIAN' ? 'badge-warn' : 'badge-muted'}`}>{u.role}</span></td>
                 <td><span className={`badge ${u.active ? 'badge-success' : 'badge-muted'}`}>{u.active ? 'Đang hoạt động' : 'Đã khóa'}</span></td>
                 <td><Link className="data-inline-action" to={`/admin/users/${u.id}`}>Sửa</Link></td>
               </tr>

@@ -5,7 +5,6 @@ from typing import Annotated
 from uuid import uuid4
 
 import pytest
-from alembic.config import Config
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
@@ -13,6 +12,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from alembic import command
+from alembic.config import Config
 from app.core.config import Settings, get_settings
 from app.database.session import database
 from app.modules.auth.dependencies import require_roles

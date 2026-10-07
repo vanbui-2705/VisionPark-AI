@@ -15,7 +15,7 @@ export function UserEditPage() {
   const [user, setUser] = useState<ManagedUser | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<'ADMIN' | 'OPERATOR'>('OPERATOR')
+  const [role, setRole] = useState<'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'>('OPERATOR')
   const [active, setActive] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
@@ -56,7 +56,7 @@ export function UserEditPage() {
         <Input label="Username" value={user.username} disabled />
         <Input label="Tên hiển thị *" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Select label="Vai trò" value={role} onChange={(e) => setRole(e.target.value as never)}><option value="ADMIN">ADMIN</option><option value="OPERATOR">OPERATOR</option></Select>
+        <Select label="Vai trò" value={role} onChange={(e) => setRole(e.target.value as never)}><option value="ADMIN">ADMIN — Quản trị</option><option value="OPERATOR">OPERATOR — Vận hành</option><option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option><option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option></Select>
         <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Hoạt động</label>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button type="button" onClick={() => nav(`/admin/users/${id}`)}>Quay lại</Button>

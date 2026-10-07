@@ -16,7 +16,7 @@ export function CreateUserPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [role, setRole] = useState<'ADMIN' | 'OPERATOR'>('OPERATOR')
+  const [role, setRole] = useState<'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'>('OPERATOR')
   const [active, setActive] = useState(true)
   const [show, setShow] = useState(false)
   const [touched, setTouched] = useState(false)
@@ -25,7 +25,8 @@ export function CreateUserPage() {
   const dirty = !!displayName.trim() || !!username.trim() || !!email.trim() || !!password || !!confirm
   useUnsavedGuard(dirty)
 
-  const perms = PERMISSION_MATRIX.map((p) => ({ ...p, granted: p.perm === 'profile.read' || p.perm === 'system.read' ? true : role === 'ADMIN' ? p.admin : p.operator }))
+  const roleKey = role.toLowerCase() as 'admin' | 'operator' | 'accountant' | 'technician'
+  const perms = PERMISSION_MATRIX.map((p) => ({ ...p, granted: (p as unknown as Record<string, boolean>)[roleKey] as boolean }))
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,8 +70,10 @@ export function CreateUserPage() {
         <section className="card">
           <h3>Vai trò</h3>
           <Select label="Vai trò *" value={role} onChange={(e) => setRole(e.target.value as never)}>
-            <option value="OPERATOR">OPERATOR</option>
-            <option value="ADMIN">ADMIN</option>
+            <option value="OPERATOR">OPERATOR — Vận hành</option>
+            <option value="ADMIN">ADMIN — Quản trị</option>
+            <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
+            <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>
           </Select>
           <div className="perm-list">
             {perms.map((p) => <div key={p.perm} className="perm-row"><span>{p.label}</span><span>{p.granted ? '✓' : '✗'}</span></div>)}

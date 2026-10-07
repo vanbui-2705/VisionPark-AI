@@ -18,7 +18,7 @@ export function UserDetailPage() {
   const [saving, setSaving] = useState(false)
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<'ADMIN'|'OPERATOR'>('OPERATOR')
+  const [role, setRole] = useState<'ADMIN'|'OPERATOR'|'ACCOUNTANT'|'TECHNICIAN'>('OPERATOR')
   const [active, setActive] = useState(true)
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export function UserDetailPage() {
         <section className="card">
           <Input label="Display Name" value={displayName} onChange={e=>setDisplayName(e.target.value)} />
           <Input label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-          <Select label="Role" value={role} onChange={e=>setRole(e.target.value as never)}><option value="OPERATOR">OPERATOR</option><option value="ADMIN">ADMIN</option></Select>
+          <Select label="Role" value={role} onChange={e=>setRole(e.target.value as never)}><option value="OPERATOR">OPERATOR</option><option value="ADMIN">ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option><option value="TECHNICIAN">TECHNICIAN</option></Select>
           <label className="checkbox"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)} /> Active</label>
           <p className="muted">Username: {user.username} — ID: {user.id}</p>
           <Button onClick={onSave} loading={saving}>Lưu</Button>
@@ -60,8 +60,8 @@ export function UserDetailPage() {
       {tab==='perm' && (
         <section className="card">
           <h3>Permission matrix — {role}</h3>
-          <table className="table"><thead><tr><th>Chức năng</th><th>Quyền</th></tr></thead><tbody>{PERMISSION_MATRIX.map(p=> <tr key={p.perm}><td>{p.label}</td><td>{(role==='ADMIN'?p.admin:p.operator)?'✓':'✗'}</td></tr>)}</tbody></table>
-          <p className="muted">Readonly theo role — Phase 1 chỉ 2 role.</p>
+          <table className="table"><thead><tr><th>Chức năng</th><th>Quyền</th></tr></thead><tbody>{PERMISSION_MATRIX.map(p=> <tr key={p.perm}><td>{p.label}</td><td>{(p as unknown as Record<string, boolean>)[role.toLowerCase()]?'✓':'✗'}</td></tr>)}</tbody></table>
+          <p className="muted">Readonly theo role — 4 vai trò đồng bộ với backend.</p>
         </section>
       )}
       {tab==='security' && (

@@ -219,4 +219,27 @@ await userEvent.type(dateInputs[0] as HTMLInputElement, '2026-10-04')
     })
     await waitFor(() => expect(screen.getByText(/Thử lại/i)).toBeInTheDocument())
   })
+
+  it('navigates to page 2 with filters preserved', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    const calls: string[] = []
+    renderPage(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'duyanh', display_name: 'Duy Anh', role: 'OPERATOR', active: true })
+      if (s.includes('/parking/transactions')) {
+        calls.push(s)
+        if (s.includes('page=1')) {
+          return j({ items: [{ ...txs[1], id: 'pt-p2', license_plate: '51A99999' }], total: 40, page: 1, pageSize: 20, totalPages: 2 })
+        }
+        return j({ items: [txs[0]], total: 40, page: 0, pageSize: 20, totalPages: 2 })
+      }
+      return j({})
+    })
+    await waitFor(() => expect(screen.getByText('29A12345')).toBeInTheDocument())
+    const nextBtn = screen.getByRole('button', { name: /Sau/i })
+    expect(nextBtn).toBeEnabled()
+    await userEvent.click(nextBtn)
+    await waitFor(() => expect(screen.getByText('51A99999')).toBeInTheDocument())
+    expect(calls.some((c) => c.includes('page=1'))).toBe(true)
+  })
 })

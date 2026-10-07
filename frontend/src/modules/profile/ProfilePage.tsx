@@ -33,7 +33,7 @@ export function ProfilePage() {
         <div className="profile-details">
           <div className="profile-detail-row"><span>Tên hiển thị</span><strong className="profile-detail-value">{user?.display_name ?? '—'}</strong></div>
           <div className="profile-detail-row"><span>Tên đăng nhập</span><code className="profile-detail-value">{user?.username ?? '—'}</code></div>
-          <div className="profile-detail-row"><span>Vai trò</span><Badge>{user?.role === 'ADMIN' ? 'Quản trị viên' : user?.role === 'OPERATOR' ? 'Nhân viên vận hành' : (user?.role ?? '—')}</Badge></div>
+          <div className="profile-detail-row"><span>Vai trò</span><Badge>{({ ADMIN: 'Quản trị viên', OPERATOR: 'Vận hành', ACCOUNTANT: 'Kế toán', TECHNICIAN: 'Kỹ thuật' } as Record<string,string>)[user?.role ?? ''] ?? (user?.role ?? '—')}</Badge></div>
           <div className="profile-detail-row"><span>Trạng thái</span><span className={`profile-status ${user?.active ? 'is-active' : 'is-inactive'}`}><span className="profile-status-dot" aria-hidden="true" />{user?.active ? 'Đang hoạt động' : 'Tạm khóa'}</span></div>
         </div>
         <div className="profile-actions">

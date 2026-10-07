@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 from uuid import UUID
 
 import cv2
@@ -233,23 +233,25 @@ async def get_detection_image(image_key: str):
 
 @router.get("/detections", response_model=dict)
 def get_detection_history(
-    lane_id: Optional[str] = None,
-    q: Optional[str] = None,
-    status: Optional[str] = None,
-    direction: Optional[str] = None,
-    from_time: Optional[str] = None,
-    to_time: Optional[str] = None,
+    lane_id: str | None = None,
+    q: str | None = None,
+    status: str | None = None,
+    direction: str | None = None,
+    from_time: str | None = None,
+    to_time: str | None = None,
     page: int = 0,
     pageSize: int = 20,
     skip: int = 0,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     db: Session = Depends(get_db),
     # Yêu cầu phải đăng nhập mới xem được lịch sử
     current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
 ):
-    """List detections — server-side filter + pagination (page/pageSize preferred, skip/limit compat)."""
-    from sqlalchemy import func as _func
+    """List detections with server-side filter + pagination."""
     from datetime import datetime as _dt
+
+    from sqlalchemy import func as _func
+
     # compat: limit -> pageSize, skip -> offset
     if limit is not None:
         pageSize = limit
@@ -257,47 +259,60 @@ def get_detection_history(
     # validation
     if page < 0 or pageSize < 1 or pageSize > 100:
         from app.core.errors import AppError
+
         raise AppError(status_code=422, code="VALIDATION_ERROR", message="Invalid page/pageSize")
     query = select(Detection).order_by(Detection.created_at.desc())
     count_q = select(_func.count()).select_from(Detection)
     if lane_id:
         try:
             from uuid import UUID as _UUID
+
             lid = _UUID(str(lane_id))
             query = query.where(Detection.lane_id == lid)
             count_q = count_q.where(Detection.lane_id == lid)
         except Exception:
             # non-UUID lane_id: no match
-            query = query.where(Detection.lane_id == None)  # type: ignore
-            count_q = count_q.where(Detection.lane_id == None)  # type: ignore
+            query = query.where(Detection.lane_id.is_(None))
+            count_q = count_q.where(Detection.lane_id.is_(None))
     # q filter
     if q:
         like = f"%{q}%"
-        cond = (Detection.raw_plate.ilike(like)) | (Detection.normalized_plate.ilike(like)) | (Detection.confirmed_plate.ilike(like))
+        cond = (
+            Detection.raw_plate.ilike(like)
+            | Detection.normalized_plate.ilike(like)
+            | Detection.confirmed_plate.ilike(like)
+        )
         query = query.where(cond)
         count_q = count_q.where(cond)
     if from_time:
         try:
-            dt = _dt.fromisoformat(from_time.replace('Z','+00:00'))
+            dt = _dt.fromisoformat(from_time.replace("Z", "+00:00"))
             query = query.where(Detection.created_at >= dt)
             count_q = count_q.where(Detection.created_at >= dt)
         except Exception:
             pass
     if to_time:
         try:
-            dt = _dt.fromisoformat(to_time.replace('Z','+00:00'))
+            dt = _dt.fromisoformat(to_time.replace("Z", "+00:00"))
             # inclusive end of day if date-only
             if len(to_time) == 10:
                 from datetime import timedelta as _td
+
                 dt = dt + _td(days=1) - _td(seconds=1)
             query = query.where(Detection.created_at <= dt)
             count_q = count_q.where(Detection.created_at <= dt)
         except Exception:
             pass
     total = db.scalar(count_q) or 0
-    totalPages = max(1, (total + pageSize - 1)//pageSize)
-    items = list(db.scalars(query.offset(page*pageSize).limit(pageSize)).all())
-    return {"items": items, "total": total, "page": page, "pageSize": pageSize, "totalPages": totalPages}
+    totalPages = max(1, (total + pageSize - 1) // pageSize)
+    items = list(db.scalars(query.offset(page * pageSize).limit(pageSize)).all())
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "pageSize": pageSize,
+        "totalPages": totalPages,
+    }
 
 
 @router.post("/detections/{detection_id}/confirm", response_model=DetectionResponse)

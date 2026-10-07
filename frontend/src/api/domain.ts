@@ -139,7 +139,7 @@ export interface ManagedUser {
   username: string
   display_name: string
   email?: string | null
-  role: 'ADMIN' | 'OPERATOR'
+  role: 'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'
   active: boolean
   last_login?: string | null
   created_at?: string

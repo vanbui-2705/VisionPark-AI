@@ -93,7 +93,7 @@ class PaddleOCRTextRecognition:
             for item in value.values():
                 cls.collect_candidates(item, output)
             return
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, list | tuple):
             if len(value) == 2 and isinstance(value[0], str):
                 output.append((value[0], float(value[1])))
                 return

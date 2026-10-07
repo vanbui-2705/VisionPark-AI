@@ -11,7 +11,7 @@ function normalizePaginated<T>(raw: PaginatedResponse<T> | T[], fallbackPage: nu
 export interface UsersApi {
   list(params?: { q?: string; role?: string; active?: boolean }): Promise<ManagedUser[]>
   get(id: string): Promise<ManagedUser>
-  create(payload: { username: string; display_name: string; email?: string | null; password: string; role: 'ADMIN' | 'OPERATOR'; active?: boolean }): Promise<ManagedUser>
+  create(payload: { username: string; display_name: string; email?: string | null; password: string; role: 'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'; active?: boolean }): Promise<ManagedUser>
   patch(id: string, payload: Partial<ManagedUser & { password?: string }>): Promise<ManagedUser>
 }
 

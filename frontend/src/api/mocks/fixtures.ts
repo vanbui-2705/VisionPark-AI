@@ -89,5 +89,7 @@ export const mockApi = {
   rolesList: async (): Promise<{ name: string; display_name: string; description: string }[]> => [
     { name: 'ADMIN', display_name: 'ADMIN', description: 'Toàn quyền quản trị' },
     { name: 'OPERATOR', display_name: 'OPERATOR', description: 'Nhân viên vận hành' },
+    { name: 'ACCOUNTANT', display_name: 'ACCOUNTANT', description: 'Kế toán — giao dịch & báo cáo' },
+    { name: 'TECHNICIAN', display_name: 'TECHNICIAN', description: 'Kỹ thuật — làn & trạng thái ALPR' },
   ],
 }
