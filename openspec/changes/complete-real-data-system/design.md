@@ -74,3 +74,12 @@ Unit test được dùng test doubles trong tests với DB tách biệt, để k
 - Vị trí backup ngoài volume và lịch backup trên máy triển khai: lựa chọn đường dẫn/ổ đĩa không đổi hợp đồng bảo toàn và restore.
 
 Các lựa chọn phạm vi vi/en, lưu ảnh cuối thay vì toàn video, polling và giữ quyền cố định là đề xuất cụ thể để người dùng review trước triển khai.
+
+## Model packaging decision (2026-10-07)
+
+At the user's explicit request, the approved best.pt detector and pretrained OCR
+inference files are versioned in Git and bundled in Docker. Training checkpoints,
+media datasets and download caches remain excluded. CI verifies their checksums,
+loads the real CPU runtime and requires readiness HTTP 200; there is no mock
+fallback or acceptance of model-unavailable readiness as a successful model check.
+The labelled accuracy acceptance gate remains separate and open.

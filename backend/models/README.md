@@ -1,25 +1,17 @@
-# ALPR model assets
+# Bundled demo model assets
 
-This directory stores versioned model metadata only. Model weights are runtime
-assets and are intentionally excluded from Git.
+The demo repository and runtime Docker image include the approved YOLO detector
+`backend/app/alpr/weights/best.pt` and the pretrained PaddleOCR recognition model
+`ocr/latin_PP-OCRv5_mobile_rec/`. OCR's upstream model card is retained beside its
+inference files. Training datasets, checkpoints and download caches are excluded.
 
-The manifest is the handoff contract for assets distributed outside Git: copy
-the declared weight to `backend/app/alpr/weights/`, verify its SHA-256 checksum,
-and keep `ALPR_PROVIDER=mock` when the asset is unavailable. CI and clean
-checkout tests never download model weights.
+`alpr-manifest.json` records model version, detector checksum, OCR paths and checksums.
+Run `python backend/scripts/verify_model_bundle.py` from the repository root.
 
-- Manifest: `alpr-manifest.json`
-- Local weight location: `../app/alpr/weights/best.pt`
-- Real runtime dependencies: `pip install -e ".[dev,real]"`
-- Runtime default: keep `ALPR_PROVIDER=mock` until the `.pt` provider is
-  verified against the ALPR runtime contract.
+The real CPU runtime needs `backend[real,ocr]`; Docker CI installs CPU PyTorch,
+Ultralytics and PaddleOCR and verifies readiness HTTP 200 after actual warmup.
+OCR uses the bundled directory, so startup does not download recognition weights.
+There is no mock provider fallback. Missing/corrupt models must fail readiness.
 
-For a local real-provider run from `backend`:
-
-```powershell
-$env:ALPR_PROVIDER = "real"
-python -m uvicorn app.main:app --reload
-```
-
-Set `VITE_USE_MOCK_ALPR=false` in the frontend environment so captured frames
-are sent to the backend instead of the frontend fixture.
+The optional `deployment/compose.real.yml` still supports separately provisioned
+local assets. Ordinary images and CI use the bundled manifest directly.

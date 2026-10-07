@@ -12,7 +12,7 @@ def main():
     parser.add_argument(
         "--ocr-model-dir",
         type=Path,
-        default=Path.home() / ".paddlex/official_models/latin_PP-OCRv5_mobile_rec",
+        default=Path(__file__).resolve().parents[1] / "models/ocr/latin_PP-OCRv5_mobile_rec",
     )
     args = parser.parse_args()
     backend = Path(__file__).resolve().parents[1]

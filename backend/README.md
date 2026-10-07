@@ -13,7 +13,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-`ALPR_PROVIDER=real` is the only supported provider. Configure `ALPR_MANIFEST_PATH`, model assets and OCR paths using `scripts/provision_real_docker.py` for Docker. Readiness reports missing assets or inference dependencies instead of returning a fixed plate.
+`ALPR_PROVIDER=real` is the only supported provider. The approved detector and OCR inference assets are bundled in the repository and Docker image. `scripts/provision_real_docker.py` remains available for the optional mounted-model override. Readiness reports missing assets or inference dependencies instead of returning a fixed plate.
 `AUTO_SEED=false` by default. Explicit bootstrap requires an administrator password and never resets an existing account. There are no automatically created example lanes/operators.
 
 ## API workflows
@@ -38,3 +38,10 @@ python scripts/audit_media.py
 ```
 
 The media audit reports missing/orphan files without deletion. Full backup and isolated restore instructions are in [the runbook](../docs/real-data-runbook.md).
+
+GitHub CI uses `deployment/compose.ci.yml` with isolated CI volumes and bundled
+YOLO/OCR assets. It verifies asset checksums, installs CPU inference dependencies,
+waits for actual model warmup and requires `/health/ready` HTTP 200 with OCR enabled.
+Frontend health is also checked; runtime logs are collected on failure.
+Training checkpoints and download caches remain outside Git. This startup check
+does not replace the labelled real-vehicle accuracy benchmark.
