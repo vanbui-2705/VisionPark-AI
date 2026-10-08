@@ -78,6 +78,7 @@ export default function StationPage() {
     setImageFile(file); setImageUrl(URL.createObjectURL(file));
   };
   const onVideo = (file: File, url: string) => {
+    if (confirming.current) { URL.revokeObjectURL(url); return; }
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl(url);
     setVideoName(file.name);
@@ -100,6 +101,7 @@ export default function StationPage() {
     await detect(image, selectedLaneId, { inputKind: inputMode === 'image' ? 'IMAGE_UPLOAD' : 'VIDEO_FRAME', videoTimeMs });
   }, [detect, selectedLaneId, transactionId, inputMode]);
   const changeLane = (laneId: string) => {
+    if (confirming.current) return;
     setSelectedLaneId(laneId);
     setEditingPlate(false);
     setTransactionId(null);
@@ -191,7 +193,7 @@ export default function StationPage() {
           gap: 14
         }}><LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={changeLane} disabled={state === "detecting" || state === "reading" || state === "confirming"} />
           {inputMode === 'video' ? <VideoSelector onVideoSelected={onVideo} disabled={state === 'confirming'} /> : <label>{translate("Ảnh đầu vào")}<input aria-label={translate("Ảnh đầu vào")} type="file" accept="image/jpeg,image/png" disabled={state === 'confirming'} onChange={event => chooseImage(event.target.files?.[0] ?? null)} /></label>}{videoName && <div>Video: <strong>{videoName}</strong></div>}</div>
-          {inputMode === 'video' ? <VideoPlayer key={videoUrl || "empty"} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} suspended={editingPlate || state === 'confirming' || Boolean(transactionId)} /> : <>
+          {inputMode === 'video' ? <VideoPlayer key={`${selectedLaneId}:${videoUrl || "empty"}`} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} suspended={editingPlate || state === 'confirming' || Boolean(transactionId)} /> : <>
             {imageUrl && <DetectionImage key={imageUrl} src={imageUrl} bbox={result?.bbox ? { x: result.bbox[0], y: result.bbox[1], w: result.bbox[2] - result.bbox[0], h: result.bbox[3] - result.bbox[1] } : null} />}
             <button type="button" disabled={!imageFile || !selectedLaneId || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)} onClick={() => { if (imageFile) void onFrame(imageFile).catch(() => undefined); }}>{translate("Nhận diện ảnh")}</button>
           </>}
