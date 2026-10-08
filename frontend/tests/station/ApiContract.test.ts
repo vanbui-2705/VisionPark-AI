@@ -45,6 +45,14 @@ describe('Station API contract', () => {
     expect(fetch).toHaveBeenCalledTimes(4)
   })
 
+  it('rejects an empty plate before final persistence or check-in', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response(result))
+    const preview = await createDetection(new Blob(['jpeg'], { type: 'image/jpeg' }), 'in', { inputKind: 'IMAGE_UPLOAD' })
+    await expect(confirmDetection(preview.candidate_id!, 'in', { accepted: true }))
+      .rejects.toMatchObject({ status: 422, code: 'PLATE_REQUIRED' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a candidate from a different lane before persisting', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response(result))
     const preview = await createDetection(new Blob(['jpeg']), 'in')

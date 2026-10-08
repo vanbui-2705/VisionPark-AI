@@ -46,6 +46,7 @@ export function clearCandidates(): void {
 export async function confirmDetection(candidateId: string, laneId: string, payload: ConfirmationPayload): Promise<{ transactionId: string }> {
   const existing = confirmations.get(candidateId)
   const plate = (payload.confirmed_plate_number ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (plate.length < 3) throw { status: 422, code: 'PLATE_REQUIRED', message: 'Vui lòng nhập biển số hợp lệ trước khi xác nhận.' }
   if (existing) {
     if (existing.laneId !== laneId || existing.plate !== plate) {
       throw { status: 409, code: 'IDEMPOTENCY_KEY_REUSED', message: 'Khung hình đã được xác nhận với dữ liệu khác.' }
