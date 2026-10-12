@@ -35,17 +35,24 @@ class ParkingTransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: UUID
-    license_plate: str
+    license_plate: str | None = None
     original_ai_plate: str | None = None
-    normalized_plate: str
+    normalized_plate: str | None = None
+    ticket_code: str | None = None
+    vehicle_type: str = "CAR"
     status: TransactionStatus
     lane_id: UUID
+    exit_lane_id: UUID | None = None
     lane_name: str | None = Field(default=None, validation_alias="lane_snapshot_name")
     lane_direction: str | None = Field(default=None, validation_alias="lane_snapshot_direction")
     detection_id: UUID | None = None
     image_url: str | None = None
     confidence: float | None = None
     check_in_time: datetime
+    exit_time: datetime | None = None
+    fee: float | None = None
+    building_id: UUID | None = None
+    ticket_product_id: UUID | None = None
     check_in_operator_id: UUID | None = None
     check_in_operator_name: str | None = Field(
         default=None, validation_alias="operator_snapshot_name"

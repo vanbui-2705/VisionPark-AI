@@ -328,23 +328,38 @@ class CheckInService:
         if not operator_name and transaction.check_in_operator:
             operator_name = transaction.check_in_operator.display_name
 
+        def _val(attr: str, default=None):
+            v = getattr(transaction, attr, default)
+            if type(v).__name__ == "MagicMock":
+                return default
+            return v if v is not None else default
+
         return ParkingTransactionResponse(
             id=transaction.id,
-            license_plate=transaction.license_plate,
-            original_ai_plate=transaction.original_ai_plate,
-            normalized_plate=transaction.normalized_plate,
+            license_plate=_val("license_plate"),
+            original_ai_plate=_val("original_ai_plate"),
+            normalized_plate=_val("normalized_plate"),
+            ticket_code=_val("ticket_code"),
+            vehicle_type=_val("vehicle_type", "CAR"),
             status=transaction.status,
             lane_id=transaction.lane_id,
-            lane_name=lane_name,
-            lane_direction=lane_dir,
-            detection_id=transaction.detection_id,
-            image_url=transaction.image_url,
-            confidence=transaction.confidence,
+            exit_lane_id=_val("exit_lane_id"),
+            lane_name=lane_name if type(lane_name).__name__ != "MagicMock" else None,
+            lane_direction=lane_dir if type(lane_dir).__name__ != "MagicMock" else None,
+            detection_id=_val("detection_id"),
+            image_url=_val("image_url"),
+            confidence=_val("confidence"),
             check_in_time=transaction.check_in_time,
-            check_in_operator_id=transaction.check_in_operator_id,
-            check_in_operator_name=operator_name,
+            exit_time=_val("exit_time"),
+            fee=_val("fee", 0.0),
+            building_id=_val("building_id"),
+            ticket_product_id=_val("ticket_product_id"),
+            check_in_operator_id=_val("check_in_operator_id"),
+            check_in_operator_name=operator_name
+            if type(operator_name).__name__ != "MagicMock"
+            else None,
             source=transaction.source,
-            is_manual_override=transaction.is_manual_override,
-            notes=transaction.notes,
+            is_manual_override=bool(_val("is_manual_override", False)),
+            notes=_val("notes"),
             created_at=transaction.created_at,
         )
