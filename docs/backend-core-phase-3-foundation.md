@@ -1,98 +1,47 @@
-# Backend Core Phase 3 — foundation handoff
+# Backend Core Phase 3 — Member 2 handoff
 
-Source: Linear project **VisionPark Phase 3 — Bãi đỗ hỗn hợp đa tòa nhà**, checked 12/10/2026.
-The new Member M1 issues are VAN-59 through VAN-66 under VAN-54.
+Owner: Đinh Túy / Backend Core, branch `dqt_core`. Checked 12/10/2026.
+Linear assigns VAN-59–66 under VAN-54 to this owner. Source: business specification v2.0
+dated 08/10/2026, sections 4.2, 4.3 and 5.2. The user's latest instruction limits this delivery
+to backend work. New Setting/account frontend implementation is excluded from these commits.
 
-## Scope ready for review
-
-| Issue | Implementation |
+| Issue | Backend implementation |
 | --- | --- |
-| [VAN-59](https://linear.app/van-bui/issue/VAN-59) | `buildings`, one-to-one `parking_lots`, `user_buildings`; migration `20261012_0011` expands, backfills legacy ownership and enforces NOT NULL with a compatibility default |
-| [VAN-60](https://linear.app/van-bui/issue/VAN-60) | Server membership verified at login and every request; signed building claim; shared TenantSession filters reads/aggregates/aliases and guards writes; cross-building IDs/media are inaccessible |
-| [VAN-65](https://linear.app/van-bui/issue/VAN-65) | One migration head `20261012_0012`; repeatable one-command seed for two separate demo buildings, each with IN/OUT lanes and Operator/Accountant accounts |
+| VAN-59 | Buildings, one parking lot per building, memberships; additive migration, default-building backfill, preserved legacy data |
+| VAN-60 | Verified JWT membership, shared TenantSession isolation, guarded writes and authenticated media |
+| VAN-61 | Building/account provisioning, generated temporary password, first-login restriction, disabled public registration |
+| VAN-62 | Four canonical roles and business permissions; building scope and role-change audit |
+| VAN-63 | Typed Setting schema and APIs for A/B/C/G/H/I; capacity/quota/occupancy and revision validation. **Frontend frame/tabs remain pending** |
+| VAN-64 | Atomic before/after audit for Setting, lanes, accounts, roles and building state |
+| VAN-65 | One migration head `20261012_0013`; repeatable two-building seed with admins/operators/accountants |
+| VAN-66 | Missing-configuration readiness guard, CLOSED entry blocking, system-only revision-checked configuration copy |
 
-Migration `20261012_0012` scopes lane names, active plates and idempotency keys to a building.
-Existing Phase 2 records retain their IDs, passwords, audit payloads and detection links.
-The legacy building is `00000000-0000-0000-0000-000000000001`, code `DEFAULT`.
-Server defaults preserve writes from the previous application during rollout. New authenticated
-writes use the building from the server-resolved account scope, never a client building field.
+Full contracts, API payloads, RBAC matrix and integration instructions:
+[Backend Core Phase 3 API](backend-core-phase-3-api.md).
 
-## Shared integration contract
+## Verification
 
-- Keep using `get_db` and `CurrentUser`/`require_roles`; they bind the same request session to
-  the verified building. Do not introduce separate engines/sessions or unfiltered raw SQL.
-- `request.state.building_id` and `session.info["building_id"]` contain the verified scope.
-- The JWT `building_id` claim must still match a current membership and active building.
-  Removing membership or locking the building invalidates access immediately. Existing tokens
-  without a building claim work only when the account has one active membership.
-- Accounts with no active building or an ambiguous membership cannot log in; multi-building
-  selection for non-system accounts is not part of this foundation.
-- ADMIN remains the existing system administrator until VAN-62 implements the approved role
-  rename/matrix. Other existing roles are filtered to their assigned building. This PR does not
-  claim completion of the Phase 3 role matrix.
-- Use ORM unit-of-work writes; raw/Core statements and bulk writes are rejected in a scoped
-  session. Atomic `User.token_version` revocation is permitted and remains filtered to the building.
-- Lane/detection foreign references are checked against the same building before flush.
-  Changing ownership of an existing row is rejected. `Session.get` also checks cached objects.
-- System administrator check-in writes resolve scope from the selected lane before replay,
-  duplicate checks, persistence and audit; aggregate/history reads may span buildings.
-- `/api/v1/alpr/media/{key}` requires Bearer authentication and an accessible detection record.
-  The frontend loads protected media through the shared client, revokes temporary object URLs
-  and discards stale responses. Local Station preview blobs do not make authenticated requests.
-- `parking_lots.settings` is a JSON storage foundation. The typed Setting contract, readiness
-  checks, pricing integration and UI tabs will be implemented under VAN-63/VAN-66 after the
-  authoritative v2.0 document is available.
+- Backend SQLite + PostgreSQL 17.11: **325 passed, 3 skipped**, 356.10 seconds.
+  Three SQLite race variants are skipped; all three PostgreSQL variants pass.
+- Role/foundation migration upgrade and downgrade preserve existing identities and data.
+- Provisioning, password changes, token revocation, isolation, Setting validation, audit,
+  readiness, copy, per-building AI threshold and repeatable empty-database seed pass.
+- Ruff check/format: 163 files pass. `pip check` and `git diff --check` pass.
+- One upstream Starlette/httpx deprecation warning remains.
+- Tests use disposable databases; the temporary PostgreSQL server was stopped.
 
-## Disposable demo bootstrap
+Machine-readable evidence: [12/10/2026 evidence](backend-core-phase-3-evidence-2026-10-12.json).
+No shared database was migrated. Docker full stack and browser E2E were not run locally.
 
-Use a local **test/demo database**, configure `DATABASE_URL` and a unique `JWT_SECRET_KEY`,
-then set `DEMO_SEED_PASSWORD` to a local value of at least 12 characters. From `backend` run:
+## Integration and review gate
 
-```text
-python -m app.database.seed_demo
-```
+Canonical roles are SYSTEM_ADMIN, BUILDING_ADMIN, OPERATOR and ACCOUNTANT. The frontend owner
+must update its role mapping and handle PASSWORD_CHANGE_REQUIRED before deployment.
+VAN-63 stays In Progress because its frontend frame/tabs are not included in this delivery.
+The other backend tasks are ready for review; no peer approval or Done status is inferred.
 
-This runs migrations and creates DEMO_A/DEMO_B, a parking lot for each, two lanes per building,
-and accounts `demo_a_operator`, `demo_a_accountant`, `demo_b_operator`, `demo_b_accountant`.
-Running it again does not change existing passwords/settings. Conflicting lane/user identities
-raise an error and roll back instead of reassigning operational records. This script is never
-called automatically at application startup; the password is supplied through the environment.
-
-## Rollback and review
-
-Final verification on 12/10/2026:
-
-| Check | Result |
-| --- | --- |
-| Full backend suite, SQLite + PostgreSQL 17.11 | 305 passed, 3 skipped, 1 upstream Starlette/httpx warning |
-| PostgreSQL race tests | All three passed; the three skipped cases are their SQLite variants |
-| Legacy data upgrade/downgrade and schema/model check | Passed on SQLite/PostgreSQL |
-| Cross-building reads/writes, cache, aggregate, alias and private media tests | Passed on SQLite/PostgreSQL |
-| One-command clean demo seed, run twice | Passed on SQLite/PostgreSQL |
-| Ruff check / format | Passed, 149 Python files |
-| pip check | No broken requirements |
-| Frontend tests | 75 passed across 20 files |
-| Frontend lint / production build | Passed; existing lint and chunking warnings remain |
-
-The databases used for verification were disposable, isolated to this task; the temporary
-PostgreSQL servers were stopped after testing. No shared staging/production database was touched.
-The dependency install and generated frontend build are scratch artifacts; no package manager
-or model files were added to the project. Docker and browser E2E were not run on this host.
-Machine-readable summary: `docs/backend-core-phase-3-evidence-2026-10-12.json`.
-
-Upgrade/downgrade tests cover legacy users/roles, lanes, detections, parking transactions,
-audit logs, notifications and errors. Downgrade refuses new buildings or cross-building values
-that cannot fit the legacy global unique constraints, instead of deleting or merging data.
-
-No teammate approval is inferred from tests. These issues should remain **In Review** until
-peer review and the relevant integration gate pass. New teammate migration branches must be
-reviewed and merged into the single head when available; they are not blindly imported here.
-
-## Remaining M1 issues
-
-VAN-61 (building/account creation and first-login password change), VAN-62 (new RBAC matrix),
-VAN-63 (Setting schema/UI), VAN-64 (complete configuration/account/permission before-after audit)
-and VAN-66 (parking readiness and copying settings) are not implemented by this foundation.
-They reference **Tài liệu bổ sung nghiệp vụ bãi đỗ xe thông minh hỗn hợp v2.0 (08/10/2026)**,
-particularly sections 4.2 and 4.3. That document is absent from the connected Linear documents,
-project resources and repository; its link/path has been requested from the user.
+M4 registers `app.state.effective_pricing` using real building-owned pricing versions. Without
+that provider and mandatory lot configuration, production entry correctly remains blocked.
+This PR does not implement M4 tariffs/tickets/payments, M3 counters/checkout/lifecycle, or
+M2/M5 model training/fire incidents/dashboard. Shared adapters and migrations require owner review.
+New teammate migration branches must be reviewed before merging into the single current head.
