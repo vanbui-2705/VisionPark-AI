@@ -36,8 +36,7 @@ def create_lane(db: Session, lane_data: dict) -> Lane:
 def update_lane(db: Session, db_lane: Lane, update_data: dict) -> Lane:
     """Cập nhật thông tin lane."""
     for key, value in update_data.items():
-        if value is not None:
-            setattr(db_lane, key, value)
+        setattr(db_lane, key, value)
     db.commit()
     db.refresh(db_lane)
     return db_lane

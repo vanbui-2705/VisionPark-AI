@@ -29,4 +29,3 @@ def record_lifecycle_event(
     )
     session.add(event)
     return event
-

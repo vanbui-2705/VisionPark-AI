@@ -13,6 +13,8 @@ class CheckInRequest(BaseModel):
     license_plate: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
     # Backwards-compatible body name used by the first check-in prototype.
     plate_number: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
+    vehicle_type: str = "CAR"
+    ticket_code: str | None = Field(None, max_length=64)
     detection_id: UUID | None = None
     confidence: float | None = Field(None, ge=0.0, le=1.0)
     original_ai_plate: str | None = Field(None, max_length=50)
@@ -21,14 +23,33 @@ class CheckInRequest(BaseModel):
     idempotency_key: str | None = Field(None, min_length=1, max_length=255)
 
     @model_validator(mode="after")
-    def require_plate(self) -> "CheckInRequest":
-        if not (self.license_plate or self.plate_number):
-            raise ValueError("license_plate is required")
+    def validate_identification(self) -> "CheckInRequest":
+        if self.vehicle_type == "BICYCLE":
+            # BR-20: Xe đạp không bắt buộc biển số nhưng phải có ticket_code
+            if not self.ticket_code and not (self.license_plate or self.plate_number):
+                raise ValueError("ticket_code or license_plate is required for bicycles (BR-20)")
+        else:
+            if not (self.license_plate or self.plate_number):
+                raise ValueError("license_plate is required")
         return self
 
     @property
-    def requested_plate(self) -> str:
-        return self.license_plate or self.plate_number or ""
+    def requested_plate(self) -> str | None:
+        return self.license_plate or self.plate_number
+
+
+class AccessCheckRequest(BaseModel):
+    lane_id: UUID
+    vehicle_type: str = "CAR"
+    license_plate: str | None = Field(None, pattern=r"^[A-Za-z0-9\-\.\s]+$")
+    ticket_code: str | None = None
+    override_reason: str | None = None
+
+
+class AccessCheckResponse(BaseModel):
+    decision: str  # ALLOW, DENY, REVIEW
+    reason: str
+    details: dict | None = None
 
 
 class ParkingTransactionResponse(BaseModel):

@@ -32,6 +32,9 @@ class CheckInRepository(ABC):
     def get_active_by_plate(self, normalized_plate: str) -> ParkingTransaction | None:
         raise NotImplementedError
 
+    def get_active_by_ticket_code(self, ticket_code: str) -> ParkingTransaction | None:
+        return None
+
     @abstractmethod
     def save_transaction(self, values: dict) -> ParkingTransaction:
         raise NotImplementedError
@@ -103,6 +106,27 @@ class DatabaseCheckInRepository(CheckInRepository):
             .where(
                 ParkingTransaction.normalized_plate == normalized_plate,
                 ParkingTransaction.status == TransactionStatus.PARKED,
+            )
+        )
+        return self.session.scalar(stmt)
+
+    def get_active_by_ticket_code(self, ticket_code: str) -> ParkingTransaction | None:
+        stmt = (
+            select(ParkingTransaction)
+            .options(
+                joinedload(ParkingTransaction.lane),
+                joinedload(ParkingTransaction.check_in_operator),
+            )
+            .where(
+                ParkingTransaction.ticket_code == ticket_code,
+                ParkingTransaction.status.in_(
+                    [
+                        TransactionStatus.PARKED,
+                        TransactionStatus.ENTERED,
+                        TransactionStatus.PAYMENT_PENDING,
+                        TransactionStatus.PAID,
+                    ]
+                ),
             )
         )
         return self.session.scalar(stmt)

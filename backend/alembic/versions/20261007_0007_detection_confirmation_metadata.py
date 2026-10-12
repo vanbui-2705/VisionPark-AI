@@ -1,7 +1,6 @@
 """Preserve model version and confirmation time for detection history."""
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision = "20261007_0007"

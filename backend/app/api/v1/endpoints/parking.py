@@ -11,6 +11,8 @@ from app.modules.auth.dependencies import require_roles
 from app.modules.checkin.models import TransactionStatus
 from app.modules.checkin.repository import DatabaseCheckInRepository
 from app.modules.checkin.schemas import (
+    AccessCheckRequest,
+    AccessCheckResponse,
     CheckInRequest,
     CheckInResponse,
     PaginatedParkingTransactions,
@@ -41,6 +43,17 @@ def create_check_in(
         operator=current_user,
         idempotency_key=idempotency_key,
     )
+
+
+@router.post("/access-check", response_model=AccessCheckResponse)
+def check_access_endpoint(
+    request: AccessCheckRequest,
+    service: CheckInService = Depends(get_checkin_service),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN)
+    ),
+) -> AccessCheckResponse:
+    return service.check_access(request, operator=current_user)
 
 
 @router.get(

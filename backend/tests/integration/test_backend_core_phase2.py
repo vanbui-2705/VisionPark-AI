@@ -185,8 +185,18 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
                         is_active=True,
                     )
                 )
-        lane = Lane(name="LANE_IN_01", direction="IN", video_source="demo.mp4", is_active=True)
-        session.add(lane)
+        lane_id = uuid4()
+        old_lanes = Table("lanes", MetaData(), autoload_with=engine)
+        old_lanes.c.id.type = Uuid()
+        session.execute(
+            old_lanes.insert().values(
+                id=lane_id,
+                name="LANE_IN_01",
+                direction="IN",
+                video_source="demo.mp4",
+                is_active=True,
+            )
+        )
         session.flush()
         old_detections = Table("detections", MetaData(), autoload_with=engine)
         old_detections.c.id.type = Uuid()
@@ -194,7 +204,7 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
         session.execute(
             old_detections.insert().values(
                 id=detection_id,
-                lane_id=lane.id,
+                lane_id=lane_id,
                 image_key="existing-phase1.jpg",
                 requires_confirmation=False,
                 is_confirmed=False,
@@ -217,7 +227,7 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
             ),
             {
                 "id": transaction_id.hex,
-                "lane": lane.id.hex,
+                "lane": lane_id.hex,
                 "det": detection_id.hex,
                 "plate": "29A12345",
                 "norm": "29A12345",

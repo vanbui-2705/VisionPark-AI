@@ -1,7 +1,6 @@
 """Add durable workflow metadata without changing existing records."""
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision = "20261007_0009"

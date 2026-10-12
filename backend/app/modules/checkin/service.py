@@ -15,11 +15,14 @@ from app.modules.audit_logs.service import log_action
 from app.modules.lanes.models import LaneDirection
 from app.modules.users.models import User
 
+from .access_control import AccessDecision, evaluate_access_control
 from .lifecycle_models import ActorType, LifecycleEventType
 from .lifecycle_service import record_lifecycle_event
 from .models import CheckInSource, ParkingTransaction, TransactionStatus
 from .repository import CheckInRepository
 from .schemas import (
+    AccessCheckRequest,
+    AccessCheckResponse,
     CheckInRequest,
     CheckInResponse,
     PaginatedParkingTransactions,
@@ -50,13 +53,21 @@ class CheckInService:
                 message="Header and body idempotency keys must match.",
             )
 
-        normalized_plate = normalize_plate(request.requested_plate)
-        if len(normalized_plate) < 3 or len(normalized_plate) > 50:
-            raise AppError(
-                status_code=422,
-                code="INVALID_PLATE",
-                message="The normalized plate must contain 3 to 50 characters.",
-            )
+        requested_plate = request.requested_plate
+        if requested_plate:
+            normalized_plate = normalize_plate(requested_plate)
+            if len(normalized_plate) < 3 or len(normalized_plate) > 50:
+                raise AppError(
+                    status_code=422,
+                    code="INVALID_PLATE",
+                    message="The normalized plate must contain 3 to 50 characters.",
+                )
+        else:
+            normalized_plate = None
+
+        vehicle_type = getattr(request, "vehicle_type", "CAR") or "CAR"
+        ticket_code = getattr(request, "ticket_code", None)
+
         lane = self.repo.get_lane(request.lane_id)
         detection = self.repo.get_detection(request.detection_id) if request.detection_id else None
 
@@ -115,14 +126,51 @@ class CheckInService:
                 message="The detection belongs to a different lane.",
             )
 
-        duplicate = self.repo.get_active_by_plate(normalized_plate)
-        if duplicate:
+        # Access Control evaluation (P3-M3-04)
+        access_result = evaluate_access_control(
+            db=self.session,
+            lane=lane,
+            vehicle_type=vehicle_type,
+            license_plate=normalized_plate,
+            ticket_code=ticket_code,
+            operator=operator,
+            is_override=bool(request.override_reason),
+            override_reason=request.override_reason,
+        )
+        if access_result.decision == AccessDecision.DENY:
             raise AppError(
-                status_code=409,
-                code="PLATE_ALREADY_PARKED",
-                message="This plate already has an active PARKED transaction.",
-                details={"transaction_id": str(duplicate.id)},
+                status_code=403,
+                code="ACCESS_DENIED",
+                message=access_result.reason,
+                details={"decision": "DENY", **(access_result.details or {})},
             )
+        if access_result.decision == AccessDecision.REVIEW:
+            raise AppError(
+                status_code=400,
+                code="ACCESS_REVIEW_REQUIRED",
+                message=access_result.reason,
+                details={"decision": "REVIEW", **(access_result.details or {})},
+            )
+
+        if normalized_plate:
+            duplicate = self.repo.get_active_by_plate(normalized_plate)
+            if duplicate:
+                raise AppError(
+                    status_code=409,
+                    code="PLATE_ALREADY_PARKED",
+                    message="This plate already has an active PARKED transaction.",
+                    details={"transaction_id": str(duplicate.id)},
+                )
+
+        if ticket_code:
+            duplicate_ticket = self.repo.get_active_by_ticket_code(ticket_code)
+            if duplicate_ticket:
+                raise AppError(
+                    status_code=409,
+                    code="TICKET_ALREADY_ACTIVE",
+                    message="This ticket_code already has an active session (BR-20).",
+                    details={"transaction_id": str(duplicate_ticket.id)},
+                )
 
         image_url = None
         if detection and detection.image_key:
@@ -136,6 +184,9 @@ class CheckInService:
                     "license_plate": normalized_plate,
                     "normalized_plate": normalized_plate,
                     "original_ai_plate": ai_plate,
+                    "vehicle_type": vehicle_type,
+                    "ticket_code": ticket_code,
+                    "building_id": getattr(lane, "building_id", None),
                     "status": TransactionStatus.PARKED,
                     "lane_id": request.lane_id,
                     "lane_snapshot_name": lane.name,
@@ -202,6 +253,22 @@ class CheckInService:
             record_lifecycle_event(
                 session=self.session,
                 session_id=transaction.id,
+                event_type=LifecycleEventType.ACCESS_DECIDED,
+                actor_type=ActorType.OPERATOR
+                if (access_result.details and access_result.details.get("override"))
+                else ActorType.SYSTEM,
+                actor_id=operator.id if operator else None,
+                lane_id=request.lane_id,
+                details={
+                    "decision": access_result.decision,
+                    "reason": access_result.reason,
+                    "vehicle_type": vehicle_type,
+                    "ticket_code": ticket_code,
+                },
+            )
+            record_lifecycle_event(
+                session=self.session,
+                session_id=transaction.id,
                 event_type=LifecycleEventType.CHECKED_IN,
                 actor_type=ActorType.OPERATOR if operator else ActorType.SYSTEM,
                 actor_id=operator.id if operator else None,
@@ -220,14 +287,24 @@ class CheckInService:
             existing = self.repo.get_by_idempotency_key(key)
             if existing is not None:
                 return self._replay(existing, request, operator, fingerprint, normalized_plate)
-            duplicate = self.repo.get_active_by_plate(normalized_plate)
-            if duplicate:
-                raise AppError(
-                    status_code=409,
-                    code="PLATE_ALREADY_PARKED",
-                    message="This plate already has an active PARKED transaction.",
-                    details={"transaction_id": str(duplicate.id)},
-                ) from exc
+            if normalized_plate:
+                duplicate = self.repo.get_active_by_plate(normalized_plate)
+                if duplicate:
+                    raise AppError(
+                        status_code=409,
+                        code="PLATE_ALREADY_PARKED",
+                        message="This plate already has an active PARKED transaction.",
+                        details={"transaction_id": str(duplicate.id)},
+                    ) from exc
+            if ticket_code:
+                duplicate_ticket = self.repo.get_active_by_ticket_code(ticket_code)
+                if duplicate_ticket:
+                    raise AppError(
+                        status_code=409,
+                        code="TICKET_ALREADY_ACTIVE",
+                        message="This ticket_code already has an active session (BR-20).",
+                        details={"transaction_id": str(duplicate_ticket.id)},
+                    ) from exc
             # Unrelated constraint failures are handled by the shared database error handler.
             raise
         self.session.refresh(transaction)
@@ -393,4 +470,43 @@ class CheckInService:
             is_manual_override=bool(_val("is_manual_override", False)),
             notes=_val("notes"),
             created_at=transaction.created_at,
+        )
+
+    def check_access(
+        self,
+        request: AccessCheckRequest,
+        *,
+        operator: User | None = None,
+    ) -> AccessCheckResponse:
+        lane = self.repo.get_lane(request.lane_id)
+        if lane is None:
+            raise AppError(
+                status_code=404, code="LANE_NOT_FOUND", message="The selected lane does not exist."
+            )
+        if not lane.is_active:
+            raise AppError(
+                status_code=400, code="LANE_INACTIVE", message="The selected lane is inactive."
+            )
+        if lane.direction != LaneDirection.IN:
+            raise AppError(
+                status_code=400,
+                code="INVALID_LANE_TYPE",
+                message="Access check is only allowed on an IN lane.",
+            )
+
+        norm_plate = normalize_plate(request.license_plate) if request.license_plate else None
+        res = evaluate_access_control(
+            db=self.session,
+            lane=lane,
+            vehicle_type=request.vehicle_type,
+            license_plate=norm_plate,
+            ticket_code=request.ticket_code,
+            operator=operator,
+            is_override=bool(request.override_reason),
+            override_reason=request.override_reason,
+        )
+        return AccessCheckResponse(
+            decision=res.decision,
+            reason=res.reason,
+            details=res.details,
         )

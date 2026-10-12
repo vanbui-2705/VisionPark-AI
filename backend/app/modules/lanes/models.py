@@ -36,6 +36,4 @@ class Lane(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     barrier_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # TODO: Chờ module M1 tạo bảng buildings để bổ sung ForeignKey("buildings.id")
-    building_id: Mapped[UUID | None] = mapped_column(
-        Uuid(as_uuid=True), nullable=True, index=True
-    )
+    building_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)

@@ -47,7 +47,32 @@ class TestCreateLane:
         assert data["name"] == "LANE_TEST_01"
         assert data["direction"] == "IN"
         assert data["is_active"] is True
+        assert data["allowed_vehicle_type"] == "ALL"
+        assert data["camera_id"] is None
+        assert data["barrier_id"] is None
+        assert data["building_id"] is None
         assert isinstance(UUID(data["id"]), UUID)  # id là UUID
+
+    def test_create_lane_with_extended_fields(self, client: TestClient, admin_token: str):
+        """Admin can create a lane with allowed_vehicle_type, camera_id, barrier_id, building_id."""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        payload = {
+            "name": "LANE_CAR_ONLY",
+            "direction": "IN",
+            "video_source": "rtsp://test/cam_car",
+            "allowed_vehicle_type": "CAR",
+            "camera_id": "CAM_IN_01",
+            "barrier_id": "BARRIER_IN_01",
+            "building_id": "11111111-1111-1111-1111-111111111111",
+        }
+        response = client.post("/api/v1/lanes/", json=payload, headers=headers)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["name"] == "LANE_CAR_ONLY"
+        assert data["allowed_vehicle_type"] == "CAR"
+        assert data["camera_id"] == "CAM_IN_01"
+        assert data["barrier_id"] == "BARRIER_IN_01"
+        assert data["building_id"] == "11111111-1111-1111-1111-111111111111"
 
     def test_create_lane_unauthenticated(self, client: TestClient):
         """Non-authenticated user cannot create lane."""
@@ -188,6 +213,28 @@ class TestUpdateLane:
         payload = {"name": "LANE_IN_01"}
         response = client.patch(f"/api/v1/lanes/{lane2.id}", json=payload, headers=headers)
         assert response.status_code == 409
+
+    def test_update_lane_extended_fields(
+        self, client: TestClient, admin_token: str, db_session: Session
+    ):
+        """Admin can update lane allowed_vehicle_type, camera_id, barrier_id, building_id."""
+        lane = db_session.query(Lane).filter_by(name="LANE_IN_01").first()
+        assert lane is not None
+
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        payload = {
+            "allowed_vehicle_type": "MOTORBIKE",
+            "camera_id": "CAM_UPDATED",
+            "barrier_id": "BARRIER_UPDATED",
+            "building_id": "22222222-2222-2222-2222-222222222222",
+        }
+        response = client.patch(f"/api/v1/lanes/{lane.id}", json=payload, headers=headers)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["allowed_vehicle_type"] == "MOTORBIKE"
+        assert data["camera_id"] == "CAM_UPDATED"
+        assert data["barrier_id"] == "BARRIER_UPDATED"
+        assert data["building_id"] == "22222222-2222-2222-2222-222222222222"
 
 
 class TestDeactivateLane:
