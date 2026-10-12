@@ -38,7 +38,7 @@ def test_admin_user_management_and_operator_rbac(client, db_session, admin_token
     assert client.get("/api/v1/users", headers=operator_headers).status_code == 403
     assert (
         client.patch(
-            f"/api/v1/users/{user['id']}", json={"role": "ADMIN"}, headers=operator_headers
+            f"/api/v1/users/{user['id']}", json={"role": "SYSTEM_ADMIN"}, headers=operator_headers
         ).status_code
         == 403
     )
@@ -67,8 +67,9 @@ def test_public_registration_is_disabled_and_cannot_assign_admin(client):
     assert client.post("/api/v1/auth/register", json=payload).status_code == 403
     client.app.state.settings.public_registration_enabled = True
     assert (
-        client.post("/api/v1/auth/register", json={**payload, "role": "ADMIN"}).status_code == 422
+        client.post("/api/v1/auth/register", json={**payload, "role": "SYSTEM_ADMIN"}).status_code
+        == 422
     )
     registered = client.post("/api/v1/auth/register", json=payload)
-    assert registered.status_code == 201
-    assert registered.json()["role"] == "OPERATOR"
+    assert registered.status_code == 403
+    assert registered.json()["code"] == "REGISTRATION_DISABLED"

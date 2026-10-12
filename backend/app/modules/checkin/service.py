@@ -56,6 +56,18 @@ class CheckInService:
                 message="The normalized plate must contain 3 to 50 characters.",
             )
         lane = self.repo.get_lane(request.lane_id)
+        if lane is None:
+            raise AppError(
+                status_code=404, code="LANE_NOT_FOUND", message="The selected lane does not exist."
+            )
+        # System administrators can read all buildings, but writes/retries are bound
+        # to the selected lane's server-resolved building just like operator writes.
+        if (
+            self.session is not None
+            and isinstance(lane.building_id, UUID)
+            and self.session.info.get("building_id") is None
+        ):
+            self.session.info["building_id"] = lane.building_id
         detection = self.repo.get_detection(request.detection_id) if request.detection_id else None
 
         # Compute provenance for fingerprint
@@ -120,6 +132,16 @@ class CheckInService:
                 code="PLATE_ALREADY_PARKED",
                 message="This plate already has an active PARKED transaction.",
                 details={"transaction_id": str(duplicate.id)},
+            )
+
+        if isinstance(self.session, Session):
+            from app.modules.lot_settings.contracts import no_pricing_provider
+            from app.modules.lot_settings.service import require_ready_for_entry
+
+            require_ready_for_entry(
+                self.session,
+                lane.building_id,
+                self.session.info.get("effective_pricing", no_pricing_provider),
             )
 
         image_url = None

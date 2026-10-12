@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     func,
     text,
@@ -18,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class TransactionStatus(StrEnum):
@@ -34,7 +36,7 @@ class CheckInSource(StrEnum):
     OPERATOR_MANUAL = "OPERATOR_MANUAL"
 
 
-class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class ParkingTransaction(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "parking_transactions"
     __table_args__ = (
         CheckConstraint(
@@ -53,11 +55,13 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ),
         Index(
             "uq_parking_transactions_active_plate",
+            "building_id",
             "normalized_plate",
             unique=True,
             sqlite_where=text("status = 'PARKED'"),
             postgresql_where=text("status = 'PARKED'"),
         ),
+        UniqueConstraint("building_id", "idempotency_key", name="uq_parking_building_key"),
     )
 
     license_plate: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -91,7 +95,7 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     operator_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_manual_override: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
 
     lane = relationship("Lane")

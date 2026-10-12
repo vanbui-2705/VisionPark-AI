@@ -25,3 +25,4 @@ def log_action(
         new_value=new_value,
     )
     db.add(audit_entry)
+    return audit_entry

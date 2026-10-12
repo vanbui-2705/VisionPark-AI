@@ -26,14 +26,40 @@ class OperationsService:
             raise AppError(
                 status_code=422, code="INVALID_PASSWORD", message="Current password is incorrect."
             )
+        if verify_password(new_password, user.password_hash):
+            raise AppError(
+                status_code=422, code="PASSWORD_UNCHANGED", message="Choose a new password."
+            )
+        before = {
+            "must_change_password": user.must_change_password,
+            "token_version": user.token_version,
+        }
+        user.must_change_password = False
         user.password_hash = hash_password(new_password)
-        self.revoke(user, user, "CHANGE_PASSWORD")
+        self.revoke(user, user, "CHANGE_PASSWORD", before)
 
-    def revoke(self, user, actor, action="REVOKE_SESSIONS"):
+    def revoke(self, user, actor, action="REVOKE_SESSIONS", before=None):
+        before = before or {"token_version": user.token_version}
         self.db.execute(
             update(User).where(User.id == user.id).values(token_version=User.token_version + 1)
         )
-        log_action(self.db, actor.id, action, "User", str(user.id))
+        entry = log_action(
+            self.db,
+            actor.id,
+            action,
+            "User",
+            str(user.id),
+            before,
+            {
+                "token_version": user.token_version,
+                "must_change_password": user.must_change_password,
+            },
+        )
+        from app.modules.buildings.models import UserBuilding
+
+        membership = self.db.scalar(select(UserBuilding).where(UserBuilding.user_id == user.id))
+        if membership is not None:
+            entry.building_id = membership.building_id
         self.db.add(
             Notification(
                 user_id=user.id,

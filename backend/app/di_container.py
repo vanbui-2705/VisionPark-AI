@@ -9,6 +9,7 @@ from app.database.session import get_db
 from app.integrations.persistence.detection_recorder_impl import DatabaseDetectionRecorder
 from app.integrations.persistence.lane_checker_impl import DatabaseLaneChecker
 from app.integrations.storage.local_storage import LocalStorageAdapter
+from app.modules.lot_settings.review_policy import apply_plate_review_policy
 
 
 def get_alpr_service(
@@ -21,4 +22,5 @@ def get_alpr_service(
         lane_checker=DatabaseLaneChecker(session),
         image_storage=LocalStorageAdapter(settings),
         detection_recorder=DatabaseDetectionRecorder(session),
+        review_policy=lambda lane_id, result: apply_plate_review_policy(session, lane_id, result),
     )

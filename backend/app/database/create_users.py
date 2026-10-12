@@ -149,7 +149,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--role",
         type=_parse_role,
-        help="ADMIN, OPERATOR, ACCOUNTANT, or TECHNICIAN.",
+        help="SYSTEM_ADMIN, OPERATOR, ACCOUNTANT, or BUILDING_ADMIN.",
     )
     parser.add_argument(
         "--password-env",

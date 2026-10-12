@@ -4,9 +4,10 @@ from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integ
 from sqlalchemy.orm import relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
-class Detection(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class Detection(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Bảng lưu lịch sử nhận diện biển số xe."""
 
     __tablename__ = "detections"

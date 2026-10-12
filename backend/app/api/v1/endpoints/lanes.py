@@ -17,7 +17,7 @@ router = APIRouter(prefix="/lanes", tags=["lanes"])
 def create_lane(
     lane: schemas.LaneCreate,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
+    current_user: Annotated[User, Depends(require_roles(RoleName.BUILDING_ADMIN))],
 ):
     """Tạo mới lane (chỉ Admin)."""
     return service.create_lane(db, lane, admin_id=current_user.id)
@@ -56,7 +56,7 @@ def update_lane(
     lane_id: UUID,
     lane_update: schemas.LaneUpdate,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
+    current_user: Annotated[User, Depends(require_roles(RoleName.BUILDING_ADMIN))],
 ):
     """Cập nhật lane (chỉ Admin)."""
     return service.update_lane(db, lane_id, admin_id=current_user.id, update_data=lane_update)
@@ -66,7 +66,7 @@ def update_lane(
 def deactivate_lane(
     lane_id: UUID,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(RoleName.ADMIN))],
+    current_user: Annotated[User, Depends(require_roles(RoleName.BUILDING_ADMIN))],
 ):
     """Inactive lane (chỉ Admin)."""
     return service.deactivate_lane(db, lane_id, admin_id=current_user.id)
