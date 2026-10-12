@@ -8,7 +8,6 @@ Create Date: 2026-09-18
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision: str = "20260918_0002_create_lane_tables"

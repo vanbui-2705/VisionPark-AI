@@ -6,7 +6,6 @@ at aa276e942822 are upgraded in place; no migration stamp or data reset is neede
 """
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision = "20260921_0003"
