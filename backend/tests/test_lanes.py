@@ -2,14 +2,22 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.lanes.models import Lane
 
 
 @pytest.fixture
-def admin_token(client: TestClient) -> str:
-    """Login as admin and return token."""
+def admin_token(client: TestClient, db_session: Session) -> str:
+    """Lane administration belongs to BUILDING_ADMIN in Phase 3."""
+    from app.modules.buildings.models import DEFAULT_BUILDING_ID, UserBuilding
+    from app.modules.users.models import Role, User
+
+    admin = db_session.scalar(select(User).where(User.username == "admin"))
+    admin.role = db_session.scalar(select(Role).where(Role.name == "BUILDING_ADMIN"))
+    db_session.add(UserBuilding(user_id=admin.id, building_id=DEFAULT_BUILDING_ID))
+    db_session.commit()
     response = client.post(
         "/api/v1/auth/login",
         json={"username": "admin", "password": "admin-test-password"},

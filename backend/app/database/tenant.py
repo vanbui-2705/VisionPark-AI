@@ -20,8 +20,7 @@ def forbidden_scope():
 
 
 def resolve_building(session: Session, user: User, claim: str | None = None) -> UUID | None:
-    # ADMIN is the existing system administrator role until VAN-62 renames roles.
-    if user.role.name in {"ADMIN", "SYSTEM_ADMIN"}:
+    if user.role.name == "SYSTEM_ADMIN":
         return None
     statement = (
         select(UserBuilding.building_id)

@@ -170,11 +170,11 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
         old_users = Table("users", MetaData(), autoload_with=engine)
         old_users.c.id.type = Uuid()
         old_users.c.role_id.type = Uuid()
-        for role_name in ("ADMIN", "OPERATOR", "ACCOUNTANT", "TECHNICIAN"):
+        for role_name in ("SYSTEM_ADMIN", "OPERATOR", "ACCOUNTANT", "BUILDING_ADMIN"):
             role = Role(name=role_name)
             session.add(role)
             session.flush()
-            if role_name in ("ADMIN", "OPERATOR"):
+            if role_name in ("SYSTEM_ADMIN", "OPERATOR"):
                 session.execute(
                     old_users.insert().values(
                         id=uuid4(),

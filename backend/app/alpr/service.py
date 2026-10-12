@@ -1,4 +1,5 @@
 import hashlib
+from collections.abc import Callable
 
 from .interface import ALPRRuntime
 from .ports.detection_recorder import DetectionRecorder
@@ -22,11 +23,13 @@ class ALPRApplicationService:
         lane_checker: ActiveLaneChecker,
         image_storage: ImageStorage,
         detection_recorder: DetectionRecorder,
+        review_policy: Callable[[str, ALPRResult], ALPRResult] | None = None,
     ):
         self.runtime = runtime
         self.lane_checker = lane_checker
         self.image_storage = image_storage
         self.detection_recorder = detection_recorder
+        self.review_policy = review_policy
 
     def process_detection(
         self,
@@ -67,6 +70,9 @@ class ALPRApplicationService:
                 "image_size_bytes": len(image_bytes),
             }
         )
+
+        if self.review_policy is not None:
+            result = self.review_policy(lane_id, result)
 
         if not persist:
             return result.model_copy(update={"detection_id": None})

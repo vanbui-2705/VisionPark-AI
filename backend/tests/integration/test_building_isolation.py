@@ -21,7 +21,15 @@ def second_building(client, db_session):
     building = Building(code="SECOND", name="Second building")
     db_session.add(building)
     db_session.flush()
-    db_session.add(ParkingLot(building_id=building.id))
+    from app.modules.lot_settings.schemas import default_settings
+
+    config = default_settings(building)
+    config.capacities["CAR"].physical_capacity = 100
+    config.capacities["CAR"].safe_capacity = 100
+    db_session.add(ParkingLot(building_id=building.id, settings=config.model_dump(mode="json")))
+    db_session.add(
+        Lane(name="B-OUT", direction="OUT", video_source="test", building_id=building.id)
+    )
     role = db_session.scalar(select(Role).where(Role.name == "OPERATOR"))
     user = User(
         username="operator-b",
@@ -81,7 +89,8 @@ def test_token_and_lane_queries_are_bound_to_server_membership(
         b = client.get(endpoint, headers={"Authorization": f"Bearer {token}"})
         assert a.status_code == b.status_code == 200
         assert str(lane.id) not in {row["id"] for row in a.json()}
-        assert {row["id"] for row in b.json()} == {str(lane.id)}
+        assert {row["name"] for row in b.json()} == {"B-IN", "B-OUT"}
+        assert str(lane.id) in {row["id"] for row in b.json()}
     assert client.get(f"/api/v1/lanes/{lane.id}", headers=operator_headers).status_code == 404
 
 
@@ -186,7 +195,7 @@ def test_shared_session_covers_counts_aliases_identity_cache_and_write_guards(se
         assert session.get(Lane, other.id) is None
         assert session.get(Lane, cached.id) is cached
         lane_alias = aliased(Lane)
-        assert session.scalar(select(func.count()).select_from(lane_alias)) == 1
+        assert session.scalar(select(func.count()).select_from(lane_alias)) == 2
         with pytest.raises(AppError, match="shared ORM"):
             session.execute(text("SELECT * FROM lanes"))
         session.add(

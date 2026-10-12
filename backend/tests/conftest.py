@@ -21,7 +21,7 @@ from app.modules.users.schemas import RoleName
 
 TEST_JWT_SECRET = "test-secret-key-with-at-least-thirty-two-characters"
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-AdminUser = Annotated[User, Depends(require_roles(RoleName.ADMIN))]
+AdminUser = Annotated[User, Depends(require_roles(RoleName.SYSTEM_ADMIN))]
 
 
 @pytest.fixture(autouse=True)
@@ -102,6 +102,8 @@ def app(settings: Settings) -> FastAPI:
     from tests.alpr_double import FakeALPRRuntime
 
     test_app = create_app(settings)
+    # Explicit M4 test double. Production without a pricing provider remains blocked.
+    test_app.state.effective_pricing = lambda db, building_id, at: True
     test_app.state.alpr_runtime = FakeALPRRuntime()
     test_app.state.alpr_readiness_probe = RuntimeALPRProbe(
         test_app.state.alpr_runtime, provider="test", version="test"
@@ -124,6 +126,18 @@ def app(settings: Settings) -> FastAPI:
                 session.add(operator)
                 session.flush()
                 session.add(UserBuilding(user_id=operator.id, building_id=DEFAULT_BUILDING_ID))
+                from app.modules.buildings.models import Building, ParkingLot
+                from app.modules.lot_settings.schemas import default_settings
+
+                lot = session.scalar(
+                    select(ParkingLot).where(ParkingLot.building_id == DEFAULT_BUILDING_ID)
+                )
+                config = default_settings(session.get(Building, DEFAULT_BUILDING_ID))
+                config.ai.plate_confidence = 0.85
+                for capacity in config.capacities.values():
+                    capacity.physical_capacity = 100
+                    capacity.safe_capacity = 100
+                lot.settings = config.model_dump(mode="json")
                 session.add_all(
                     [
                         Lane(

@@ -63,9 +63,9 @@ def test_accountant_can_read_parking_and_audit_but_cannot_operate(
     assert client.get("/api/v1/parking/summary").status_code == 401
 
 
-def test_technician_can_use_station_but_cannot_read_parking_or_audit(client, db_session):
+def test_building_admin_can_operate_and_read_building_reports(client, db_session):
     lane = db_session.scalar(select(Lane).where(Lane.direction == LaneDirection.IN))
-    headers = role_headers(client, db_session, RoleName.TECHNICIAN)
+    headers = role_headers(client, db_session, RoleName.BUILDING_ADMIN)
 
     assert client.get("/api/v1/lanes/active", headers=headers).status_code == 200
     assert client.get("/api/v1/alpr/detections?paginated=true", headers=headers).status_code == 200
@@ -95,6 +95,5 @@ def test_technician_can_use_station_but_cannot_read_parking_or_audit(client, db_
     assert checkin.status_code == 201, checkin.text
     for path in ("/api/v1/parking/transactions", "/api/v1/parking/summary", "/api/v1/audit-logs/"):
         response = client.get(path, headers=headers)
-        assert response.status_code == 403, path
-        assert response.json()["code"] == "FORBIDDEN"
-    assert client.get("/api/v1/users", headers=headers).status_code == 403
+        assert response.status_code == 200, path
+    assert client.get("/api/v1/users", headers=headers).status_code == 200

@@ -81,7 +81,7 @@ def test_one_command_bootstraps_two_buildings_from_empty_database(database_url):
     engine = create_engine(database_url)
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(Building)) == 3
-        assert session.scalar(select(func.count()).select_from(User)) == 4
+        assert session.scalar(select(func.count()).select_from(User)) == 6
         assert session.scalar(select(func.count()).select_from(Lane)) == 4
-        assert session.scalar(select(func.count()).select_from(UserBuilding)) == 4
+        assert session.scalar(select(func.count()).select_from(UserBuilding)) == 6
     engine.dispose()

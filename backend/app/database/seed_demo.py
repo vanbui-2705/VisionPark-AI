@@ -41,7 +41,7 @@ def seed_demo(session: Session, password: str) -> None:
                 )
             elif lane.building_id != building_id:
                 raise ValueError(f"Existing lane {name} belongs to another building")
-        for role_name in (RoleName.OPERATOR, RoleName.ACCOUNTANT):
+        for role_name in (RoleName.BUILDING_ADMIN, RoleName.OPERATOR, RoleName.ACCOUNTANT):
             username = f"{code.lower()}_{role_name.value.lower()}"
             role = session.scalar(select(Role).where(Role.name == role_name.value))
             if role is None:
@@ -56,6 +56,7 @@ def seed_demo(session: Session, password: str) -> None:
                     password_hash=hash_password(password),
                     role=role,
                     is_active=True,
+                    must_change_password=role_name == RoleName.BUILDING_ADMIN,
                 )
                 session.add(user)
                 session.flush()

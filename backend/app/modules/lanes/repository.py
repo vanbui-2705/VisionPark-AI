@@ -28,18 +28,16 @@ def create_lane(db: Session, lane_data: dict) -> Lane:
     """Tạo lane mới từ dictionary dữ liệu."""
     db_lane = Lane(**lane_data)
     db.add(db_lane)
-    db.commit()
-    db.refresh(db_lane)
+    db.flush()
     return db_lane
 
 
 def update_lane(db: Session, db_lane: Lane, update_data: dict) -> Lane:
     """Cập nhật thông tin lane."""
     for key, value in update_data.items():
-        if value is not None:
+        if value is not None or key in {"camera", "barrier"}:
             setattr(db_lane, key, value)
-    db.commit()
-    db.refresh(db_lane)
+    db.flush()
     return db_lane
 
 

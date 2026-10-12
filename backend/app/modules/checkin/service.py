@@ -134,6 +134,16 @@ class CheckInService:
                 details={"transaction_id": str(duplicate.id)},
             )
 
+        if isinstance(self.session, Session):
+            from app.modules.lot_settings.contracts import no_pricing_provider
+            from app.modules.lot_settings.service import require_ready_for_entry
+
+            require_ready_for_entry(
+                self.session,
+                lane.building_id,
+                self.session.info.get("effective_pricing", no_pricing_provider),
+            )
+
         image_url = None
         if detection and detection.image_key:
             image_url = f"/api/v1/alpr/media/{detection.image_key}"

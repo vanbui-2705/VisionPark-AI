@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Enum, Index, String
+from sqlalchemy import JSON, Enum, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -20,3 +20,11 @@ class Lane(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     direction: Mapped[LaneDirection] = mapped_column(Enum(LaneDirection), nullable=False)
     video_source: Mapped[str] = mapped_column(String(512), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)
+    allowed_vehicle_types: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=lambda: ["CAR", "MOTORBIKE", "BICYCLE"],
+        server_default='["CAR", "MOTORBIKE", "BICYCLE"]',
+        nullable=False,
+    )
+    camera: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    barrier: Mapped[str | None] = mapped_column(String(255), nullable=True)

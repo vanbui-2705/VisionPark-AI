@@ -48,6 +48,8 @@ class ParkingLot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         unique=True,
     )
     settings: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
+    settings_revision: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
+    __mapper_args__ = {"version_id_col": settings_revision, "version_id_generator": False}
 
 
 class UserBuilding(UUIDPrimaryKeyMixin, TimestampMixin, Base):

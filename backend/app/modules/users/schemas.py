@@ -6,10 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RoleName(StrEnum):
-    ADMIN = "ADMIN"
+    SYSTEM_ADMIN = "SYSTEM_ADMIN"
     OPERATOR = "OPERATOR"
     ACCOUNTANT = "ACCOUNTANT"
-    TECHNICIAN = "TECHNICIAN"
+    BUILDING_ADMIN = "BUILDING_ADMIN"
 
 
 class UserPublic(BaseModel):
@@ -18,6 +18,7 @@ class UserPublic(BaseModel):
     display_name: str
     role: RoleName
     is_active: bool
+    must_change_password: bool = False
     email: str | None = None
     last_login_at: datetime | None
 
@@ -70,6 +71,7 @@ class UserCreate(UserFields):
     email: str | None = Field(None, max_length=254)
     role: RoleName = RoleName.OPERATOR
     active: bool = True
+    building_id: UUID | None = None
 
 
 class UserUpdate(UserFields):

@@ -63,7 +63,8 @@ async def create_detection(
     video_time_ms: int | None = Form(None, ge=0),
     alpr_service: ALPRApplicationService = Depends(resolve_alpr_service),
     current_user: Annotated[
-        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
     ] = None,
 ):
     # 1. Check định dạng
@@ -293,7 +294,8 @@ def get_detection_history(
     db: Session = Depends(get_db),
     # Yêu cầu phải đăng nhập mới xem được lịch sử
     current_user: Annotated[
-        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
     ] = None,
 ):
     """API lấy danh sách lịch sử nhận diện (có phân trang và lọc theo làn)."""
@@ -384,7 +386,8 @@ def get_detection(
     detection_id: UUID,
     db: Session = Depends(get_db),
     current_user: Annotated[
-        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
     ] = None,
 ):
     detection = db.get(Detection, detection_id)
@@ -403,7 +406,8 @@ def confirm_detection(
     db: Session = Depends(get_db),
     # Station operators and technicians may confirm detections.
     current_user: Annotated[
-        User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN))
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
     ] = None,
 ):
     """Confirm or correct a detected plate for an authorized Station user."""

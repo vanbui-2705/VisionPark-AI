@@ -33,7 +33,7 @@ def create_check_in(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN)
+        require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
     ),
 ) -> CheckInResponse:
     return service.process_check_in(
@@ -61,7 +61,9 @@ def list_parking_transactions(
     paginated: bool = False,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+        require_roles(
+            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+        )
     ),
 ):
     del current_user
@@ -105,7 +107,9 @@ def list_parking_transactions(
 def get_parking_summary(
     db: Annotated[Session, Depends(get_db)],
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+        require_roles(
+            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+        )
     ),
 ) -> dict[str, int]:
     del current_user
@@ -117,7 +121,9 @@ def get_parking_transaction(
     transaction_id: UUID,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+        require_roles(
+            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+        )
     ),
 ) -> ParkingTransactionResponse:
     del current_user

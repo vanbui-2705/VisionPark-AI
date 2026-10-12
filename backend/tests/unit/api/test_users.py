@@ -51,7 +51,7 @@ def test_create_user_conflict(client: TestClient, admin_token: str):
         "username": "admin",
         "display_name": "Admin Clone",
         "password": "somepassword123",
-        "role": "ADMIN",
+        "role": "SYSTEM_ADMIN",
     }
     res = client.post("/api/v1/users", json=payload, headers=headers)
     assert res.status_code == 409
@@ -62,7 +62,7 @@ def test_list_roles(client: TestClient, operator_headers: dict[str, str]):
     assert res.status_code == 200
     roles = res.json()
     names = [r["name"] for r in roles]
-    assert "ADMIN" in names
+    assert "SYSTEM_ADMIN" in names
     assert "OPERATOR" in names
     assert "ACCOUNTANT" in names
-    assert "TECHNICIAN" in names
+    assert "BUILDING_ADMIN" in names

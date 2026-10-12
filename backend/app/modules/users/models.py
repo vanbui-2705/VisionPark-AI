@@ -25,6 +25,10 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    must_change_password: Mapped[bool] = mapped_column(
+        default=False, server_default="false", nullable=False
+    )
+
     token_version: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
