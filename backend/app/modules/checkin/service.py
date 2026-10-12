@@ -15,6 +15,8 @@ from app.modules.audit_logs.service import log_action
 from app.modules.lanes.models import LaneDirection
 from app.modules.users.models import User
 
+from .lifecycle_models import ActorType, LifecycleEventType
+from .lifecycle_service import record_lifecycle_event
 from .models import CheckInSource, ParkingTransaction, TransactionStatus
 from .repository import CheckInRepository
 from .schemas import (
@@ -182,6 +184,35 @@ class CheckInService:
                     "actor_id": str(operator.id),
                     "detection_id": str(request.detection_id) if request.detection_id else None,
                 },
+            )
+            if source == CheckInSource.OPERATOR_CORRECTED:
+                record_lifecycle_event(
+                    session=self.session,
+                    session_id=transaction.id,
+                    event_type=LifecycleEventType.OPERATOR_CORRECTED,
+                    actor_type=ActorType.OPERATOR,
+                    actor_id=operator.id,
+                    lane_id=request.lane_id,
+                    details={
+                        "ai_plate": ai_plate,
+                        "corrected_plate": normalized_plate,
+                        "reason": request.override_reason,
+                    },
+                )
+            record_lifecycle_event(
+                session=self.session,
+                session_id=transaction.id,
+                event_type=LifecycleEventType.CHECKED_IN,
+                actor_type=ActorType.OPERATOR if operator else ActorType.SYSTEM,
+                actor_id=operator.id if operator else None,
+                lane_id=request.lane_id,
+                details={
+                    "plate": normalized_plate,
+                    "source": source,
+                    "status": transaction.status,
+                    "vehicle_type": getattr(transaction, "vehicle_type", "CAR"),
+                },
+                image_ref=image_url,
             )
             self.session.commit()
         except IntegrityError as exc:
