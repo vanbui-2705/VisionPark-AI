@@ -96,6 +96,7 @@ def app(settings: Settings) -> FastAPI:
     from app.core.security import hash_password
     from app.database.seed import seed_database
     from app.main import create_app
+    from app.modules.buildings.models import DEFAULT_BUILDING_ID, UserBuilding
     from app.modules.lanes.models import Lane
     from app.modules.users.models import Role
     from tests.alpr_double import FakeALPRRuntime
@@ -113,15 +114,16 @@ def app(settings: Settings) -> FastAPI:
             with database.create_session() as session:
                 seed_database(session, settings)
                 role = session.scalar(select(Role).where(Role.name == "OPERATOR"))
-                session.add(
-                    User(
-                        username="operator",
-                        display_name="Test operator",
-                        password_hash=hash_password("operator-test-password"),
-                        role=role,
-                        is_active=True,
-                    )
+                operator = User(
+                    username="operator",
+                    display_name="Test operator",
+                    password_hash=hash_password("operator-test-password"),
+                    role=role,
+                    is_active=True,
                 )
+                session.add(operator)
+                session.flush()
+                session.add(UserBuilding(user_id=operator.id, building_id=DEFAULT_BUILDING_ID))
                 session.add_all(
                     [
                         Lane(

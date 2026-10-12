@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     func,
     text,
@@ -54,11 +55,13 @@ class ParkingTransaction(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, Timestam
         ),
         Index(
             "uq_parking_transactions_active_plate",
+            "building_id",
             "normalized_plate",
             unique=True,
             sqlite_where=text("status = 'PARKED'"),
             postgresql_where=text("status = 'PARKED'"),
         ),
+        UniqueConstraint("building_id", "idempotency_key", name="uq_parking_building_key"),
     )
 
     license_plate: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -92,7 +95,7 @@ class ParkingTransaction(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, Timestam
     operator_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_manual_override: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
 
     lane = relationship("Lane")

@@ -14,6 +14,7 @@ function getTimeoutMs(): number {
 }
 
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
+  responseType?: 'json' | 'blob'
   timeoutMs?: number
   body?: unknown
   params?: Record<string, string | number | boolean | undefined | null>
@@ -52,7 +53,7 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code: s
 }
 
 async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
-  const { params, body, headers: extraHeaders, signal: externalSignal, timeoutMs: requestTimeoutMs, ...rest } = opts
+  const { params, body, responseType, headers: extraHeaders, signal: externalSignal, timeoutMs: requestTimeoutMs, ...rest } = opts
 
   const url = buildUrl(path, params)
   const token = getToken()
@@ -136,6 +137,7 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
   }
 
   if (res.status === 204) return undefined as T
+  if (responseType === 'blob') return await res.blob() as T
   const text = await res.text()
   if (!text) return undefined as T
   try {
@@ -146,6 +148,9 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
 }
 
 export const apiClient = {
+  getBlob(path: string, opts?: RequestOptions): Promise<Blob> {
+    return request<Blob>('GET', path, { ...opts, responseType: 'blob' })
+  },
   get<T>(path: string, opts?: RequestOptions): Promise<T> {
     return request<T>('GET', path, opts)
   },

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError
 from app.core.security import hash_password
 from app.modules.audit_logs.service import log_action
+from app.modules.buildings.models import DEFAULT_BUILDING_ID, UserBuilding
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
@@ -63,6 +64,13 @@ class UserManagementService:
             is_active=payload.active,
         )
         self.session.add(user)
+        self.session.flush()
+        self.session.add(
+            UserBuilding(
+                user_id=user.id,
+                building_id=self.session.info.get("building_id") or DEFAULT_BUILDING_ID,
+            )
+        )
         self._save(user, actor, "CREATE_USER", None)
         return to_managed_user(user)
 

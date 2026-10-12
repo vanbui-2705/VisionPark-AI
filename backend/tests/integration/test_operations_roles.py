@@ -3,6 +3,7 @@ from uuid import uuid4
 from sqlalchemy import select
 
 from app.core.security import hash_password
+from app.modules.buildings.models import DEFAULT_BUILDING_ID, UserBuilding
 from app.modules.lanes.models import Lane, LaneDirection
 from app.modules.users.models import Role, User
 from app.modules.users.schemas import RoleName
@@ -12,15 +13,16 @@ from tests.conftest import login
 def role_headers(client, db_session, role_name: RoleName) -> dict[str, str]:
     role = db_session.scalar(select(Role).where(Role.name == role_name.value))
     username = role_name.value.lower()
-    db_session.add(
-        User(
-            username=username,
-            display_name=username,
-            password_hash=hash_password("role-test-password"),
-            role=role,
-            is_active=True,
-        )
+    user = User(
+        username=username,
+        display_name=username,
+        password_hash=hash_password("role-test-password"),
+        role=role,
+        is_active=True,
     )
+    db_session.add(user)
+    db_session.flush()
+    db_session.add(UserBuilding(user_id=user.id, building_id=DEFAULT_BUILDING_ID))
     db_session.commit()
     token = login(client, username, "role-test-password")["access_token"]
     return {"Authorization": f"Bearer {token}"}

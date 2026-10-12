@@ -23,3 +23,10 @@ ACCOUNTANT/TECHNICIAN không được suy ra thành OPERATOR.
 Errors: `{code,message,details,correlation_id}`; 401 xóa token, 403 giữ phiên,
 503 cho phép retry/manual. FormData không tự đặt Content-Type. Tất cả Station
 requests dùng client và token `visionpark.access_token` chung.
+
+# Phase 3 building isolation (VAN-60)
+
+Authenticated requests resolve the building from the signed token and current server membership.
+Client-supplied building IDs cannot widen access. Detection images under `/api/v1/alpr/media/`
+now require Bearer authentication; `DetectionImage` loads them with `apiClient.getBlob`, displays
+a temporary object URL, and revokes it on cleanup. Local Station previews remain local blob URLs.

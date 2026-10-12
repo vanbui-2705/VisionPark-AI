@@ -9,6 +9,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.security import decode_access_claims
 from app.database.session import get_db
+from app.database.tenant import resolve_building
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import RoleName
@@ -42,6 +43,9 @@ def get_current_user(
             message="The access token is no longer valid.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    building_id = resolve_building(session, user, claims.get("building_id"))
+    session.info["building_id"] = building_id
+    request.state.building_id = building_id
     request.state.actor_id = user.id
     return user
 

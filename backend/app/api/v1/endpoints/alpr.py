@@ -1,5 +1,6 @@
-import os
+import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -23,12 +24,13 @@ from app.core.errors import AppError
 from app.database.session import get_db
 from app.di_container import get_alpr_service
 from app.integrations.persistence.database_health import get_database_readiness
+from app.integrations.storage.paths import media_root
 from app.modules.alpr.confirmation import confirm_detection as confirm_detection_service
 from app.modules.alpr.models import Detection
 from app.modules.alpr.schemas import DetectionConfirmRequest, DetectionResponse
 
 #
-from app.modules.auth.dependencies import require_roles
+from app.modules.auth.dependencies import CurrentUser, require_roles
 from app.modules.checkin.schemas import CheckInResponse
 from app.modules.lanes.models import Lane, LaneDirection
 from app.modules.users.models import User
@@ -190,6 +192,7 @@ async def create_detection(
             message=str(e),
         ) from e
     except Exception:
+        logging.getLogger("visionpark.alpr").exception("Detection persistence failed")
         raise AppError(
             status_code=500,
             code="INTERNAL_SERVER_ERROR",
@@ -242,32 +245,31 @@ async def alpr_ready_health(
 
 
 @router.get("/media/{image_key}")
-async def get_detection_image(image_key: str):
-    """API lấy ảnh (Media Serve) để hiển thị lên UI."""
-    settings = get_settings()
-    try:
-        lane_id = image_key.split("_")[0]
-        file_path = os.path.join(settings.local_storage_path, lane_id, image_key)
-
-        if not os.path.exists(file_path):
-            from app.core.errors import AppError
-
-            raise AppError(status_code=404, code="NOT_FOUND", message="Không tìm thấy file ảnh")
-
-        return FileResponse(
-            file_path,
-            media_type="image/png" if image_key.lower().endswith(".png") else "image/jpeg",
-        )
-    except AppError:
-        raise
-    except Exception:
-        from app.core.errors import AppError
-
-        raise AppError(
-            status_code=400,
-            code="BAD_REQUEST",
-            message="Image key không hợp lệ",
-        ) from None
+async def get_detection_image(
+    image_key: str,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    """Serve an authenticated detection image from the account's building only."""
+    if Path(image_key).name != image_key or Path(image_key).suffix.lower() not in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+    }:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Image not found.")
+    detection = db.scalar(select(Detection).where(Detection.image_key == image_key))
+    if detection is None:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Image not found.")
+    root = media_root(settings.local_storage_path)
+    file_path = (root / str(detection.lane_id) / image_key).resolve()
+    if root not in file_path.parents or not file_path.is_file():
+        raise AppError(status_code=404, code="NOT_FOUND", message="Image not found.")
+    return FileResponse(
+        file_path,
+        media_type=detection.image_content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.get("/detections", response_model=list[DetectionResponse] | dict)
