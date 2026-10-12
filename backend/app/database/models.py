@@ -6,6 +6,7 @@ business models inside the database package.
 
 from app.modules.alpr.models import Detection
 from app.modules.audit_logs.models import AuditLog
+from app.modules.checkin.counter_models import CounterEvent, ParkingCounter
 from app.modules.checkin.lifecycle_models import LifecycleEvent
 from app.modules.checkin.models import ParkingTransaction
 from app.modules.lanes.models import Lane
@@ -19,6 +20,8 @@ __all__ = [
     "AuditLog",
     "ParkingTransaction",
     "LifecycleEvent",
+    "ParkingCounter",
+    "CounterEvent",
 ]
 
 from app.modules.operations.models import ErrorEvent, Notification, UserPreference  # noqa: F401

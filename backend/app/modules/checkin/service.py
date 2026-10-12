@@ -133,14 +133,20 @@ class CheckInService:
             vehicle_type=vehicle_type,
             license_plate=normalized_plate,
             ticket_code=ticket_code,
+            customer_class=getattr(request, "customer_class", "VISITOR"),
             operator=operator,
             is_override=bool(request.override_reason),
             override_reason=request.override_reason,
         )
         if access_result.decision == AccessDecision.DENY:
+            err_code = (
+                access_result.details.get("code", "ACCESS_DENIED")
+                if access_result.details
+                else "ACCESS_DENIED"
+            )
             raise AppError(
                 status_code=403,
-                code="ACCESS_DENIED",
+                code=err_code,
                 message=access_result.reason,
                 details={"decision": "DENY", **(access_result.details or {})},
             )
@@ -281,6 +287,18 @@ class CheckInService:
                 },
                 image_ref=image_url,
             )
+            from app.modules.checkin.counter_service import CounterService
+
+            CounterService.increment_atomic(
+                db=self.session,
+                building_id=getattr(lane, "building_id", None),
+                vehicle_type=vehicle_type,
+                session_id=transaction.id,
+                customer_class=getattr(request, "customer_class", "VISITOR"),
+                actor_type=ActorType.OPERATOR if operator else ActorType.SYSTEM,
+                actor_id=operator.id if operator else None,
+                reason="CHECK_IN",
+            )
             self.session.commit()
         except IntegrityError as exc:
             self.session.rollback()
@@ -306,6 +324,9 @@ class CheckInService:
                         details={"transaction_id": str(duplicate_ticket.id)},
                     ) from exc
             # Unrelated constraint failures are handled by the shared database error handler.
+            raise
+        except Exception:
+            self.session.rollback()
             raise
         self.session.refresh(transaction)
         return CheckInResponse(
@@ -501,6 +522,7 @@ class CheckInService:
             vehicle_type=request.vehicle_type,
             license_plate=norm_plate,
             ticket_code=request.ticket_code,
+            customer_class=getattr(request, "customer_class", "VISITOR"),
             operator=operator,
             is_override=bool(request.override_reason),
             override_reason=request.override_reason,

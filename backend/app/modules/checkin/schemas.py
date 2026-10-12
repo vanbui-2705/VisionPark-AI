@@ -14,6 +14,7 @@ class CheckInRequest(BaseModel):
     # Backwards-compatible body name used by the first check-in prototype.
     plate_number: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
     vehicle_type: str = "CAR"
+    customer_class: str = "VISITOR"
     ticket_code: str | None = Field(None, max_length=64)
     detection_id: UUID | None = None
     confidence: float | None = Field(None, ge=0.0, le=1.0)
@@ -41,6 +42,7 @@ class CheckInRequest(BaseModel):
 class AccessCheckRequest(BaseModel):
     lane_id: UUID
     vehicle_type: str = "CAR"
+    customer_class: str = "VISITOR"
     license_plate: str | None = Field(None, pattern=r"^[A-Za-z0-9\-\.\s]+$")
     ticket_code: str | None = None
     override_reason: str | None = None
@@ -114,3 +116,68 @@ class PaginatedAuditLogs(BaseModel):
     total: int
     page: int
     limit: int
+
+
+class AdjustCounterRequest(BaseModel):
+    vehicle_type: str = "CAR"
+    delta: int = Field(..., description="Số lượng xe thay đổi (+ hoặc -)")
+    reason: str = Field(..., min_length=3, max_length=64, description="Lý do điều chỉnh")
+    note: str | None = Field(None, max_length=500)
+
+
+class AdjustCounterResponse(BaseModel):
+    id: UUID
+    building_id: UUID | None = None
+    vehicle_type: str
+    occupied: int
+    delta: int
+    reason: str
+    updated_at: datetime
+
+
+class AvailabilityItem(BaseModel):
+    vehicle_type: str
+    occupied: int
+    safe_capacity: int
+    physical_capacity: int
+    available: int
+    available_for_visitor: int
+    resident_quota: int
+    staff_quota: int
+    status: str
+
+
+class CounterDiscrepancyItem(BaseModel):
+    vehicle_type: str
+    counter_occupied: int
+    active_sessions: int
+    drift: int
+
+
+class ReconcileRequest(BaseModel):
+    auto_correct: bool = True
+    reason: str = "PERIODIC_RECONCILIATION"
+
+
+class ReconciliationReportResponse(BaseModel):
+    building_id: UUID | None = None
+    has_discrepancy: bool
+    adjusted: bool
+    discrepancies: list[CounterDiscrepancyItem]
+
+
+class CompensatorySessionRequest(BaseModel):
+    vehicle_type: str = "CAR"
+    session_id: UUID | None = None
+    reason: str = "NETWORK_OFFLINE_COMPENSATION"
+    note: str | None = Field(None, max_length=500)
+
+
+class CompensatorySessionResponse(BaseModel):
+    id: UUID
+    building_id: UUID | None = None
+    vehicle_type: str
+    occupied: int
+    delta: int = 1
+    reason: str
+    updated_at: datetime
