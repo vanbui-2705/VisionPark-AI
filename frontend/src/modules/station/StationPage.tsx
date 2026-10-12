@@ -1,6 +1,7 @@
 import { t as translate } from "../../lib/i18n"
 import { useCallback, useEffect, useRef, useState } from "react";
-import { clearCandidates, confirmDetection, getActiveLanes, getRecentHistory, manualCheckIn } from "./api";
+import { clearCandidates, confirmDetection, getActiveLanes, getRecentHistory, manualCheckIn, type PriceContext } from "./api";
+import { apiClient } from '../../api/client.ts';
 import LaneSelector from "./components/LaneSelector";
 import VideoSelector from "./components/VideoSelector";
 import VideoPlayer from "./components/VideoPlayer";
@@ -27,6 +28,14 @@ export default function StationPage() {
   const [actionError, setActionError] = useState<ApiError | null>(null);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [manualPlate, setManualPlate] = useState('');
+  const [useTicketCode, setUseTicketCode] = useState(false);
+  const [customerClasses, setCustomerClasses] = useState<{ id: string; name: string }[]>([]);
+  const [classId, setClassId] = useState('');
+  const [vehicleType, setVehicleType] = useState('CAR');
+  const [ticketKind, setTicketKind] = useState<PriceContext['ticket_kind']>('HOURLY');
+  const [zoneId, setZoneId] = useState('');
+  const scopedLane = lanes.find(lane => lane.id === selectedLaneId && lane.building_id);
+  const priceContext: PriceContext | undefined = scopedLane && classId ? { vehicle_type: vehicleType, ticket_kind: ticketKind, customer_class_id: classId, ...(zoneId ? { zone_id: zoneId } : {}) } : undefined;
   const [editingPlate, setEditingPlate] = useState(false);
   const manualKey = useRef(crypto.randomUUID());
   const confirming = useRef(false);
@@ -57,6 +66,13 @@ export default function StationPage() {
       await refreshHistory();
     })();
   }, [refreshHistory]);
+  useEffect(() => {
+    const buildingId = scopedLane?.building_id;
+    if (!buildingId) { setCustomerClasses([]); setClassId(''); return; }
+    apiClient.get<{ id: string; name: string }[]>('/api/v1/pricing/customer-classes', { params: { building_id: buildingId } })
+      .then(items => { setCustomerClasses(items); if (items.length) setClassId(items[0].id); })
+      .catch(e => setActionError(e as ApiError));
+  }, [scopedLane?.building_id]);
   useEffect(() => () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
   }, [videoUrl]);
@@ -112,6 +128,7 @@ export default function StationPage() {
   };
   const confirm = async (detectionId: string, plate?: string) => {
     if (confirming.current) return;
+    if (scopedLane && !priceContext) { setActionError({ status: 422, code: 'PRICE_CONTEXT_REQUIRED', message: 'Chọn hạng khách và loại vé trước khi check-in.' }); return; }
     confirming.current = true;
 
     setActionError(null);
@@ -123,7 +140,7 @@ export default function StationPage() {
       } : {
         accepted: true,
         confirmed_plate_number: result?.normalized_plate_number ?? result?.raw_plate_number ?? undefined
-      });
+      }, priceContext);
       setTransactionId(outcome.transactionId);
       completeConfirm();
       await refreshHistory();
@@ -138,11 +155,12 @@ export default function StationPage() {
   };
   const confirmManual = async () => {
     if (confirming.current || !selectedLaneId || state === 'detecting' || state === 'reading') return;
+    if (scopedLane && !priceContext) { setActionError({ status: 422, code: 'PRICE_CONTEXT_REQUIRED', message: 'Chọn hạng khách và loại vé trước khi check-in.' }); return; }
     confirming.current = true;
     beginConfirm();
     setActionError(null);
     try {
-      const outcome = await manualCheckIn(selectedLaneId, manualPlate, `manual-${manualKey.current}`);
+      const outcome = await manualCheckIn(selectedLaneId, manualPlate, `manual-${manualKey.current}`, priceContext, useTicketCode);
       setTransactionId(outcome.transactionId);
       completeConfirm();
       await refreshHistory();
@@ -192,6 +210,13 @@ export default function StationPage() {
           display: "grid",
           gap: 14
         }}><LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={changeLane} disabled={state === "detecting" || state === "reading" || state === "confirming"} />
+          {scopedLane && <div className="card">
+            <h3>Thông tin tính phí</h3>
+            <label>Loại xe<input value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+            <label>Loại vé<select value={ticketKind} onChange={e => setTicketKind(e.target.value as PriceContext['ticket_kind'])}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
+            <label>Hạng khách<select value={classId} onChange={e => setClassId(e.target.value)}><option value="">Chọn hạng khách</option>{customerClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            {(ticketKind === 'DAILY' || ticketKind === 'MONTHLY') && <label>Mã khu vực (nếu có nhiều gói)<input value={zoneId} onChange={e => setZoneId(e.target.value)} /></label>}
+          </div>}
           {inputMode === 'video' ? <VideoSelector onVideoSelected={onVideo} disabled={state === 'confirming'} /> : <label>{translate("Ảnh đầu vào")}<input aria-label={translate("Ảnh đầu vào")} type="file" accept="image/jpeg,image/png" disabled={state === 'confirming'} onChange={event => chooseImage(event.target.files?.[0] ?? null)} /></label>}{videoName && <div>Video: <strong>{videoName}</strong></div>}</div>
           {inputMode === 'video' ? <VideoPlayer key={`${selectedLaneId}:${videoUrl || "empty"}`} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} suspended={editingPlate || state === 'confirming' || Boolean(transactionId)} /> : <>
             {imageUrl && <DetectionImage key={imageUrl} src={imageUrl} bbox={result?.bbox ? { x: result.bbox[0], y: result.bbox[1], w: result.bbox[2] - result.bbox[0], h: result.bbox[3] - result.bbox[1] } : null} />}
@@ -214,7 +239,8 @@ export default function StationPage() {
         <ConfirmationPanel key={result?.candidate_id ?? result?.detection_id ?? "none"} onEditingChange={setEditingPlate} disabled={state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)} result={result} onConfirmCorrect={id => confirm(id)} onConfirmCorrection={(id, plate) => confirm(id, plate)} />
         <form onSubmit={event => { event.preventDefault(); void confirmManual(); }}>
           <h3>{translate("Check-in thủ công")}</h3>
-          <label htmlFor="manual-plate">{translate("Biển số nhập tay")}</label>
+          {scopedLane && <label><input type="checkbox" checked={useTicketCode} onChange={e => { setUseTicketCode(e.target.checked); manualKey.current = crypto.randomUUID(); }} />Dùng mã vé thay biển số (xe đạp)</label>}
+          <label htmlFor="manual-plate">{useTicketCode ? 'Mã vé' : translate("Biển số nhập tay")}</label>
           <input id="manual-plate" value={manualPlate} disabled={state === 'confirming' || Boolean(transactionId)} onChange={event => { setManualPlate(event.target.value); manualKey.current = crypto.randomUUID(); }} />
           <button type="submit" disabled={!selectedLaneId || manualPlate.replace(/[^a-z0-9]/gi, '').length < 3 || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)}>{translate("Tạo check-in")}</button>
         </form>

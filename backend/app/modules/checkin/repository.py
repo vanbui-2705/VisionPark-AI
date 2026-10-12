@@ -29,7 +29,9 @@ class CheckInRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_active_by_plate(self, normalized_plate: str) -> ParkingTransaction | None:
+    def get_active_by_plate(
+        self, normalized_plate: str, building_id: UUID | None = None
+    ) -> ParkingTransaction | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -47,6 +49,8 @@ class CheckInRepository(ABC):
         to_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
+        building_id: UUID | None = None,
+        scoped: bool = False,
     ) -> tuple[list[ParkingTransaction], int]:
         raise NotImplementedError
 
@@ -55,14 +59,15 @@ class DatabaseCheckInRepository(CheckInRepository):
     def __init__(self, session: Session):
         self.session = session
 
-    def summary(self) -> dict[str, int]:
-        total, parked, manual = self.session.execute(
-            select(
+    def summary(self, building_id: UUID | None = None, scoped: bool = False) -> dict[str, int]:
+        stmt = select(
                 func.count(ParkingTransaction.id),
                 func.sum(case((ParkingTransaction.status == TransactionStatus.PARKED, 1), else_=0)),
                 func.sum(case((ParkingTransaction.is_manual_override.is_(True), 1), else_=0)),
             )
-        ).one()
+        if scoped:
+            stmt = stmt.where(ParkingTransaction.building_id == building_id)
+        total, parked, manual = self.session.execute(stmt).one()
         return {"total": total, "parked": parked or 0, "manual": manual or 0}
 
     def get_lane(self, lane_id: UUID) -> Lane | None:
@@ -93,7 +98,9 @@ class DatabaseCheckInRepository(CheckInRepository):
         )
         return self.session.scalar(stmt)
 
-    def get_active_by_plate(self, normalized_plate: str) -> ParkingTransaction | None:
+    def get_active_by_plate(
+        self, normalized_plate: str, building_id: UUID | None = None
+    ) -> ParkingTransaction | None:
         stmt = (
             select(ParkingTransaction)
             .options(
@@ -103,6 +110,7 @@ class DatabaseCheckInRepository(CheckInRepository):
             .where(
                 ParkingTransaction.normalized_plate == normalized_plate,
                 ParkingTransaction.status == TransactionStatus.PARKED,
+                ParkingTransaction.building_id == building_id,
             )
         )
         return self.session.scalar(stmt)
@@ -123,6 +131,8 @@ class DatabaseCheckInRepository(CheckInRepository):
         to_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
+        building_id: UUID | None = None,
+        scoped: bool = False,
     ) -> tuple[list[ParkingTransaction], int]:
         stmt = (
             select(ParkingTransaction)
@@ -132,6 +142,8 @@ class DatabaseCheckInRepository(CheckInRepository):
             )
             .order_by(ParkingTransaction.check_in_time.desc(), ParkingTransaction.id.desc())
         )
+        if scoped:
+            stmt = stmt.where(ParkingTransaction.building_id == building_id)
         if query:
             pattern = f"%{query.upper()}%"
             stmt = stmt.where(
@@ -178,13 +190,16 @@ class FakeCheckInRepository(CheckInRepository):
     def get_by_id(self, transaction_id: UUID) -> ParkingTransaction | None:
         return next((item for item in self._fake_db if item.id == transaction_id), None)
 
-    def get_active_by_plate(self, normalized_plate: str) -> ParkingTransaction | None:
+    def get_active_by_plate(
+        self, normalized_plate: str, building_id: UUID | None = None
+    ) -> ParkingTransaction | None:
         return next(
             (
                 item
                 for item in self._fake_db
                 if item.normalized_plate == normalized_plate
                 and item.status == TransactionStatus.PARKED
+                and item.building_id == building_id
             ),
             None,
         )

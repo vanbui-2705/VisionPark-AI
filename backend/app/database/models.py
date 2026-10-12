@@ -9,6 +9,18 @@ from app.modules.audit_logs.models import AuditLog
 from app.modules.buildings.models import Building, ParkingLot, UserBuilding
 from app.modules.checkin.models import ParkingTransaction
 from app.modules.lanes.models import Lane
+from app.modules.pricing.models import (
+    ClassQuota,
+    CustomerClass,
+    GuestInvite,
+    Invoice,
+    Payment,
+    PricingRule,
+    PricingVersion,
+    Subscription,
+    TicketProduct,
+    Vehicle,
+)
 from app.modules.users.models import Role, User
 
 __all__ = [
@@ -21,6 +33,16 @@ __all__ = [
     "Building",
     "ParkingLot",
     "UserBuilding",
+    "CustomerClass",
+    "ClassQuota",
+    "TicketProduct",
+    "PricingVersion",
+    "PricingRule",
+    "Vehicle",
+    "Subscription",
+    "GuestInvite",
+    "Invoice",
+    "Payment",
 ]
 
 from app.modules.operations.models import ErrorEvent, Notification, UserPreference  # noqa: F401

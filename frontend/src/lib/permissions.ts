@@ -57,15 +57,24 @@ export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolea
   { perm: 'docs.read', label: 'Docs Center', admin: true, operator: false, accountant: false, technician: false },
 ]
 
-const ROLE_COLUMN: Record<CurrentUser['role'], 'admin' | 'operator' | 'accountant' | 'technician'> = {
-  ADMIN: 'admin',
+const ROLE_COLUMN: Record<Exclude<CurrentUser['role'], 'BUILDING_ADMIN'>, 'admin' | 'operator' | 'accountant' | 'technician'> = {
+  SYSTEM_ADMIN: 'admin',
   OPERATOR: 'operator',
   ACCOUNTANT: 'accountant',
   TECHNICIAN: 'technician',
 }
 
+const BUILDING_ADMIN_PERMISSIONS = new Set<Permission>([
+  'dashboard.read', 'station.use', 'station.history.read', 'detections.read',
+  'detections.confirm', 'checkin.create', 'transactions.read', 'lanes.read',
+  'lanes.create', 'lanes.update', 'lanes.manage', 'users.read', 'users.manage',
+  'audit.read', 'profile.read',
+  'profile.update', 'settings.update', 'notifications.read', 'help.read',
+])
+
 export function can(user: CurrentUser | null | undefined, perm: Permission): boolean {
   if (!user) return false
+  if (user.role === 'BUILDING_ADMIN') return BUILDING_ADMIN_PERMISSIONS.has(perm)
   const column = ROLE_COLUMN[user.role]
   return column ? (PERMISSION_MATRIX.find((entry) => entry.perm === perm)?.[column] ?? false) : false
 }

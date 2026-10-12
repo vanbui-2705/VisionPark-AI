@@ -37,6 +37,7 @@ class LaneUpdate(BaseModel):
 # 3. DTO TRẢ VỀ
 class LaneResponse(BaseModel):
     id: UUID
+    building_id: UUID
     name: str
     direction: LaneDirection
     video_source: str

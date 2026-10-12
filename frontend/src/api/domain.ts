@@ -52,6 +52,7 @@ export interface ParkingTransaction {
   normalized_plate: string
   status: TransactionStatus
   lane_id: string
+  building_id?: string | null
   lane_name?: string
   detection_id?: string | null
   image_url?: string | null
@@ -67,7 +68,12 @@ export interface ParkingTransaction {
 
 export interface CheckInRequest {
   lane_id: string
+  vehicle_type?: string | null
+  ticket_kind?: 'HOURLY' | 'DAILY' | 'MONTHLY' | 'NIGHT' | null
+  customer_class_id?: string | null
+  zone_id?: string | null
   license_plate?: string | null
+  ticket_code?: string | null
   plate_number?: string | null
   detection_id?: string | null
   confidence?: number | null
@@ -130,6 +136,7 @@ export interface ManagedUser {
   display_name: string
   email?: string | null
   role: import('./types.ts').UserRole
+  building_id?: string | null
   active: boolean
   last_login?: string | null
   created_at?: string

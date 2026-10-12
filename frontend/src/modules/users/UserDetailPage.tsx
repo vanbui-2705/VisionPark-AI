@@ -60,7 +60,7 @@ export function UserDetailPage() {
         <section className="card">
           <Input label="Display Name" value={displayName} onChange={e=>setDisplayName(e.target.value)} />
           <Input label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-          <Select label="Role" value={role} onChange={e=>setRole(e.target.value as ManagedUser['role'])}><option value="OPERATOR">OPERATOR</option><option value="ADMIN">ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option><option value="TECHNICIAN">TECHNICIAN</option></Select>
+          <Select label="Role" value={role} onChange={e=>setRole(e.target.value as ManagedUser['role'])}><option value="OPERATOR">OPERATOR</option><option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option><option value="BUILDING_ADMIN">BUILDING_ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option><option value="TECHNICIAN">TECHNICIAN</option></Select>
           <label className="checkbox"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)} /> Active</label>
           <p className="muted">Username: {user.username} — ID: {user.id}</p>
           <Button onClick={onSave} loading={saving}>{translate("Lưu")}</Button>

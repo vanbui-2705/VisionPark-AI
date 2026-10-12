@@ -29,7 +29,10 @@ def list_lanes(
     current_user: CurrentUser,
 ):
     """Liệt kê tất cả lane cho user đã xác thực."""
-    return service.list_lanes(db)
+    lanes = service.list_lanes(db)
+    if current_user.role.name == RoleName.SYSTEM_ADMIN:
+        return lanes
+    return [lane for lane in lanes if lane.building_id == db.info.get("building_id")]
 
 
 @router.get("/active", response_model=list[schemas.LaneResponse])
@@ -38,7 +41,10 @@ def list_active_lanes(
     current_user: CurrentUser,
 ):
     """Liệt kê lane đang active cho user đã xác thực."""
-    return service.list_active_lanes(db)
+    lanes = service.list_active_lanes(db)
+    if current_user.role.name == RoleName.SYSTEM_ADMIN:
+        return lanes
+    return [lane for lane in lanes if lane.building_id == db.info.get("building_id")]
 
 
 @router.get("/{lane_id}", response_model=schemas.LaneResponse)
@@ -48,7 +54,15 @@ def get_lane(
     current_user: CurrentUser,
 ):
     """Lấy chi tiết lane theo ID cho user đã xác thực."""
-    return service.get_lane(db, lane_id)
+    lane = service.get_lane(db, lane_id)
+    if (
+        current_user.role.name != RoleName.SYSTEM_ADMIN
+        and lane.building_id != db.info.get("building_id")
+    ):
+        from app.core.errors import AppError
+
+        raise AppError(status_code=404, code="NOT_FOUND", message="Lane not found.")
+    return lane
 
 
 @router.patch("/{lane_id}", response_model=schemas.LaneResponse)

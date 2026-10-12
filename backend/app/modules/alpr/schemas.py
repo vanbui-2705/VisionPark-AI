@@ -51,3 +51,7 @@ class DetectionConfirmRequest(BaseModel):
     check_in: bool = False
     source: CheckInSource | None = None
     override_reason: str | None = Field(None, max_length=500)
+    vehicle_type: str | None = Field(None, min_length=1, max_length=40)
+    ticket_kind: str | None = None
+    customer_class_id: UUID | None = None
+    zone_id: UUID | None = None

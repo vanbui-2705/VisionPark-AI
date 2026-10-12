@@ -68,7 +68,8 @@ export function UserEditPage() {
         <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <Input label={translate("Mật khẩu mới (để trống nếu giữ nguyên)")} type="password" autoComplete="new-password" value={password} minLength={8} maxLength={128} onChange={(e) => setPassword(e.target.value)} />
         <Select label={translate("Vai trò")} value={role} onChange={(e) => setRole(e.target.value as ManagedUser['role'])}>
-          <option value="ADMIN">ADMIN — Quản trị</option>
+          <option value="SYSTEM_ADMIN">SYSTEM_ADMIN — Quản trị hệ thống</option>
+          <option value="BUILDING_ADMIN">BUILDING_ADMIN — Quản trị tòa nhà</option>
           <option value="OPERATOR">OPERATOR — Vận hành</option>
           <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
           <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>

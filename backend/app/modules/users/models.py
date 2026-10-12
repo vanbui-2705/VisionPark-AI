@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, object_session, relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
@@ -35,3 +35,10 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     role: Mapped[Role] = relationship(back_populates="users", lazy="joined")
+
+    @property
+    def building_id(self) -> UUID | None:
+        """Return the building scope verified for the current request session."""
+        session = object_session(self)
+        scope = session.info.get("building_id") if session is not None else None
+        return scope if isinstance(scope, UUID) else None

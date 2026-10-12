@@ -1,8 +1,9 @@
 import { t as translate } from "../../lib/i18n"
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/errors.ts'
 import { usersApi } from '../../api/services.ts'
+import { apiClient } from '../../api/client.ts'
 import { can, PERMISSION_MATRIX } from '../../lib/permissions.ts'
 import type { UserRole } from '../../api/types.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
@@ -10,9 +11,11 @@ import { Button } from '../../components/ui/Button.tsx'
 import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import { useUnsavedGuard } from '../../hooks/useUnsavedGuard.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
 
 export function CreateUserPage() {
   const nav = useNavigate()
+  const { user } = useAuth()
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -20,12 +23,15 @@ export function CreateUserPage() {
   const [confirm, setConfirm] = useState('')
   const [role, setRole] = useState<UserRole>('OPERATOR')
   const [active, setActive] = useState(true)
+  const [buildingId, setBuildingId] = useState('')
+  const [buildings, setBuildings] = useState<{ id: string; name: string }[]>([])
   const [show, setShow] = useState(false)
   const [touched, setTouched] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const dirty = !!displayName.trim() || !!username.trim() || !!email.trim() || !!password || !!confirm
   useUnsavedGuard(dirty)
+  useEffect(() => { apiClient.get<{ id: string; name: string }[]>('/api/v1/buildings').then(setBuildings).catch(() => setErr('Không tải được tòa nhà.')) }, [])
 
   const perms = PERMISSION_MATRIX.map((p) => ({
     ...p,
@@ -38,10 +44,11 @@ export function CreateUserPage() {
     if (!displayName.trim() || !username.trim() || !password) { setErr(translate("Vui lòng điền các trường bắt buộc.")); return }
     if (password !== confirm) { setErr(translate("Mật khẩu xác nhận không khớp.")); return }
     if (password.length < 8) { setErr(translate("Mật khẩu tối thiểu 8 ký tự.")); return }
+    if (user?.role === 'SYSTEM_ADMIN' && role === 'BUILDING_ADMIN' && !buildingId) { setErr('Chọn tòa nhà cho quản trị tòa nhà.'); return }
     setLoading(true)
     setErr(null)
     try {
-      await usersApi.create({ username: username.trim(), display_name: displayName.trim(), email: email.trim() || null, password, role, active })
+      await usersApi.create({ username: username.trim(), display_name: displayName.trim(), email: email.trim() || null, password, role, ...(user?.role === 'SYSTEM_ADMIN' ? { building_id: buildingId || null } : {}), active })
       nav('/admin/users')
     } catch (e2: unknown) {
       if (e2 instanceof ApiError && e2.status === 409) setErr(translate("Tên đăng nhập hoặc email đã tồn tại."))
@@ -75,10 +82,15 @@ export function CreateUserPage() {
           <h3>{translate("Vai trò")}</h3>
           <Select label={translate("Vai trò *")} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
             <option value="OPERATOR">OPERATOR — Vận hành</option>
-            <option value="ADMIN">ADMIN — Quản trị</option>
+            {user?.role === 'SYSTEM_ADMIN' && <option value="SYSTEM_ADMIN">SYSTEM_ADMIN — Quản trị hệ thống</option>}
+            {user?.role === 'SYSTEM_ADMIN' && <option value="BUILDING_ADMIN">BUILDING_ADMIN — Quản trị tòa nhà</option>}
             <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
             <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>
           </Select>
+          {user?.role === 'SYSTEM_ADMIN' && <Select label="Tòa nhà" value={buildingId} onChange={(e) => setBuildingId(e.target.value)}>
+            <option value="">Chưa gán</option>
+            {buildings.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </Select>}
           <div className="perm-list">
             {perms.map((p) => <div key={p.perm} className="perm-row"><span>{translate(p.label)}</span><span>{p.granted ? '✓' : '✗'}</span></div>)}
           </div>

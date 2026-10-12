@@ -3,6 +3,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -97,6 +98,7 @@ class ParkingTransaction(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, Timestam
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    price_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     lane = relationship("Lane")
     detection = relationship("Detection")
