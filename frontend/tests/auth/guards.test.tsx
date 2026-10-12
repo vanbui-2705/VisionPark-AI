@@ -107,11 +107,11 @@ describe('Route guards', () => {
     expect(calls.some((url) => url.includes('/audit-logs'))).toBe(false)
   })
 
-  it('ADMIN can access /admin/lanes', async () => {
+  it('SYSTEM_ADMIN can access /admin/lanes', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     renderApp('/admin/lanes', async (u) => {
       const s = String(u)
-      if (s.includes('/auth/me')) return j({ id: '1', username: 'admin', display_name: 'Admin', role: 'ADMIN', active: true })
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'admin', display_name: 'Admin', role: 'SYSTEM_ADMIN', active: true })
       if (s.includes('/lanes')) return j([])
       if (s.includes('/health/ready')) return j({ status: 'ready', alpr: { ready: true, provider: 'real' } })
       return j({})

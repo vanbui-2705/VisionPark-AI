@@ -47,11 +47,11 @@ describe('LoginPage', () => {
     expect(await screen.findByText(/Tên đăng nhập hoặc mật khẩu không đúng/i)).toBeInTheDocument()
   })
 
-  it('redirects on success (ADMIN -> lanes or returnUrl)', async () => {
+  it('redirects on success (SYSTEM_ADMIN -> dashboard or returnUrl)', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
       const u = String(url)
       if (u.includes('/auth/login')) return jsonResponse({ access_token: 'tok', token_type: 'bearer' })
-      if (u.includes('/auth/me')) return jsonResponse({ id: '1', username: 'admin', display_name: 'Admin', role: 'ADMIN', active: true })
+      if (u.includes('/auth/me')) return jsonResponse({ id: '1', username: 'admin', display_name: 'Admin', role: 'SYSTEM_ADMIN', active: true })
       return jsonResponse({}, 200)
     })
     renderLogin()

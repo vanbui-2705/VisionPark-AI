@@ -9,7 +9,7 @@ function j(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-const ADMIN = { id: '1', username: 'admin', display_name: 'Admin', role: 'ADMIN', active: true }
+const ADMIN = { id: '1', username: 'admin', display_name: 'Admin', role: 'SYSTEM_ADMIN', active: true }
 
 function mockFetch(handler: (url: string, init?: RequestInit) => Response) {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: string | URL | Request, init?: RequestInit) =>
