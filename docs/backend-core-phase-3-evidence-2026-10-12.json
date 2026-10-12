@@ -1,0 +1,36 @@
+{
+  "verified_on": "2026-10-12",
+  "branch": "dqt_core",
+  "base_main": "58a82a9",
+  "linear_scope_ready_for_review": ["VAN-59", "VAN-60", "VAN-65"],
+  "linear_scope_waiting_for_authoritative_v2_document": ["VAN-61", "VAN-62", "VAN-63", "VAN-64", "VAN-66"],
+  "checks": {
+    "backend_sqlite_and_postgresql": {
+      "passed": 305,
+      "skipped": 3,
+      "warnings": 1,
+      "duration_seconds": 279.38,
+      "skip_reason": "SQLite versions of the three PostgreSQL race tests",
+      "warning_reason": "Upstream Starlette/httpx deprecation"
+    },
+    "postgresql_races": "all three passed",
+    "migration_data_preservation_and_rollback": "passed on SQLite and PostgreSQL",
+    "building_isolation": "passed: IDs, counts, aliases, cached records, writes, membership revocation and authenticated media",
+    "demo_seed_empty_database_and_repeat": "passed on SQLite and PostgreSQL",
+    "ruff_check_and_format": "passed, 149 Python files",
+    "pip_check": "passed",
+    "frontend": {
+      "passed_tests": 75,
+      "test_files": 20,
+      "lint": "passed with existing warnings",
+      "production_build": "passed with existing dynamic/static import chunk warning"
+    }
+  },
+  "database_safety": "Disposable task-owned SQLite databases and loopback PostgreSQL 17.11 clusters; servers stopped after tests",
+  "limitations": [
+    "Peer review and GitHub CI are required before merge",
+    "Docker full stack and browser E2E were not run locally",
+    "ADMIN retains its existing system role until VAN-62 implements the approved role matrix",
+    "Remaining M1 account, Setting, complete audit and readiness tasks require the referenced v2.0 specification"
+  ]
+}
