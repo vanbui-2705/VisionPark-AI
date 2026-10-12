@@ -15,12 +15,15 @@ from .schemas import PricingPreviewRequest, PricingVersionCreate
 
 
 def has_effective_pricing(db: Session, building_id: UUID, at: datetime) -> bool:
-    return db.scalar(
-        select(PricingVersion.id)
-        .where(PricingVersion.building_id == building_id, PricingVersion.active_from <= at)
-        .order_by(PricingVersion.active_from.desc())
-        .limit(1)
-    ) is not None
+    return (
+        db.scalar(
+            select(PricingVersion.id)
+            .where(PricingVersion.building_id == building_id, PricingVersion.active_from <= at)
+            .order_by(PricingVersion.active_from.desc())
+            .limit(1)
+        )
+        is not None
+    )
 
 
 def create_pricing_version(

@@ -61,10 +61,10 @@ class DatabaseCheckInRepository(CheckInRepository):
 
     def summary(self, building_id: UUID | None = None, scoped: bool = False) -> dict[str, int]:
         stmt = select(
-                func.count(ParkingTransaction.id),
-                func.sum(case((ParkingTransaction.status == TransactionStatus.PARKED, 1), else_=0)),
-                func.sum(case((ParkingTransaction.is_manual_override.is_(True), 1), else_=0)),
-            )
+            func.count(ParkingTransaction.id),
+            func.sum(case((ParkingTransaction.status == TransactionStatus.PARKED, 1), else_=0)),
+            func.sum(case((ParkingTransaction.is_manual_override.is_(True), 1), else_=0)),
+        )
         if scoped:
             stmt = stmt.where(ParkingTransaction.building_id == building_id)
         total, parked, manual = self.session.execute(stmt).one()

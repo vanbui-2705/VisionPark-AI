@@ -57,7 +57,7 @@ class TenantSession(Session):
                 return None
             if isinstance(value, Building) and value.id != building_id:
                 return None
-            if isinstance(value, (ParkingLot, UserBuilding)) and value.building_id != building_id:
+            if isinstance(value, ParkingLot | UserBuilding) and value.building_id != building_id:
                 return None
             if isinstance(value, User) and not self.scalar(
                 select(UserBuilding.id).where(
@@ -140,7 +140,7 @@ def enforce_building_writes(session, _context, _instances):
                         )
                         if owner != building_id:
                             raise forbidden_scope()
-        elif isinstance(obj, (ParkingLot, UserBuilding)) and obj.building_id != building_id:
+        elif isinstance(obj, ParkingLot | UserBuilding) and obj.building_id != building_id:
             raise forbidden_scope()
         elif isinstance(obj, Building) and obj.id != building_id:
             raise forbidden_scope()

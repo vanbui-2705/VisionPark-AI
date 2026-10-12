@@ -55,9 +55,8 @@ def get_lane(
 ):
     """Lấy chi tiết lane theo ID cho user đã xác thực."""
     lane = service.get_lane(db, lane_id)
-    if (
-        current_user.role.name != RoleName.SYSTEM_ADMIN
-        and lane.building_id != db.info.get("building_id")
+    if current_user.role.name != RoleName.SYSTEM_ADMIN and lane.building_id != db.info.get(
+        "building_id"
     ):
         from app.core.errors import AppError
 
