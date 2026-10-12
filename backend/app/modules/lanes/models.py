@@ -4,6 +4,7 @@ from sqlalchemy import Enum, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class LaneDirection(enum.StrEnum):
@@ -11,7 +12,7 @@ class LaneDirection(enum.StrEnum):
     OUT = "OUT"
 
 
-class Lane(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class Lane(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "lanes"
 
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)

@@ -38,9 +38,18 @@ def test_upgrade_preserves_existing_detection(database_url: str) -> None:
     command.upgrade(config, "aa276e942822")
     engine = create_engine(database_url)
     with Session(engine) as session:
-        lane = Lane(name="existing-lane", direction="IN", video_source="demo.mp4", is_active=True)
-        session.add(lane)
-        session.flush()
+        lane_id = uuid4()
+        old_lanes = Table("lanes", MetaData(), autoload_with=engine)
+        old_lanes.c.id.type = Uuid()
+        session.execute(
+            old_lanes.insert().values(
+                id=lane_id,
+                name="existing-lane",
+                direction="IN",
+                video_source="demo.mp4",
+                is_active=True,
+            )
+        )
         detection_id = uuid4()
         old_detections = Table("detections", MetaData(), autoload_with=engine)
         old_detections.c.id.type = Uuid()
@@ -48,7 +57,7 @@ def test_upgrade_preserves_existing_detection(database_url: str) -> None:
         session.execute(
             old_detections.insert().values(
                 id=detection_id,
-                lane_id=lane.id,
+                lane_id=lane_id,
                 image_key="existing.jpg",
                 requires_confirmation=False,
                 is_confirmed=False,

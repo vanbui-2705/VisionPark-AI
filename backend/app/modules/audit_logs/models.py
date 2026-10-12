@@ -4,9 +4,10 @@ from sqlalchemy import JSON, Column, ForeignKey, String, Uuid
 from sqlalchemy.orm import relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
-class AuditLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class AuditLog(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "audit_logs"
 
     user_id = Column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

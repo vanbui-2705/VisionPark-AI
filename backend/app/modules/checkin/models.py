@@ -18,6 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class TransactionStatus(StrEnum):
@@ -34,7 +35,7 @@ class CheckInSource(StrEnum):
     OPERATOR_MANUAL = "OPERATOR_MANUAL"
 
 
-class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class ParkingTransaction(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "parking_transactions"
     __table_args__ = (
         CheckConstraint(
