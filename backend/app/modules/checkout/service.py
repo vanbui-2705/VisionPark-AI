@@ -56,7 +56,7 @@ def _build_price_snapshot_from_tx(transaction: ParkingTransaction) -> PriceSnaps
     if isinstance(raw, dict) and "version_id" in raw and "initial_fee" in raw:
         return PriceSnapshot.model_validate(raw)
 
-    free_mins = raw.get("free_minutes", 0) if isinstance(raw, dict) else 0
+    free_mins = raw.get("free_minutes", 15) if isinstance(raw, dict) else 15
     rate = raw.get("rate_per_hour", 5000.0) if isinstance(raw, dict) else 5000.0
     lost_fee = raw.get("lost_ticket_fee", 50000.0) if isinstance(raw, dict) else 50000.0
     building_id = getattr(transaction, "building_id", None) or DEFAULT_BUILDING_UUID
