@@ -19,7 +19,7 @@ class CheckInRequest(BaseModel):
     ticket_code: str | None = Field(None, min_length=3, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     # Backwards-compatible body name used by the first check-in prototype.
     plate_number: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
-    vehicle_type: str = "CAR"
+    vehicle_type: str | None = "CAR"
     customer_class: str = "VISITOR"
     detection_id: UUID | None = None
     confidence: float | None = Field(None, ge=0.0, le=1.0)
@@ -30,6 +30,8 @@ class CheckInRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_identification(self) -> "CheckInRequest":
+        if not self.vehicle_type:
+            self.vehicle_type = "CAR"
         if self.vehicle_type == "BICYCLE":
             # BR-20: Xe đạp không bắt buộc biển số nhưng phải có ticket_code
             if not self.ticket_code and not (self.license_plate or self.plate_number):
@@ -41,7 +43,9 @@ class CheckInRequest(BaseModel):
 
     @property
     def requested_plate(self) -> str | None:
-        return self.license_plate or self.plate_number or self.ticket_code
+        if self.vehicle_type == "BICYCLE" and not (self.license_plate or self.plate_number):
+            return None
+        return self.license_plate or self.plate_number
 
 
 class AccessCheckRequest(BaseModel):

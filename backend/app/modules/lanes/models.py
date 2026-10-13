@@ -35,3 +35,12 @@ class Lane(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     camera: Mapped[str | None] = mapped_column(String(255), nullable=True)
     barrier: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    allowed_vehicle_type: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        default=AllowedVehicleType.ALL,
+        server_default="ALL",
+    )
+    camera_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    barrier_id: Mapped[str | None] = mapped_column(String(100), nullable=True)

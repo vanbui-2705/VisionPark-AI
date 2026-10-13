@@ -57,8 +57,12 @@ class CheckInService:
                 message="Header and body idempotency keys must match.",
             )
 
-        requested_plate = request.requested_plate
-        if requested_plate:
+        vehicle_type = getattr(request, "vehicle_type", "CAR") or "CAR"
+        ticket_code = getattr(request, "ticket_code", None)
+        requested_plate = request.license_plate or request.plate_number
+        if vehicle_type == "BICYCLE" and not requested_plate:
+            normalized_plate = None
+        elif requested_plate:
             normalized_plate = normalize_plate(requested_plate)
             if len(normalized_plate) < 3 or len(normalized_plate) > 50:
                 raise AppError(
@@ -68,9 +72,6 @@ class CheckInService:
                 )
         else:
             normalized_plate = None
-
-        vehicle_type = getattr(request, "vehicle_type", "CAR") or "CAR"
-        ticket_code = getattr(request, "ticket_code", None)
 
         lane = self.repo.get_lane(request.lane_id)
         if lane is None:
