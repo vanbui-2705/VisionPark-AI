@@ -37,7 +37,9 @@ def list_audit_logs(
     paginated: bool = False,
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+        require_roles(
+            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+        )
     ),
 ):
     del current_user

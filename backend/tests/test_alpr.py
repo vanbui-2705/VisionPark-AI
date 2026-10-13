@@ -288,10 +288,10 @@ class TestHealthEndpoints:
         client.post(f"/api/v1/alpr/detections/{dummy_id}/confirm", json=payload, headers=headers)
         # assert response.status_code in [200, 404] # 404 nếu dummy_id không có trong DB test
 
-    def test_get_media_success(self, client: TestClient, tmp_path):
-        """Test API phục vụ ảnh Media"""
-        # Test lỗi 404 file không tồn tại
-        response = client.get("/api/v1/alpr/media/LANE01_fakeuuid.jpg")
+    def test_missing_media_requires_auth(self, client: TestClient, operator_headers):
+        """Authenticate before checking whether a detection image exists."""
+        assert client.get("/api/v1/alpr/media/LANE01_fakeuuid.jpg").status_code == 401
+        response = client.get("/api/v1/alpr/media/LANE01_fakeuuid.jpg", headers=operator_headers)
         assert response.status_code == 404
 
 

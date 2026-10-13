@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.core.security import create_access_token, hash_password, verify_password
+from app.database.tenant import resolve_building
 from app.modules.auth.schemas import LoginRequest, TokenResponse
 from app.modules.users.repository import UserRepository
 from app.modules.users.service import to_public_user
@@ -32,11 +33,14 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        building_id = resolve_building(self.session, user)
         user.last_login_at = datetime.now(UTC)
         self.session.commit()
         self.session.refresh(user)
 
-        token = create_access_token(user.id, self.settings, token_version=user.token_version)
+        token = create_access_token(
+            user.id, self.settings, token_version=user.token_version, building_id=building_id
+        )
         return TokenResponse(
             access_token=token,
             expires_in=self.settings.access_token_expire_minutes * 60,

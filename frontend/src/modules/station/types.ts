@@ -13,6 +13,7 @@ export type Lane = {
   name: string;
   direction: LaneDirection;
   active: boolean;
+  building_id?: string | null;
 };
 export type DetectionResult = {
   detection_id: string | null;

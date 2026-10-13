@@ -4,6 +4,7 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.readiness import ReadinessStatus
+from app.database.tenant import TenantSession
 
 
 class DatabaseManager:
@@ -27,7 +28,7 @@ class DatabaseManager:
             bind=self.engine,
             autoflush=False,
             expire_on_commit=False,
-            class_=Session,
+            class_=TenantSession,
         )
 
     def create_session(self) -> Session:

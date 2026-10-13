@@ -21,12 +21,12 @@ describe('AuthProvider', () => {
   it('startup with valid token -> authenticated', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (u) => {
-      if (String(u).includes('/auth/me')) return json({ id: '1', username: 'admin', display_name: 'Admin', role: 'ADMIN', active: true })
+      if (String(u).includes('/auth/me')) return json({ id: '1', username: 'admin', display_name: 'Admin', role: 'SYSTEM_ADMIN', active: true })
       return json({})
     })
     render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>)
     await waitFor(() => expect(screen.getByTestId('probe').textContent).toContain('"isAuthenticated":true'))
-    expect(screen.getByTestId('probe').textContent).toContain('"ADMIN"')
+    expect(screen.getByTestId('probe').textContent).toContain('"SYSTEM_ADMIN"')
   })
 
   it('startup with expired token (401) -> clears token', async () => {

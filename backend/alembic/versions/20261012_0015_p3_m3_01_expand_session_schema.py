@@ -10,8 +10,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "20261012_0011"
-down_revision: str | tuple[str, ...] | None = "b9c0f377213e"
+revision: str = "20261012_0015"
+down_revision: str | tuple[str, ...] | None = "20261012_0014"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -33,8 +33,6 @@ def upgrade() -> None:
         batch.add_column(sa.Column("exit_time", sa.DateTime(timezone=True), nullable=True))
         batch.add_column(sa.Column("exit_lane_id", sa.Uuid(), nullable=True))
         batch.add_column(sa.Column("fee", sa.Float(), nullable=True, server_default=sa.text("0.0")))
-        batch.add_column(sa.Column("price_snapshot", sa.JSON(), nullable=True))
-        batch.add_column(sa.Column("building_id", sa.Uuid(), nullable=True))
         batch.add_column(sa.Column("ticket_product_id", sa.Uuid(), nullable=True))
         batch.create_foreign_key(
             "fk_parking_transactions_exit_lane_id",
@@ -55,16 +53,12 @@ def upgrade() -> None:
             ["exit_lane_id"],
         )
         batch.create_index(
-            "ix_parking_transactions_building_id",
-            ["building_id"],
-        )
-        batch.create_index(
             "ix_parking_transactions_ticket_product_id",
             ["ticket_product_id"],
         )
         batch.create_index(
             "uq_parking_transactions_active_plate",
-            ["normalized_plate"],
+            ["building_id", "normalized_plate"],
             unique=True,
             postgresql_where=sa.text(
                 "status IN ('PARKED', 'ENTERED', 'PAYMENT_PENDING', 'PAID') "
@@ -94,13 +88,12 @@ def downgrade() -> None:
     with op.batch_alter_table("parking_transactions") as batch:
         batch.drop_index("uq_parking_transactions_active_ticket")
         batch.drop_index("uq_parking_transactions_active_plate")
-        batch.drop_index("ix_parking_transactions_building_id")
         batch.drop_index("ix_parking_transactions_ticket_product_id")
         batch.drop_index("ix_parking_transactions_exit_lane_id")
         batch.drop_index("ix_parking_transactions_ticket_code")
         batch.create_index(
             "uq_parking_transactions_active_plate",
-            ["normalized_plate"],
+            ["building_id", "normalized_plate"],
             unique=True,
             postgresql_where=sa.text("status = 'PARKED'"),
             sqlite_where=sa.text("status = 'PARKED'"),
@@ -109,8 +102,6 @@ def downgrade() -> None:
         batch.create_check_constraint("ck_parking_transactions_status", OLD_STATUS_CONSTRAINT)
         batch.drop_constraint("fk_parking_transactions_exit_lane_id", type_="foreignkey")
         batch.drop_column("ticket_product_id")
-        batch.drop_column("building_id")
-        batch.drop_column("price_snapshot")
         batch.drop_column("fee")
         batch.drop_column("exit_lane_id")
         batch.drop_column("exit_time")

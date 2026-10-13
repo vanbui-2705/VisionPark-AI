@@ -21,8 +21,8 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
     expect(typeof samplePagination.total).toBe('number')
   })
 
-  it('validates ManagedUser contract contains 4 allowed roles and active flag', () => {
-    const roles: ManagedUser['role'][] = ['ADMIN', 'OPERATOR', 'ACCOUNTANT', 'TECHNICIAN']
+  it('validates ManagedUser contract contains 5 allowed roles and active flag', () => {
+    const roles: ManagedUser['role'][] = ['SYSTEM_ADMIN', 'BUILDING_ADMIN', 'OPERATOR', 'ACCOUNTANT', 'TECHNICIAN']
     roles.forEach((r) => {
       const u: ManagedUser = {
         id: 'u-1',
@@ -49,8 +49,8 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
     })
   })
 
-  it('validates can() evaluation across all 4 roles', () => {
-    const makeUser = (role: 'ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'): CurrentUser => ({
+  it('validates can() evaluation across all 5 roles', () => {
+    const makeUser = (role: CurrentUser['role']): CurrentUser => ({
       id: '1',
       username: 'u',
       display_name: 'U',
@@ -58,9 +58,13 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
       active: true,
     })
 
-    // ADMIN has full access
-    expect(can(makeUser('ADMIN'), 'dashboard.read')).toBe(true)
-    expect(can(makeUser('ADMIN'), 'users.manage')).toBe(true)
+    // SYSTEM_ADMIN has full access
+    expect(can(makeUser('SYSTEM_ADMIN'), 'dashboard.read')).toBe(true)
+    expect(can(makeUser('SYSTEM_ADMIN'), 'users.manage')).toBe(true)
+
+    // BUILDING_ADMIN can manage lanes but not system-wide documentation
+    expect(can(makeUser('BUILDING_ADMIN'), 'lanes.manage')).toBe(true)
+    expect(can(makeUser('BUILDING_ADMIN'), 'docs.read')).toBe(false)
 
     // OPERATOR has operations access, no users.manage
     expect(can(makeUser('OPERATOR'), 'station.use')).toBe(true)
@@ -79,6 +83,6 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
     expect(can(makeUser('TECHNICIAN'), 'transactions.read')).toBe(false)
     expect(can(makeUser('ACCOUNTANT'), 'audit.read')).toBe(true)
     expect(can(makeUser('ACCOUNTANT'), 'checkin.create')).toBe(false)
-    expect(can(makeUser('ADMIN'), 'lanes.manage')).toBe(true)
+    expect(can(makeUser('SYSTEM_ADMIN'), 'lanes.manage')).toBe(true)
   })
 })

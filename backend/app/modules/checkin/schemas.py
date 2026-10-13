@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.modules.pricing.domain import TicketKind
+
 from .models import CheckInSource, TransactionStatus
 
 
@@ -10,12 +12,15 @@ class CheckInRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     lane_id: UUID
+    ticket_kind: TicketKind | None = None
+    customer_class_id: UUID | None = None
+    zone_id: UUID | None = None
     license_plate: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
+    ticket_code: str | None = Field(None, min_length=3, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     # Backwards-compatible body name used by the first check-in prototype.
     plate_number: str | None = Field(None, min_length=3, pattern=r"^[A-Za-z0-9\-\.\s]+$")
     vehicle_type: str = "CAR"
     customer_class: str = "VISITOR"
-    ticket_code: str | None = Field(None, max_length=64)
     detection_id: UUID | None = None
     confidence: float | None = Field(None, ge=0.0, le=1.0)
     original_ai_plate: str | None = Field(None, max_length=50)
@@ -30,13 +35,13 @@ class CheckInRequest(BaseModel):
             if not self.ticket_code and not (self.license_plate or self.plate_number):
                 raise ValueError("ticket_code or license_plate is required for bicycles (BR-20)")
         else:
-            if not (self.license_plate or self.plate_number):
-                raise ValueError("license_plate is required")
+            if not (self.license_plate or self.plate_number or self.ticket_code):
+                raise ValueError("license_plate or ticket_code is required")
         return self
 
     @property
     def requested_plate(self) -> str | None:
-        return self.license_plate or self.plate_number
+        return self.license_plate or self.plate_number or self.ticket_code
 
 
 class AccessCheckRequest(BaseModel):
@@ -66,6 +71,7 @@ class ParkingTransactionResponse(BaseModel):
     status: TransactionStatus
     lane_id: UUID
     exit_lane_id: UUID | None = None
+    building_id: UUID | None = None
     lane_name: str | None = Field(default=None, validation_alias="lane_snapshot_name")
     lane_direction: str | None = Field(default=None, validation_alias="lane_snapshot_direction")
     detection_id: UUID | None = None
@@ -74,7 +80,6 @@ class ParkingTransactionResponse(BaseModel):
     check_in_time: datetime
     exit_time: datetime | None = None
     fee: float | None = None
-    building_id: UUID | None = None
     ticket_product_id: UUID | None = None
     check_in_operator_id: UUID | None = None
     check_in_operator_name: str | None = Field(

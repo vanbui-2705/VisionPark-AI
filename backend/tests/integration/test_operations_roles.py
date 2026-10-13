@@ -3,6 +3,7 @@ from uuid import uuid4
 from sqlalchemy import select
 
 from app.core.security import hash_password
+from app.modules.buildings.models import DEFAULT_BUILDING_ID, UserBuilding
 from app.modules.lanes.models import Lane, LaneDirection
 from app.modules.users.models import Role, User
 from app.modules.users.schemas import RoleName
@@ -12,15 +13,16 @@ from tests.conftest import login
 def role_headers(client, db_session, role_name: RoleName) -> dict[str, str]:
     role = db_session.scalar(select(Role).where(Role.name == role_name.value))
     username = role_name.value.lower()
-    db_session.add(
-        User(
-            username=username,
-            display_name=username,
-            password_hash=hash_password("role-test-password"),
-            role=role,
-            is_active=True,
-        )
+    user = User(
+        username=username,
+        display_name=username,
+        password_hash=hash_password("role-test-password"),
+        role=role,
+        is_active=True,
     )
+    db_session.add(user)
+    db_session.flush()
+    db_session.add(UserBuilding(user_id=user.id, building_id=DEFAULT_BUILDING_ID))
     db_session.commit()
     token = login(client, username, "role-test-password")["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -61,9 +63,9 @@ def test_accountant_can_read_parking_and_audit_but_cannot_operate(
     assert client.get("/api/v1/parking/summary").status_code == 401
 
 
-def test_technician_can_use_station_but_cannot_read_parking_or_audit(client, db_session):
+def test_building_admin_can_operate_and_read_building_reports(client, db_session):
     lane = db_session.scalar(select(Lane).where(Lane.direction == LaneDirection.IN))
-    headers = role_headers(client, db_session, RoleName.TECHNICIAN)
+    headers = role_headers(client, db_session, RoleName.BUILDING_ADMIN)
 
     assert client.get("/api/v1/lanes/active", headers=headers).status_code == 200
     assert client.get("/api/v1/alpr/detections?paginated=true", headers=headers).status_code == 200
@@ -93,6 +95,5 @@ def test_technician_can_use_station_but_cannot_read_parking_or_audit(client, db_
     assert checkin.status_code == 201, checkin.text
     for path in ("/api/v1/parking/transactions", "/api/v1/parking/summary", "/api/v1/audit-logs/"):
         response = client.get(path, headers=headers)
-        assert response.status_code == 403, path
-        assert response.json()["code"] == "FORBIDDEN"
-    assert client.get("/api/v1/users", headers=headers).status_code == 403
+        assert response.status_code == 200, path
+    assert client.get("/api/v1/users", headers=headers).status_code == 200

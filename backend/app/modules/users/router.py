@@ -13,8 +13,15 @@ from app.modules.users.schemas import ManagedUserPublic, RoleName, UserCreate, U
 from app.modules.users.service import UserManagementService, to_managed_user
 
 router = APIRouter(tags=["users"])
-Admin = Annotated[User, Depends(require_roles(RoleName.ADMIN))]
-OperatorOrAdmin = Annotated[User, Depends(require_roles(RoleName.ADMIN, RoleName.OPERATOR))]
+Admin = Annotated[User, Depends(require_roles(RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN))]
+OperatorOrAdmin = Annotated[
+    User,
+    Depends(
+        require_roles(
+            RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.OPERATOR, RoleName.ACCOUNTANT
+        )
+    ),
+]
 Db = Annotated[Session, Depends(get_db)]
 
 

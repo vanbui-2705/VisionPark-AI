@@ -12,6 +12,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     func,
     text,
@@ -19,6 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class TransactionStatus(StrEnum):
@@ -48,7 +50,7 @@ class CheckInSource(StrEnum):
     OPERATOR_MANUAL = "OPERATOR_MANUAL"
 
 
-class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class ParkingTransaction(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "parking_transactions"
     __table_args__ = (
         CheckConstraint(
@@ -71,6 +73,7 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ),
         Index(
             "uq_parking_transactions_active_plate",
+            "building_id",
             "normalized_plate",
             unique=True,
             sqlite_where=text(
@@ -95,6 +98,7 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
                 "AND ticket_code IS NOT NULL"
             ),
         ),
+        UniqueConstraint("building_id", "idempotency_key", name="uq_parking_building_key"),
     )
 
     license_plate: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
@@ -126,9 +130,6 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     fee: Mapped[float | None] = mapped_column(Float, nullable=True, default=0.0)
     price_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    # TODO: Chờ module M1 tạo bảng buildings để bổ sung ForeignKey("buildings.id")
-    building_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)
-
     # TODO: Chờ module M4 hoàn thành bảng ticket_products
     # để liên kết ForeignKey("ticket_products.id")
     ticket_product_id: Mapped[UUID | None] = mapped_column(
@@ -146,8 +147,9 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     operator_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_manual_override: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    price_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     lane = relationship("Lane", foreign_keys=[lane_id])
     exit_lane = relationship("Lane", foreign_keys=[exit_lane_id])

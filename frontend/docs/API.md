@@ -23,3 +23,22 @@ ACCOUNTANT/TECHNICIAN không được suy ra thành OPERATOR.
 Errors: `{code,message,details,correlation_id}`; 401 xóa token, 403 giữ phiên,
 503 cho phép retry/manual. FormData không tự đặt Content-Type. Tất cả Station
 requests dùng client và token `visionpark.access_token` chung.
+
+# Phase 3 building isolation (VAN-60)
+
+Authenticated requests resolve the building from the signed token and current server membership.
+Client-supplied building IDs cannot widen access. Detection images under `/api/v1/alpr/media/`
+now require Bearer authentication; `DetectionImage` loads them with `apiClient.getBlob`, displays
+a temporary object URL, and revokes it on cleanup. Local Station previews remain local blob URLs.
+
+## Phase 3 M4
+
+- `POST/GET /api/v1/buildings`: SYSTEM_ADMIN tạo; BUILDING_ADMIN thao tác trong membership của mình.
+- `/api/v1/pricing/customer-classes`, `/ticket-products`, `/versions`: GET theo tòa nhà; BUILDING_ADMIN tạo và cập nhật class/product. Phiên bản giá chỉ thêm mới.
+- Check-in và xác nhận ALPR trên làn đã gán tòa nhà gửi thêm `vehicle_type`, `ticket_kind`, `customer_class_id` và `zone_id` khi cần chọn gói; backend chụp snapshot giá và hạn vé đăng ký đang hiệu lực. Station chọn thông tin này trước khi tạo giao dịch.
+- Check-in thủ công cho xe đạp có thể gửi `ticket_code` thay cho `license_plate`; hệ thống tra đăng ký theo mã vé.
+- `POST /api/v1/pricing/preview`: tính phí từ quy tắc hiện hành; `GET /active` lấy snapshot đang áp dụng.
+- `/api/v1/tickets/vehicles`, `/quotas`, `/subscriptions`, `/guest-invites`, `/access`: quản lý vé và tra quyết định ALLOW/DENY/REVIEW. `POST /vehicles/import` nhận CSV tối đa 1 MB/1000 dòng.
+- `POST/GET /api/v1/invoices`: tạo hóa đơn từ snapshot lúc check-in; phụ thu là dòng riêng.
+- `POST /api/v1/payments` cần `Idempotency-Key`; `GET /payments/{id}` để polling; `GET /payments/reconcile` cho BUILDING_ADMIN. Callback mock `POST /payments/callback` cần HMAC-SHA256 trên raw body trong header `X-Mock-Signature`, dùng `MOCK_VIETQR_CALLBACK_SECRET`.
+- Job đối soát chạy một lần: `python scripts/reconcile_m4_payments.py --building-id <UUID>` từ thư mục `backend`; mã thoát 1 khi có chênh lệch.

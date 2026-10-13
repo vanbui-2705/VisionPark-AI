@@ -14,7 +14,7 @@ const admin: CurrentUser = {
   id: 'admin-1',
   username: 'admin',
   display_name: 'Admin',
-  role: 'ADMIN',
+  role: 'SYSTEM_ADMIN',
   active: true,
 }
 
@@ -23,7 +23,7 @@ describe('Operations permissions', () => {
     expect(can(operator, 'transactions.read')).toBe(true)
   })
 
-  it('allows ADMIN to read parking transactions', () => {
+  it('allows SYSTEM_ADMIN to read parking transactions', () => {
     expect(can(admin, 'transactions.read')).toBe(true)
   })
 
@@ -31,7 +31,7 @@ describe('Operations permissions', () => {
     expect(can(operator, 'audit.read')).toBe(false)
   })
 
-  it('allows ADMIN to read audit logs', () => {
+  it('allows SYSTEM_ADMIN to read audit logs', () => {
     expect(can(admin, 'audit.read')).toBe(true)
   })
 })

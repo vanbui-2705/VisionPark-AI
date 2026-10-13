@@ -62,6 +62,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
         try:
             with database.create_session() as session:
+                session.info["building_id"] = getattr(request.state, "building_id", None)
                 actor = getattr(request.state, "actor_id", None)
                 event = ErrorEvent(
                     user_id=actor,

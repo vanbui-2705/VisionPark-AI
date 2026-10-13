@@ -43,7 +43,7 @@ def create_check_in(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN)
+        require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
     ),
 ) -> CheckInResponse:
     return service.process_check_in(
@@ -58,7 +58,7 @@ def check_access_endpoint(
     request: AccessCheckRequest,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.TECHNICIAN)
+        require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
     ),
 ) -> AccessCheckResponse:
     return service.check_access(request, operator=current_user)
@@ -83,7 +83,9 @@ def adjust_parking_counter(
     request: AdjustCounterRequest,
     db: Annotated[Session, Depends(get_db)],
     building_id: UUID | None = None,
-    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
+    ),
 ) -> AdjustCounterResponse:
     """Hiệu chỉnh bộ đếm thủ công có lý do (mục 4.4 nghiepvu.md)."""
     from app.modules.audit_logs.service import log_action
@@ -130,13 +132,17 @@ def adjust_parking_counter(
 def get_counter_discrepancies(
     db: Annotated[Session, Depends(get_db)],
     building_id: UUID | None = None,
-    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
+    ),
 ) -> list[CounterDiscrepancyItem]:
     """Kiểm tra sai lệch giữa số phiên PARKED thực tế và bộ đếm (mục 4.4 nghiepvu.md)."""
-    del current_user
+    effective_building_id = building_id or current_user.building_id
     from app.modules.checkin.counter_reconciliation import CounterReconciliationService
 
-    discrepancies = CounterReconciliationService.check_discrepancies(db, building_id=building_id)
+    discrepancies = CounterReconciliationService.check_discrepancies(
+        db, building_id=effective_building_id
+    )
     return [
         CounterDiscrepancyItem(
             vehicle_type=d.vehicle_type,
@@ -153,21 +159,24 @@ def reconcile_parking_counters(
     request: ReconcileRequest,
     db: Annotated[Session, Depends(get_db)],
     building_id: UUID | None = None,
-    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
+    ),
 ) -> ReconciliationReportResponse:
     """Job đối soát định kỳ và hiệu chỉnh qua counter_events có audit (mục 4.4 nghiepvu.md)."""
+    effective_building_id = building_id or current_user.building_id
     from app.modules.checkin.counter_reconciliation import CounterReconciliationService
 
     discrepancies, adjusted = CounterReconciliationService.reconcile_and_adjust(
         db=db,
-        building_id=building_id,
+        building_id=effective_building_id,
         auto_correct=request.auto_correct,
         actor_type="OPERATOR",
         actor_id=current_user.id,
         reason=request.reason,
     )
     return ReconciliationReportResponse(
-        building_id=building_id,
+        building_id=effective_building_id,
         has_discrepancy=len(discrepancies) > 0,
         adjusted=adjusted,
         discrepancies=[
@@ -187,7 +196,9 @@ def compensate_offline_session_endpoint(
     request: CompensatorySessionRequest,
     db: Annotated[Session, Depends(get_db)],
     building_id: UUID | None = None,
-    current_user: User = Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN)),
+    current_user: User = Depends(
+        require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
+    ),
 ) -> CompensatorySessionResponse:
     """Tạo phiên bù khi mạng lỗi: tăng bộ đếm qua counter_events (mục 4.4 nghiepvu.md)."""
     from app.modules.checkin.counter_reconciliation import CounterReconciliationService
@@ -230,7 +241,9 @@ def list_parking_transactions(
     paginated: bool = False,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+        require_roles(
+            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+        )
     ),
 ):
     del current_user
@@ -274,7 +287,9 @@ def list_parking_transactions(
 def get_parking_summary(
     db: Annotated[Session, Depends(get_db)],
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+        require_roles(
+            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+        )
     ),
 ) -> dict[str, int]:
     del current_user
@@ -286,7 +301,9 @@ def get_parking_transaction(
     transaction_id: UUID,
     service: CheckInService = Depends(get_checkin_service),
     current_user: User = Depends(
-        require_roles(RoleName.OPERATOR, RoleName.ADMIN, RoleName.ACCOUNTANT)
+        require_roles(
+            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+        )
     ),
 ) -> ParkingTransactionResponse:
     del current_user

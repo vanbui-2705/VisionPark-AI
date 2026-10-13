@@ -1,0 +1,50 @@
+{
+  "verified_on": "2026-10-12",
+  "branch": "dqt_core",
+  "base_main": "58a82a9",
+  "verified_backend_commit": "ac532574933bab85ded95aac6722d68d6b3ef20a",
+  "scope": "Member 2 / Đinh Túy: Backend Core only. New frontend implementation excluded per user instruction.",
+  "business_source": "VisionPark supplemental mixed-parking specification v2.0, 08/10/2026, sections 4.2/4.3/5.2",
+  "linear_scope_ready_for_review": [
+    "VAN-59",
+    "VAN-60",
+    "VAN-61",
+    "VAN-62",
+    "VAN-64",
+    "VAN-65",
+    "VAN-66"
+  ],
+  "linear_scope_backend_only": {
+    "VAN-63": "Typed schema and backend APIs implemented; frontend Setting frame/tabs remain outside this delivery."
+  },
+  "migration_head": "20261012_0013",
+  "checks": {
+    "backend_sqlite_and_postgresql": {
+      "passed": 325,
+      "skipped": 3,
+      "failures": 0,
+      "errors": 0,
+      "warnings": 1,
+      "duration_seconds": 356.089,
+      "skip_reason": "SQLite variants of three PostgreSQL race tests",
+      "warning_reason": "Upstream Starlette/httpx deprecation"
+    },
+    "postgresql_races": "All three passed",
+    "migration_preservation_and_rollback": "Passed on SQLite and PostgreSQL, including role IDs and password hashes",
+    "building_isolation": "Passed: IDs, aliases, counts, cached objects, writes, memberships and media",
+    "provisioning_and_rbac": "Passed: temporary password restriction, session revocation, staff-only administration and business permission matrix",
+    "settings_audit_readiness_copy": "Passed: capacities, quota validation, occupied sessions, revision conflicts, complete before/after audit, closed/unconfigured lot and system-only copy",
+    "ai_threshold": "Passed: per-building plate threshold applies to preview and persisted detections",
+    "demo_seed": "Empty database and repeatability passed on SQLite and PostgreSQL; two building admins plus four staff accounts",
+    "ruff_check_and_format": "Passed, 163 Python files",
+    "pip_check": "Passed",
+    "git_diff_check": "Passed"
+  },
+  "database_safety": "Disposable SQLite and loopback PostgreSQL 17.11 databases; temporary PostgreSQL server stopped after tests",
+  "integration_remaining": [
+    "Frontend owner must consume canonical roles and PASSWORD_CHANGE_REQUIRED and connect the Setting UI (remaining portion of VAN-63).",
+    "M4 must register an effective_pricing provider backed by real pricing versions. Default provider rejects readiness and new entry.",
+    "M3/M5 connect the published settings/permission contracts to counters, checkout and incident workflows.",
+    "Peer review and GitHub CI are required before merge; Docker full stack/browser E2E were not run locally."
+  ]
+}

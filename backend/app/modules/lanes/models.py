@@ -1,10 +1,10 @@
 import enum
-from uuid import UUID
 
-from sqlalchemy import Enum, String, Uuid
+from sqlalchemy import JSON, Enum, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class LaneDirection(enum.StrEnum):
@@ -19,21 +19,19 @@ class AllowedVehicleType(enum.StrEnum):
     BICYCLE = "BICYCLE"
 
 
-class Lane(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class Lane(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "lanes"
+    __table_args__ = (Index("ix_lanes_building_name", "building_id", "name", unique=True),)
 
-    name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     direction: Mapped[LaneDirection] = mapped_column(Enum(LaneDirection), nullable=False)
     video_source: Mapped[str] = mapped_column(String(512), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)
-
-    allowed_vehicle_type: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=AllowedVehicleType.ALL
+    allowed_vehicle_types: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=lambda: ["CAR", "MOTORBIKE", "BICYCLE"],
+        server_default='["CAR", "MOTORBIKE", "BICYCLE"]',
+        nullable=False,
     )
-
-    # TODO: Chờ module M5 tạo bảng devices để liên kết ForeignKey("devices.id")
-    camera_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    barrier_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
-
-    # TODO: Chờ module M1 tạo bảng buildings để bổ sung ForeignKey("buildings.id")
-    building_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)
+    camera: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    barrier: Mapped[str | None] = mapped_column(String(255), nullable=True)

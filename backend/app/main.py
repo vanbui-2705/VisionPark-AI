@@ -17,6 +17,7 @@ from app.core.middleware import CorrelationIdMiddleware
 from app.core.readiness import RuntimeALPRProbe
 from app.database.seed import seed_database
 from app.database.session import database
+from app.modules.pricing.service import has_effective_pricing
 
 
 class VisionParkAPI(FastAPI):
@@ -66,6 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.dependency_overrides[get_settings] = lambda: app_settings
     app.state.settings = app_settings
+    app.state.effective_pricing = has_effective_pricing
     runtime = create_runtime(
         app_settings.alpr_provider,
         manifest_path=app_settings.alpr_manifest_path,

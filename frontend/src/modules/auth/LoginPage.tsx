@@ -24,7 +24,7 @@ export function LoginPage() {
 
   const targetAfterLogin = useMemo(() => {
     if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) return returnUrl
-    return user?.role === 'ADMIN' ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'
+    return user?.role === 'SYSTEM_ADMIN' ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'
   }, [returnUrl, user])
 
   useEffect(() => {

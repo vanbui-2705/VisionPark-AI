@@ -16,7 +16,7 @@ from app.modules.users.service import UserManagementService
 
 router = APIRouter(tags=["account-operations"])
 Db = Annotated[Session, Depends(get_db)]
-Admin = Annotated[User, Depends(require_roles(RoleName.ADMIN))]
+Admin = Annotated[User, Depends(require_roles(RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN))]
 
 
 class ProfileUpdate(BaseModel):

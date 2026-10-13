@@ -1,6 +1,7 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,9 @@ from app.database.idempotency import (
 )
 from app.modules.audit_logs.service import log_action
 from app.modules.lanes.models import LaneDirection
+from app.modules.pricing.domain import TicketKind
+from app.modules.pricing.models import Subscription, TicketProduct, Vehicle
+from app.modules.pricing.service import has_effective_pricing, select_price_snapshot
 from app.modules.users.models import User
 
 from .access_control import AccessDecision, evaluate_access_control
@@ -69,7 +73,39 @@ class CheckInService:
         ticket_code = getattr(request, "ticket_code", None)
 
         lane = self.repo.get_lane(request.lane_id)
+        if lane is None:
+            raise AppError(
+                status_code=404, code="LANE_NOT_FOUND", message="The selected lane does not exist."
+            )
+        # System administrators can read all buildings, but writes/retries are bound
+        # to the selected lane's server-resolved building just like operator writes.
+        if (
+            self.session is not None
+            and isinstance(lane.building_id, UUID)
+            and self.session.info.get("building_id") is None
+        ):
+            self.session.info["building_id"] = lane.building_id
         detection = self.repo.get_detection(request.detection_id) if request.detection_id else None
+        operator_building_id = (
+            operator.building_id
+            if isinstance(getattr(operator, "building_id", None), UUID)
+            else None
+        )
+        lane_building_id = (
+            lane.building_id
+            if lane and isinstance(getattr(lane, "building_id", None), UUID)
+            else None
+        )
+        if (
+            lane is not None
+            and operator.role.name != "SYSTEM_ADMIN"
+            and operator_building_id != lane_building_id
+        ):
+            raise AppError(
+                status_code=404,
+                code="LANE_NOT_FOUND",
+                message="The selected lane does not exist.",
+            )
 
         # Compute provenance for fingerprint
         ai_plate = detection.normalized_plate if detection else None
@@ -90,11 +126,25 @@ class CheckInService:
                 "original_ai_plate": request.original_ai_plate,
                 "confidence": request.confidence,
                 "notes": request.override_reason,
+                "vehicle_type": request.vehicle_type,
+                "ticket_kind": request.ticket_kind,
+                "customer_class_id": request.customer_class_id,
+                "zone_id": request.zone_id,
+                "ticket_code": request.ticket_code,
             }
         )
 
         existing = self.repo.get_by_idempotency_key(key)
         if existing is not None:
+            existing_building_id = getattr(existing, "building_id", None)
+            if not isinstance(existing_building_id, UUID):
+                existing_building_id = None
+            if existing_building_id != lane_building_id:
+                raise AppError(
+                    status_code=409,
+                    code="IDEMPOTENCY_SCOPE_MISMATCH",
+                    message="The idempotency key belongs to another building.",
+                )
             return self._replay(existing, request, operator, fingerprint, normalized_plate)
 
         # Now perform validations
@@ -112,7 +162,6 @@ class CheckInService:
                 code="INVALID_LANE_TYPE",
                 message="Check-in is only allowed on an IN lane.",
             )
-
         if request.detection_id and detection is None:
             raise AppError(
                 status_code=404,
@@ -159,7 +208,7 @@ class CheckInService:
             )
 
         if normalized_plate:
-            duplicate = self.repo.get_active_by_plate(normalized_plate)
+            duplicate = self.repo.get_active_by_plate(normalized_plate, lane_building_id)
             if duplicate:
                 raise AppError(
                     status_code=409,
@@ -178,12 +227,88 @@ class CheckInService:
                     details={"transaction_id": str(duplicate_ticket.id)},
                 )
 
+        if isinstance(self.session, Session):
+            from app.modules.lot_settings.contracts import no_pricing_provider
+            from app.modules.lot_settings.service import require_ready_for_entry
+
+            require_ready_for_entry(
+                self.session,
+                lane.building_id,
+                self.session.info.get("effective_pricing", no_pricing_provider),
+            )
+
         image_url = None
         if detection and detection.image_key:
             image_url = f"/api/v1/alpr/media/{detection.image_key}"
 
         if self.session is None:
             raise RuntimeError("Database session is required for check-in persistence")
+        check_in_time = datetime.now(UTC)
+        snapshot = None
+        if lane_building_id is not None and has_effective_pricing(
+            self.session, lane_building_id, check_in_time
+        ):
+            if not request.vehicle_type or not request.ticket_kind or not request.customer_class_id:
+                raise AppError(
+                    status_code=422,
+                    code="PRICE_CONTEXT_REQUIRED",
+                    message="Vehicle type, ticket kind and customer class are required.",
+                )
+            price = select_price_snapshot(
+                self.session,
+                building_id=lane_building_id,
+                vehicle_type=request.vehicle_type,
+                ticket_kind=request.ticket_kind,
+                customer_class_id=request.customer_class_id,
+                at=check_in_time,
+            )
+            if request.ticket_kind in {TicketKind.DAILY, TicketKind.MONTHLY}:
+                vehicle_identifier = (
+                    Vehicle.ticket_code == request.ticket_code.strip().upper()
+                    if request.ticket_code
+                    else Vehicle.normalized_plate == normalized_plate
+                )
+                vehicle = self.session.scalar(
+                    select(Vehicle).where(
+                        Vehicle.building_id == lane_building_id,
+                        vehicle_identifier,
+                    )
+                )
+                if vehicle is not None:
+                    matches = []
+                    rows = self.session.execute(
+                        select(Subscription, TicketProduct)
+                        .join(TicketProduct, Subscription.product_id == TicketProduct.id)
+                        .where(
+                            Subscription.building_id == lane_building_id,
+                            Subscription.vehicle_id == vehicle.id,
+                            TicketProduct.kind == request.ticket_kind,
+                        )
+                    )
+                    for subscription, product in rows:
+                        valid_from = subscription.valid_from.replace(
+                            tzinfo=subscription.valid_from.tzinfo or UTC
+                        )
+                        valid_until = subscription.valid_until.replace(
+                            tzinfo=subscription.valid_until.tzinfo or UTC
+                        )
+                        if (
+                            (request.zone_id is None or subscription.zone_id == request.zone_id)
+                            and product.active
+                            and valid_from
+                            <= check_in_time
+                            <= valid_until + timedelta(days=subscription.grace_days)
+                        ):
+                            matches.append(valid_until)
+                    if len(matches) > 1:
+                        raise AppError(
+                            status_code=409,
+                            code="ZONE_REQUIRED",
+                            message="Select a zone for the registered pass.",
+                        )
+                    if matches:
+                        price = price.model_copy(update={"entitlement_valid_until": matches[0]})
+            snapshot = price.model_dump(mode="json")
         try:
             transaction = self.repo.save_transaction(
                 {
@@ -192,9 +317,11 @@ class CheckInService:
                     "original_ai_plate": ai_plate,
                     "vehicle_type": vehicle_type,
                     "ticket_code": ticket_code,
-                    "building_id": getattr(lane, "building_id", None),
                     "status": TransactionStatus.PARKED,
                     "lane_id": request.lane_id,
+                    "building_id": lane_building_id,
+                    "check_in_time": check_in_time,
+                    "price_snapshot": snapshot,
                     "lane_snapshot_name": lane.name,
                     "lane_snapshot_direction": lane.direction,
                     "detection_id": request.detection_id,
@@ -306,7 +433,7 @@ class CheckInService:
             if existing is not None:
                 return self._replay(existing, request, operator, fingerprint, normalized_plate)
             if normalized_plate:
-                duplicate = self.repo.get_active_by_plate(normalized_plate)
+                duplicate = self.repo.get_active_by_plate(normalized_plate, lane_building_id)
                 if duplicate:
                     raise AppError(
                         status_code=409,
@@ -473,6 +600,11 @@ class CheckInService:
             status=transaction.status,
             lane_id=transaction.lane_id,
             exit_lane_id=_val("exit_lane_id"),
+            building_id=(
+                transaction.building_id
+                if isinstance(getattr(transaction, "building_id", None), UUID)
+                else None
+            ),
             lane_name=lane_name if type(lane_name).__name__ != "MagicMock" else None,
             lane_direction=lane_dir if type(lane_dir).__name__ != "MagicMock" else None,
             detection_id=_val("detection_id"),
@@ -481,7 +613,6 @@ class CheckInService:
             check_in_time=transaction.check_in_time,
             exit_time=_val("exit_time"),
             fee=_val("fee", 0.0),
-            building_id=_val("building_id"),
             ticket_product_id=_val("ticket_product_id"),
             check_in_operator_id=_val("check_in_operator_id"),
             check_in_operator_name=operator_name

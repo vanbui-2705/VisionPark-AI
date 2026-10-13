@@ -11,7 +11,7 @@ def test_login_and_me_return_public_user(client: TestClient) -> None:
     login_body = login(client, "ADMIN", "admin-test-password")
     assert login_body["token_type"] == "bearer"
     assert login_body["expires_in"] == 3600
-    assert login_body["user"]["role"] == "ADMIN"
+    assert login_body["user"]["role"] == "SYSTEM_ADMIN"
     assert "password_hash" not in login_body["user"]
 
     response = client.get(
@@ -98,4 +98,4 @@ def test_rbac_allows_admin_and_rejects_operator(client: TestClient) -> None:
     )
     assert forbidden.status_code == 403
     assert forbidden.json()["code"] == "FORBIDDEN"
-    assert forbidden.json()["details"] == {"required_roles": ["ADMIN"]}
+    assert forbidden.json()["details"] == {"required_roles": ["SYSTEM_ADMIN"]}

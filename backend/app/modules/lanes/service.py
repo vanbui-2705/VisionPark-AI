@@ -33,8 +33,9 @@ def create_lane(
         action="CREATE_LANE",
         entity_type="Lane",
         entity_id=str(db_lane.id),
-        new_value=lane_dict,
+        new_value=schemas.LaneResponse.model_validate(db_lane).model_dump(mode="json"),
     )
+    db.commit()
     return schemas.LaneResponse.model_validate(db_lane)
 
 
@@ -48,11 +49,16 @@ def get_lane(db: Session, lane_id: UUID) -> schemas.LaneResponse:
             message=f"Không tìm thấy lane với id={lane_id}",
             details={"lane_id": str(lane_id)},
         )
+    db.commit()
     return schemas.LaneResponse.model_validate(db_lane)
 
 
 def update_lane(
-    db: Session, lane_id: UUID, update_data: schemas.LaneUpdate, admin_id: UUID = None
+    db: Session,
+    lane_id: UUID,
+    update_data: schemas.LaneUpdate,
+    admin_id: UUID = None,
+    action: str = "UPDATE_LANE",
 ) -> schemas.LaneResponse:
     """Cập nhật thông tin lane."""
     db_lane = repository.get_lane_by_id(db, lane_id)
@@ -75,15 +81,18 @@ def update_lane(
                 details={"name": update_data.name},
             )
 
+    before = schemas.LaneResponse.model_validate(db_lane).model_dump(mode="json")
     updated = repository.update_lane(db, db_lane, update_data.model_dump(exclude_unset=True))
     log_action(
         db,
         user_id=admin_id,
-        action="UPDATE_LANE",
+        action=action,
         entity_type="Lane",
         entity_id=str(updated.id),
-        new_value=update_data.model_dump(exclude_unset=True),
+        old_value=before,
+        new_value=schemas.LaneResponse.model_validate(updated).model_dump(mode="json"),
     )
+    db.commit()
     return schemas.LaneResponse.model_validate(updated)
 
 
@@ -99,10 +108,7 @@ def deactivate_lane(db: Session, lane_id: UUID, admin_id: UUID = None) -> schema
         )
 
     update_data = schemas.LaneUpdate(is_active=False)
-    log_action(
-        db, user_id=admin_id, action="DEACTIVATE_LANE", entity_type="Lane", entity_id=str(lane_id)
-    )
-    return update_lane(db, lane_id, update_data, admin_id)
+    return update_lane(db, lane_id, update_data, admin_id, action="DEACTIVATE_LANE")
 
 
 def list_lanes(db: Session) -> list[schemas.LaneResponse]:
