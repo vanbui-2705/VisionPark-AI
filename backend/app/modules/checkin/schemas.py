@@ -190,3 +190,37 @@ class CompensatorySessionResponse(BaseModel):
     delta: int = 1
     reason: str
     updated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# P3-M3-07: Re-export Check-out schemas from app.modules.checkout.schemas
+# ---------------------------------------------------------------------------
+from app.modules.checkout.schemas import (  # noqa: E402
+    CheckOutPreviewResponse,
+    CheckOutRequest,
+    CheckOutResponse,
+    PaymentRecordRequest,
+)
+
+__all__ = [
+    "CheckInRequest",
+    "AccessCheckRequest",
+    "AccessCheckResponse",
+    "ParkingTransactionResponse",
+    "PaginatedParkingTransactions",
+    "CheckInResponse",
+    "AuditLogResponse",
+    "PaginatedAuditLogs",
+    "AdjustCounterRequest",
+    "AdjustCounterResponse",
+    "AvailabilityItem",
+    "CounterDiscrepancyItem",
+    "ReconcileRequest",
+    "ReconciliationReportResponse",
+    "CompensatorySessionRequest",
+    "CompensatorySessionResponse",
+    "CheckOutRequest",
+    "CheckOutPreviewResponse",
+    "CheckOutResponse",
+    "PaymentRecordRequest",
+]

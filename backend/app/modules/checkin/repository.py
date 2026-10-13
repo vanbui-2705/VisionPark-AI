@@ -37,6 +37,26 @@ class CheckInRepository(ABC):
     def get_active_by_ticket_code(self, ticket_code: str) -> ParkingTransaction | None:
         return None
 
+    # ------------------------------------------------------------------
+    # P3-M3-07: Checkout lookups
+    # ------------------------------------------------------------------
+
+    def get_checkout_eligible_by_plate(
+        self, normalized_plate: str, building_id: UUID | None = None
+    ) -> list["ParkingTransaction"]:
+        """Trả danh sách phiên đang mở (checkout-eligible) theo biển số."""
+        return []
+
+    def get_checkout_eligible_by_ticket(
+        self, ticket_code: str, building_id: UUID | None = None
+    ) -> list["ParkingTransaction"]:
+        """Trả danh sách phiên đang mở theo mã vé."""
+        return []
+
+    def get_by_idempotency_key_checkout(self, key: str) -> "ParkingTransaction | None":
+        """Tìm phiên đã checkout bằng idempotency key (để idempotent)."""
+        return None
+
     @abstractmethod
     def save_transaction(self, values: dict) -> ParkingTransaction:
         raise NotImplementedError
@@ -139,6 +159,74 @@ class DatabaseCheckInRepository(CheckInRepository):
         )
         return self.session.scalar(stmt)
 
+    # ------------------------------------------------------------------
+    # P3-M3-07: Checkout lookups
+    # ------------------------------------------------------------------
+
+    _CHECKOUT_ELIGIBLE = [
+        TransactionStatus.PARKED,
+        TransactionStatus.PAYMENT_PENDING,
+        TransactionStatus.PAID,
+    ]
+
+    def get_checkout_eligible_by_plate(
+        self, normalized_plate: str, building_id: UUID | None = None
+    ) -> list[ParkingTransaction]:
+        """Phiên đang mở có thể checkout theo biển số chuẩn hóa trong phạm vi tòa."""
+        stmt = (
+            select(ParkingTransaction)
+            .options(
+                joinedload(ParkingTransaction.lane),
+                joinedload(ParkingTransaction.check_in_operator),
+            )
+            .where(
+                ParkingTransaction.normalized_plate == normalized_plate,
+                ParkingTransaction.status.in_(self._CHECKOUT_ELIGIBLE),
+                ParkingTransaction.building_id == building_id,
+            )
+            .order_by(ParkingTransaction.check_in_time.asc())
+        )
+        return list(self.session.scalars(stmt).all())
+
+    def get_checkout_eligible_by_ticket(
+        self, ticket_code: str, building_id: UUID | None = None
+    ) -> list[ParkingTransaction]:
+        """Phiên đang mở có thể checkout theo mã vé trong phạm vi tòa."""
+        stmt = (
+            select(ParkingTransaction)
+            .options(
+                joinedload(ParkingTransaction.lane),
+                joinedload(ParkingTransaction.check_in_operator),
+            )
+            .where(
+                ParkingTransaction.ticket_code == ticket_code,
+                ParkingTransaction.status.in_(self._CHECKOUT_ELIGIBLE),
+                ParkingTransaction.building_id == building_id,
+            )
+            .order_by(ParkingTransaction.check_in_time.asc())
+        )
+        return list(self.session.scalars(stmt).all())
+
+    def get_by_idempotency_key_checkout(self, key: str) -> ParkingTransaction | None:
+        """Tìm phiên đã COMPLETED/EXITED bằng checkout idempotency key."""
+        stmt = (
+            select(ParkingTransaction)
+            .options(
+                joinedload(ParkingTransaction.lane),
+                joinedload(ParkingTransaction.check_in_operator),
+            )
+            .where(
+                or_(
+                    ParkingTransaction.notes.like(f"%[CHECKOUT_KEY:{key}]%"),
+                    ParkingTransaction.idempotency_key == key,
+                ),
+                ParkingTransaction.status.in_(
+                    [TransactionStatus.COMPLETED, TransactionStatus.EXITED]
+                ),
+            )
+        )
+        return self.session.scalar(stmt)
+
     def save_transaction(self, values: dict) -> ParkingTransaction:
         transaction = ParkingTransaction(**values)
         self.session.add(transaction)
@@ -227,6 +315,47 @@ class FakeCheckInRepository(CheckInRepository):
             ),
             None,
         )
+
+    def get_checkout_eligible_by_plate(
+        self, normalized_plate: str, building_id: UUID | None = None
+    ) -> list[ParkingTransaction]:
+        return [
+            item
+            for item in self._fake_db
+            if item.normalized_plate == normalized_plate
+            and item.status
+            in [
+                TransactionStatus.PARKED,
+                TransactionStatus.PAYMENT_PENDING,
+                TransactionStatus.PAID,
+            ]
+            and item.building_id == building_id
+        ]
+
+    def get_checkout_eligible_by_ticket(
+        self, ticket_code: str, building_id: UUID | None = None
+    ) -> list[ParkingTransaction]:
+        return [
+            item
+            for item in self._fake_db
+            if item.ticket_code == ticket_code
+            and item.status
+            in [
+                TransactionStatus.PARKED,
+                TransactionStatus.PAYMENT_PENDING,
+                TransactionStatus.PAID,
+            ]
+            and item.building_id == building_id
+        ]
+
+    def get_by_idempotency_key_checkout(self, key: str) -> ParkingTransaction | None:
+        for item in self._fake_db:
+            if item.status in [TransactionStatus.COMPLETED, TransactionStatus.EXITED]:
+                if (
+                    item.notes and f"[CHECKOUT_KEY:{key}]" in item.notes
+                ) or item.idempotency_key == key:
+                    return item
+        return None
 
     def save_transaction(self, values: dict) -> ParkingTransaction:
         transaction = ParkingTransaction(id=uuid4(), **values)

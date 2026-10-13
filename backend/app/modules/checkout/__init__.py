@@ -1,0 +1,2 @@
+"""Checkout module initialization."""
+
