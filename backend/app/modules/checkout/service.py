@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.alpr.utils import normalize_plate
@@ -19,6 +20,16 @@ from app.modules.checkin.lifecycle_service import record_lifecycle_event
 from app.modules.checkin.models import ParkingTransaction, TransactionStatus
 from app.modules.checkin.repository import CheckInRepository
 from app.modules.lanes.models import Lane, LaneDirection
+from app.modules.pricing.domain import (
+    AccessDecision,
+    AccessResult,
+    PriceSnapshot,
+    TicketEntitlement,
+    TicketKind,
+    calculate_fee,
+    check_ticket_access,
+)
+from app.modules.pricing.models import Subscription, TicketProduct, Vehicle
 from app.modules.users.models import User
 
 from .schemas import CheckOutPreviewResponse, CheckOutRequest, CheckOutResponse
@@ -36,41 +47,145 @@ def _normalize_tz(dt: datetime) -> datetime:
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
-def _calculate_fee_stub(
+DEFAULT_BUILDING_UUID = UUID("00000000-0000-0000-0000-000000000001")
+
+
+def _build_price_snapshot_from_tx(transaction: ParkingTransaction) -> PriceSnapshot:
+    """Đọc snapshot từ phiên gửi xe, fallback an toàn nếu là dữ liệu test cũ (BR-13)."""
+    raw = getattr(transaction, "price_snapshot", None)
+    if isinstance(raw, dict) and "version_id" in raw and "initial_fee" in raw:
+        return PriceSnapshot.model_validate(raw)
+
+    free_mins = raw.get("free_minutes", 0) if isinstance(raw, dict) else 0
+    rate = raw.get("rate_per_hour", 5000.0) if isinstance(raw, dict) else 5000.0
+    lost_fee = raw.get("lost_ticket_fee", 50000.0) if isinstance(raw, dict) else 50000.0
+    building_id = getattr(transaction, "building_id", None) or DEFAULT_BUILDING_UUID
+
+    return PriceSnapshot(
+        version_id=building_id,
+        rule_id=DEFAULT_BUILDING_UUID,
+        vehicle_type=getattr(transaction, "vehicle_type", "CAR") or "CAR",
+        ticket_kind=TicketKind.HOURLY,
+        customer_class="STANDARD",
+        free_minutes=int(free_mins),
+        initial_minutes=60,
+        initial_fee=int(rate),
+        block_minutes=60,
+        block_fee=int(rate),
+        lost_ticket_fee=int(lost_fee),
+    )
+
+
+def verify_ticket_entitlement_for_checkout(
+    db: Session,
+    transaction: ParkingTransaction,
+    exit_time: datetime,
+) -> tuple[AccessResult | None, datetime | None]:
+    """Kiểm tra quyền vé tháng/vé ngày tại thời điểm ra cổng (M4)."""
+    building_id = transaction.building_id
+    if not building_id:
+        return None, None
+
+    plate = transaction.normalized_plate or transaction.license_plate
+    code = transaction.ticket_code
+
+    stmt = select(Vehicle).where(Vehicle.building_id == building_id)
+    if code:
+        stmt = stmt.where(Vehicle.ticket_code == code.strip().upper())
+    elif plate:
+        stmt = stmt.where(Vehicle.normalized_plate == normalize_plate(plate))
+    else:
+        return None, None
+
+    vehicle = db.scalar(stmt)
+    if not vehicle:
+        return None, None
+
+    sub = db.scalar(
+        select(Subscription)
+        .where(
+            Subscription.building_id == building_id,
+            Subscription.vehicle_id == vehicle.id,
+        )
+        .order_by(Subscription.valid_until.desc())
+    )
+    if not sub:
+        return None, None
+
+    product = db.get(TicketProduct, sub.product_id)
+    if not product or not product.active:
+        return None, None
+
+    entitlement = TicketEntitlement(
+        kind=TicketKind(product.kind),
+        plate=vehicle.normalized_plate,
+        ticket_code=vehicle.ticket_code,
+        zone_id=sub.zone_id,
+        valid_from=_normalize_tz(sub.valid_from),
+        valid_until=_normalize_tz(sub.valid_until),
+        grace_days=sub.grace_days,
+    )
+    result = check_ticket_access(
+        ticket=entitlement,
+        at=_normalize_tz(exit_time),
+        plate=plate,
+        ticket_code=code,
+        zone_id=getattr(transaction, "assigned_zone_id", None) or sub.zone_id,
+    )
+    return result, entitlement.valid_until
+
+
+def calculate_parking_fee(
     transaction: ParkingTransaction,
     exit_time: datetime,
     is_lost_ticket: bool = False,
-) -> tuple[float, dict]:
+    session: Session | None = None,
+) -> tuple[float, list[dict], dict]:
     """
-    STUB tính phí — tính theo biểu mẫu đơn giản chờ Module M4 hoàn thiện.
+    Tính phí theo bản chụp giá (price_snapshot) của phiên gửi xe (BR-13, P3-M3-09).
 
-    TODO[M4]: Bỏ stub này, nối calculate_fee() từ module pricing của M4 (P3-M3-09).
+    Đảm bảo: đổi giá giữa chừng không làm đổi phí của xe đang trong bãi.
     """
-    price_snapshot = getattr(transaction, "price_snapshot", None) or {}
-    free_minutes: int = price_snapshot.get("free_minutes", 0)
+    snapshot = _build_price_snapshot_from_tx(transaction)
     t_in = _normalize_tz(transaction.check_in_time)
     t_out = _normalize_tz(exit_time)
-    duration_minutes = max(0, int((t_out - t_in).total_seconds() // 60))
 
-    if duration_minutes <= free_minutes:
-        fee = 0.0
-    else:
-        rate_per_hour: float = price_snapshot.get("rate_per_hour", 5000.0)
-        billable_hours = (duration_minutes - free_minutes + 59) // 60
-        fee = float(rate_per_hour * billable_hours)
+    # Nếu có session DB, kiểm tra quyền vé (subscription) mới nhất
+    if session is not None and snapshot.ticket_kind in {TicketKind.HOURLY, TicketKind.MONTHLY}:
+        access_res, valid_until = verify_ticket_entitlement_for_checkout(
+            session, transaction, t_out
+        )
+        if access_res and access_res.decision == AccessDecision.ALLOW and valid_until:
+            snapshot = snapshot.model_copy(
+                update={
+                    "ticket_kind": TicketKind.MONTHLY,
+                    "entitlement_valid_until": valid_until,
+                }
+            )
+        elif access_res and access_res.decision == AccessDecision.DENY:
+            snapshot = snapshot.model_copy(
+                update={
+                    "ticket_kind": TicketKind.HOURLY,
+                    "entitlement_valid_until": None,
+                }
+            )
 
-    if is_lost_ticket:
-        lost_fee: float = price_snapshot.get("lost_ticket_fee", 50000.0)
-        fee += lost_fee
-
+    fee_res = calculate_fee(
+        check_in=t_in,
+        check_out=t_out,
+        snapshot=snapshot,
+        lost_ticket=is_lost_ticket,
+    )
+    lines_dump = [line.model_dump() for line in fee_res.lines]
+    duration_mins = max(0, int((t_out - t_in).total_seconds() // 60))
     breakdown = {
-        "stub": True,
-        "duration_minutes": duration_minutes,
-        "free_minutes": free_minutes,
-        "base_fee": fee,
-        "note": "TODO[M4]: Replace with real Pricing Engine",
+        "duration_minutes": duration_mins,
+        "price_version_id": str(fee_res.price_version_id),
+        "total": fee_res.total,
+        "currency": fee_res.currency,
+        "lines": lines_dump,
     }
-    return fee, breakdown
+    return float(fee_res.total), lines_dump, breakdown
 
 
 class CheckOutService:
@@ -89,7 +204,9 @@ class CheckOutService:
         exit_time = datetime.now(UTC)
         t_in = _normalize_tz(transaction.check_in_time)
         t_out = _normalize_tz(exit_time)
-        fee, breakdown = _calculate_fee_stub(transaction, t_out, request.is_lost_ticket)
+        fee, lines, breakdown = calculate_parking_fee(
+            transaction, t_out, request.is_lost_ticket, session=self.session
+        )
         duration_minutes = max(0, int((t_out - t_in).total_seconds() // 60))
         vtype_in = getattr(transaction, "vehicle_type", "CAR") or "CAR"
         vtype_out = request.vehicle_type_out
@@ -108,6 +225,7 @@ class CheckOutService:
             duration_minutes=duration_minutes,
             fee=fee,
             price_snapshot=getattr(transaction, "price_snapshot", None),
+            fee_lines=lines,
             fee_breakdown=breakdown,
             status=transaction.status,
             message="⚠️ Lệch loại xe — cần xác nhận trước khi cho ra." if mismatch else "",
@@ -157,8 +275,17 @@ class CheckOutService:
 
         # Nếu phiên đã PAID trước đó
         if transaction.status == TransactionStatus.PAID:
+            fee, lines, breakdown = calculate_parking_fee(
+                transaction, datetime.now(UTC), request.is_lost_ticket, session=self.session
+            )
             return self._complete_session(
-                transaction, request, operator, fee=float(transaction.fee or 0.0), key=key
+                transaction,
+                request,
+                operator,
+                fee=float(transaction.fee or 0.0),
+                key=key,
+                fee_lines=lines,
+                fee_breakdown=breakdown,
             )
 
         # 3. Kiểm tra làn ra
@@ -206,7 +333,9 @@ class CheckOutService:
 
         # 4. Tính phí
         exit_time = datetime.now(UTC)
-        fee, breakdown = _calculate_fee_stub(transaction, exit_time, request.is_lost_ticket)
+        fee, lines, breakdown = calculate_parking_fee(
+            transaction, exit_time, request.is_lost_ticket, session=self.session
+        )
 
         try:
             # Nếu miễn phí hoặc thanh toán trực tiếp tại cổng
@@ -222,7 +351,15 @@ class CheckOutService:
                         building_id=tx_building_id,
                         details={"payment_method": request.payment_method, "amount": fee},
                     )
-                return self._complete_session(transaction, request, operator, fee=fee, key=key)
+                return self._complete_session(
+                    transaction,
+                    request,
+                    operator,
+                    fee=fee,
+                    key=key,
+                    fee_lines=lines,
+                    fee_breakdown=breakdown,
+                )
             else:
                 # Phí > 0 và chưa trả: chuyển sang PAYMENT_PENDING
                 transaction.status = TransactionStatus.PAYMENT_PENDING
@@ -247,6 +384,7 @@ class CheckOutService:
                     building_id=tx_building_id,
                     details={
                         "fee": fee,
+                        "lines": lines,
                         "breakdown": breakdown,
                         "is_lost_ticket": request.is_lost_ticket,
                     },
@@ -268,6 +406,8 @@ class CheckOutService:
                 return CheckOutResponse(
                     transaction=CheckInService.to_response(transaction),
                     fee=fee,
+                    fee_lines=lines,
+                    fee_breakdown=breakdown,
                     status=TransactionStatus.PAYMENT_PENDING,
                     barrier_opened=False,
                     vehicle_type_mismatch=mismatch,
@@ -284,6 +424,8 @@ class CheckOutService:
         operator: User,
         fee: float,
         key: str | None = None,
+        fee_lines: list[dict] | None = None,
+        fee_breakdown: dict | None = None,
     ) -> CheckOutResponse:
         """
         Hoàn tất phiên gửi xe trong cùng 1 transaction (BR-14):
@@ -388,6 +530,8 @@ class CheckOutService:
             building_id=tx_building_id,
             details={
                 "fee": fee,
+                "lines": fee_lines,
+                "breakdown": fee_breakdown,
                 "exit_lane_id": str(request.exit_lane_id),
                 "vehicle_type": vtype,
             },
@@ -427,6 +571,8 @@ class CheckOutService:
         return CheckOutResponse(
             transaction=CheckInService.to_response(transaction),
             fee=fee,
+            fee_lines=fee_lines,
+            fee_breakdown=fee_breakdown,
             status=TransactionStatus.COMPLETED,
             barrier_opened=barrier_opened,
             vehicle_type_mismatch=mismatch,

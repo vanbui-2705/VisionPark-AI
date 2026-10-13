@@ -73,8 +73,8 @@ class CheckOutPreviewResponse(BaseModel):
     exit_image_url: str | None = None
     duration_minutes: int
     fee: float
+    fee_lines: list[dict] | None = None
     price_snapshot: dict | None = None
-    # TODO[M4]: Thay bằng kết quả thật từ Pricing Engine của M4 khi hoàn thiện.
     fee_breakdown: dict | None = None
     status: str
     message: str = ""
@@ -85,6 +85,8 @@ class CheckOutResponse(BaseModel):
 
     transaction: ParkingTransactionResponse
     fee: float
+    fee_lines: list[dict] | None = None
+    fee_breakdown: dict | None = None
     status: str  # COMPLETED | PAID | EXITED | PAYMENT_PENDING
     barrier_opened: bool
     vehicle_type_mismatch: bool = False
