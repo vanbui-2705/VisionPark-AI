@@ -1,17 +1,3 @@
-"""
-P3-M3-07: Check-out Service
-============================
-Luồng theo mục 4.7 nghiepvu.md:
-  1. Tìm phiên mở theo biển hoặc mã vé trong phạm vi tòa nhà.
-  2. Cảnh báo lệch loại xe vào/ra.
-  3. Tính phí — STUB chờ M4 hoàn thiện calculate_fee().
-  4. Phí = 0 (hoặc thanh toán ngay) → mở barrier, EXITED → COMPLETED.
-  5. Phí > 0 (chưa trả) → PAYMENT_PENDING, thu tiền qua record_payment() → PAID → COMPLETED.
-  6. Ghi exit_time, exit_lane_id, ảnh ra, giảm bộ đếm nguyên tử (BR-14).
-  7. Idempotent: gọi hai lần cho cùng phiên không giảm bộ đếm hai lần.
-  8. Anti-passback: xe đang trong bãi không được check-in lần nữa.
-"""
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -21,6 +7,12 @@ from app.alpr.utils import normalize_plate
 from app.core.errors import AppError
 from app.database.idempotency import validate_idempotency_key
 from app.modules.audit_logs.service import log_action
+from app.modules.barriers import (
+    BarrierAction,
+    BarrierStatus,
+    BarrierTriggerReason,
+    record_barrier_event,
+)
 from app.modules.checkin.counter_service import CounterService
 from app.modules.checkin.lifecycle_models import ActorType, LifecycleEventType
 from app.modules.checkin.lifecycle_service import record_lifecycle_event
@@ -79,15 +71,6 @@ def _calculate_fee_stub(
         "note": "TODO[M4]: Replace with real Pricing Engine",
     }
     return fee, breakdown
-
-
-def _open_barrier_stub(lane_barrier_id: str | None) -> bool:
-    """
-    STUB mở barrier mô phỏng (BR-08, BR-23).
-
-    TODO[M3-08]: Mở theo quyền + ghi lý do hoàn chỉnh trong P3-M3-08.
-    """
-    return True
 
 
 class CheckOutService:
@@ -352,7 +335,30 @@ class CheckOutService:
 
         exit_lane = self.session.get(Lane, request.exit_lane_id)
         barrier_id = getattr(exit_lane, "barrier_id", None) if exit_lane else None
-        barrier_opened = _open_barrier_stub(barrier_id)
+        trigger_reason = (
+            BarrierTriggerReason.OVERRIDE
+            if request.override_reason
+            else BarrierTriggerReason.NORMAL
+        )
+        record_barrier_event(
+            db=self.session,
+            lane_id=request.exit_lane_id,
+            building_id=tx_building_id,
+            barrier_id=barrier_id,
+            action=BarrierAction.OPEN,
+            trigger_reason=trigger_reason,
+            operator_id=operator.id if operator else None,
+            session_id=transaction.id,
+            status=BarrierStatus.OPEN,
+            details={
+                "barrier_id": barrier_id,
+                "trigger_reason": trigger_reason,
+                "override_reason": request.override_reason,
+                "source": "CHECK_OUT",
+                "fee": fee,
+            },
+        )
+        barrier_opened = True
 
         record_lifecycle_event(
             session=self.session,
@@ -365,7 +371,7 @@ class CheckOutService:
             details={
                 "barrier_id": barrier_id,
                 "opened": barrier_opened,
-                "trigger_reason": "OVERRIDE" if request.override_reason else "NORMAL_CHECKOUT",
+                "trigger_reason": trigger_reason,
                 "override_reason": request.override_reason,
             },
         )

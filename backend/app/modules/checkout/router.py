@@ -72,4 +72,3 @@ def record_session_payment(
         provider_ref=request.provider_ref,
         override_reason=request.override_reason,
     )
-

@@ -35,4 +35,3 @@ def downgrade() -> None:
         batch.drop_column("barrier_id")
         batch.drop_column("camera_id")
         batch.drop_column("allowed_vehicle_type")
-

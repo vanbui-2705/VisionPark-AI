@@ -427,6 +427,48 @@ class CheckInService:
                 actor_id=operator.id if operator else None,
                 reason="CHECK_IN",
             )
+
+            from app.modules.barriers import (
+                BarrierAction,
+                BarrierStatus,
+                BarrierTriggerReason,
+                record_barrier_event,
+            )
+
+            barrier_reason = (
+                BarrierTriggerReason.OVERRIDE
+                if request.override_reason
+                else BarrierTriggerReason.NORMAL
+            )
+            record_barrier_event(
+                db=self.session,
+                lane_id=request.lane_id,
+                building_id=getattr(lane, "building_id", None),
+                barrier_id=getattr(lane, "barrier_id", None),
+                action=BarrierAction.OPEN,
+                trigger_reason=barrier_reason,
+                operator_id=operator.id if operator else None,
+                session_id=transaction.id,
+                status=BarrierStatus.OPEN,
+                details={
+                    "source": "CHECK_IN",
+                    "plate": normalized_plate,
+                    "override_reason": request.override_reason,
+                },
+            )
+            record_lifecycle_event(
+                session=self.session,
+                session_id=transaction.id,
+                event_type=LifecycleEventType.BARRIER_OPENED_IN,
+                actor_type=ActorType.OPERATOR if operator else ActorType.SYSTEM,
+                actor_id=operator.id if operator else None,
+                lane_id=request.lane_id,
+                building_id=getattr(lane, "building_id", None),
+                details={
+                    "barrier_id": getattr(lane, "barrier_id", None),
+                    "trigger_reason": barrier_reason,
+                },
+            )
             self.session.commit()
         except IntegrityError as exc:
             self.session.rollback()
