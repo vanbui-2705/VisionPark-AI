@@ -10,6 +10,7 @@ from app.modules.buildings.router import router as buildings_router
 from app.modules.checkout.router import router as checkout_router
 from app.modules.lifecycle.router import router as lifecycle_router
 from app.modules.lot_settings.router import router as lot_settings_router
+from app.modules.operations.emergency_router import router as emergency_router
 from app.modules.operations.router import router as operations_router
 from app.modules.pricing.billing_router import router as billing_router
 from app.modules.pricing.router import router as pricing_router
@@ -32,3 +33,4 @@ api_router.include_router(audit_logs_router)
 api_router.include_router(users_router)
 api_router.include_router(lot_settings_router)
 api_router.include_router(operations_router)
+api_router.include_router(emergency_router)
