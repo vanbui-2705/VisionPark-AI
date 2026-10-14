@@ -43,24 +43,26 @@ export default function ConfirmationPanel({
   const locked = submitting || disabled || completed || !candidateId;
   return <div style={{
     marginTop: 16,
-    padding: 14,
-    border: "1px solid #666",
-    borderRadius: 8
-  }}><h3>Operator Confirmation</h3>
-    <p>AI: <strong>{result.normalized_plate_number ?? result.raw_plate_number ?? translate("Không có biển số")}</strong></p>
-    <div style={{
-      display: "flex",
-      gap: 8,
-      flexWrap: "wrap"
-    }}>
-      <button type="button" disabled={locked || !canAccept} onClick={() => void run(() => onConfirmCorrect(candidateId!), translate("Đã xác nhận biển số."))}>{translate("✓ Biển số đúng")}</button>
-      <button type="button" disabled={locked} onClick={() => { setEditing(true); onEditingChange?.(true); }}>{translate("✎ Sai / Không có biển")}</button>
+    paddingTop: 16,
+    borderTop: "1px solid #ead9bb"
+  }}>
+    <span className="card-kicker">OPERATOR CONFIRMATION</span>
+    <p style={{ margin: "6px 0 12px" }}>AI: <strong>{result.normalized_plate_number ?? result.raw_plate_number ?? translate("Không có biển số")}</strong></p>
+    <div className="scan-result-actions">
+      <button type="button" className="btn btn-primary btn-small" disabled={locked || !canAccept} onClick={() => void run(() => onConfirmCorrect(candidateId!), translate("Đã xác nhận biển số."))}>{translate("✓ Biển số đúng")}</button>
+      <button type="button" className="btn btn-small" disabled={locked} onClick={() => { setEditing(true); onEditingChange?.(true); }}>{translate("✎ Sai / Không có biển")}</button>
     </div>
-    {editing && <div style={{
-      marginTop: 10
-    }}><label htmlFor="corrected-plate">{translate("Biển số chính xác")}</label><input id="corrected-plate" value={plate} onChange={e => setPlate(e.target.value)} placeholder="29A12345" />
-      <button type="button" disabled={locked || normalized.length < 3} onClick={() => void run(() => onConfirmCorrection(candidateId!, normalized), `Đã sửa thành ${normalized}.`)}>{translate("Xác nhận sửa")}</button>
-      <button type="button" disabled={submitting || disabled} onClick={() => { setEditing(false); onEditingChange?.(false); }}>{translate("Hủy sửa")}</button></div>}
-    {submitting && <p>{translate("Đang gửi xác nhận...")}</p>}{message && <p role="status">{message}</p>}
+    {editing && <div className="stack" style={{ marginTop: 12, gap: 10 }}>
+      <div className="field">
+        <label htmlFor="corrected-plate">{translate("Biển số chính xác")}</label>
+        <input id="corrected-plate" value={plate} onChange={e => setPlate(e.target.value)} placeholder="29A12345" />
+      </div>
+      <div className="scan-result-actions" style={{ marginTop: 0 }}>
+        <button type="button" className="btn btn-primary btn-small" disabled={locked || normalized.length < 3} onClick={() => void run(() => onConfirmCorrection(candidateId!, normalized), `Đã sửa thành ${normalized}.`)}>{translate("Xác nhận sửa")}</button>
+        <button type="button" className="btn btn-small" disabled={submitting || disabled} onClick={() => { setEditing(false); onEditingChange?.(false); }}>{translate("Hủy sửa")}</button>
+      </div>
+    </div>}
+    {submitting && <p className="muted" style={{ marginTop: 10 }}>{translate("Đang gửi xác nhận...")}</p>}
+    {message && <p role="status" className="alert alert-info" style={{ marginTop: 10 }}>{message}</p>}
   </div>;
 }

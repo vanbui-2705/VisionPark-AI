@@ -49,36 +49,86 @@ export function HistoryBrowser({ kind }: { kind: 'detections' | 'parking' }) {
   }, [kind, page, q, status, lane, direction, inputKind, from, to, min, max, refresh])
   const statuses = kind === 'detections' ? ['DETECTED', 'NEEDS_CONFIRMATION', 'CONFIRMED', 'CORRECTED', 'NO_PLATE'] : ['PARKED', 'COMPLETED', 'CANCELLED']
   const filter = (setter: (value: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setter(e.target.value); setPage(0) }
-  return <section>
-    <h2>{kind === 'detections' ? translate("Lịch sử nhận diện") : translate("Lịch sử đỗ xe")}</h2>
-    <p>{total}{translate("kết quả từ database")}</p>
-    <div className="card" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-      <label>{translate("Biển số")}<input value={q} onChange={filter(setQ)} /></label>
-      <label>{translate("Làn")}<select value={lane} onChange={filter(setLane)}><option value="">{translate("Tất cả")}</option>{lanes.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
-      <label>{translate("Trạng thái")}<select value={status} onChange={filter(setStatus)}><option value="">{translate("Tất cả")}</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
-      <label>{translate("Từ ngày")}<input type="date" value={from} onChange={filter(setFrom)} /></label>
-      <label>{translate("Đến ngày")}<input type="date" value={to} onChange={filter(setTo)} /></label>
-      {kind === 'detections' && <>
-        <label>{translate("Hướng")}<select value={direction} onChange={filter(setDirection)}><option value="">{translate("Tất cả")}</option><option>IN</option><option>OUT</option></select></label>
-        <label>{translate("Đầu vào")}<select value={inputKind} onChange={filter(setInputKind)}><option value="">{translate("Tất cả")}</option><option value="IMAGE_UPLOAD">{translate("Ảnh")}</option><option value="VIDEO_FRAME">Video</option></select></label>
-        <label>Confidence min % <input type="number" min="0" max="100" value={min} onChange={filter(setMin)} /></label>
-        <label>Confidence max % <input type="number" min="0" max="100" value={max} onChange={filter(setMax)} /></label>
-      </>}
-      <button type="button" className="btn" onClick={() => setRefresh(v => v + 1)}>{translate("Làm mới")}</button>
-    </div>
-    {error && <Alert variant="error">{error}</Alert>}
-    {loading && <p role="status">{translate("Đang tải…")}</p>}
-    <table className="table"><thead><tr><th>{translate("Biển số")}</th><th>{translate("Làn")}</th><th>{translate("Trạng thái")}</th><th>{translate("Nguồn / đầu vào")}</th><th>{translate("Thời gian")}</th><th /></tr></thead><tbody>
-      {rows.map(row => {
-        const detection = row as Detection
-        const parking = row as ParkingTransaction
-        return <tr key={row.id}><td>{kind === 'detections' ? detection.final_plate ?? detection.normalized_plate ?? translate("Không đọc được") : parking.license_plate}</td>
-          <td>{row.lane_name ?? row.lane_id}</td><td>{row.status}</td><td>{kind === 'detections' ? detection.input_kind ?? 'Unknown' : parking.source}</td>
-          <td>{new Date(kind === 'detections' ? detection.created_at : parking.check_in_time).toLocaleString()}</td>
-          <td><Link to={kind === 'detections' ? `/detections/${row.id}` : `/parking/${row.id}`}>{translate("Chi tiết")}</Link></td></tr>
-      })}
-    </tbody></table>
-    {!loading && !rows.length && <p>{translate("Không có kết quả phù hợp.")}</p>}
-    <div style={{ display: 'flex', gap: 12 }}><button disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)}>{translate("Trước")}</button><span>Trang {page + 1} / {Math.max(1, Math.ceil(total / 20))}</span><button disabled={(page + 1) * 20 >= total || loading} onClick={() => setPage(p => p + 1)}>Sau</button></div>
-  </section>
+  return (
+    <section className={`data-page ${kind === 'detections' ? 'detections-page' : 'parking-page'}`}>
+      <div className={`data-hero data-hero--forest ${kind === 'detections' ? 'detection-hero' : 'parking-hero'}`}>
+        <div className="data-hero-copy">
+          <span className="data-kicker">{kind === 'detections' ? 'ALPR · VISIONPARK' : 'OPERATIONS · VISIONPARK'}</span>
+          <h2>{kind === 'detections' ? translate("Lịch sử nhận diện") : translate("Lịch sử đỗ xe")}</h2>
+          <p>{kind === 'detections' ? translate("Tra cứu lịch sử nhận diện ALPR theo biển số, làn và trạng thái.") : translate("Tra cứu giao dịch xe vào/ra theo biển số, làn và thời gian.")}</p>
+        </div>
+        <div className="data-hero-stat">
+          <strong>{total}</strong>
+          <span>{translate("kết quả từ database")}</span>
+        </div>
+      </div>
+
+      <div className={`data-filter-card ${kind === 'detections' ? 'detection-filter-card' : 'parking-filter-card'}`}>
+        <div className="parking-filter-head">
+          <span className="data-section-kicker">{translate("Bộ lọc dữ liệu")}</span>
+          <button type="button" className="btn btn-sm" onClick={() => setRefresh(v => v + 1)}>{translate("Làm mới")}</button>
+        </div>
+        <div className={`data-filter-grid ${kind === 'parking' ? 'parking-filter-grid' : ''}`}>
+          <label className="field"><span>{translate("Biển số")}</span><input value={q} onChange={filter(setQ)} placeholder="VD: 29A12345" /></label>
+          <label className="field"><span>{translate("Làn")}</span><select value={lane} onChange={filter(setLane)}><option value="">{translate("Tất cả")}</option>{lanes.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
+          <label className="field"><span>{translate("Trạng thái")}</span><select value={status} onChange={filter(setStatus)}><option value="">{translate("Tất cả")}</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
+          <label className="field"><span>{translate("Từ ngày")}</span><input type="date" value={from} onChange={filter(setFrom)} /></label>
+          <label className="field"><span>{translate("Đến ngày")}</span><input type="date" value={to} onChange={filter(setTo)} /></label>
+          {kind === 'detections' && <>
+            <label className="field"><span>{translate("Hướng")}</span><select value={direction} onChange={filter(setDirection)}><option value="">{translate("Tất cả")}</option><option>IN</option><option>OUT</option></select></label>
+            <label className="field"><span>{translate("Đầu vào")}</span><select value={inputKind} onChange={filter(setInputKind)}><option value="">{translate("Tất cả")}</option><option value="IMAGE_UPLOAD">{translate("Ảnh")}</option><option value="VIDEO_FRAME">Video</option></select></label>
+            <label className="field"><span>Confidence min %</span><input type="number" min="0" max="100" value={min} onChange={filter(setMin)} /></label>
+            <label className="field"><span>Confidence max %</span><input type="number" min="0" max="100" value={max} onChange={filter(setMax)} /></label>
+          </>}
+        </div>
+      </div>
+
+      {error && <Alert variant="error">{error}</Alert>}
+      {loading && <p role="status" className="muted">{translate("Đang tải…")}</p>}
+
+      <div className={`data-table-card ${kind === 'detections' ? 'detection-table-card' : 'parking-table-card'}`}>
+        <div className="table-wrap data-table-wrap">
+          <table className="table data-table">
+            <thead>
+              <tr>
+                <th>{translate("Biển số")}</th>
+                <th>{translate("Làn")}</th>
+                <th>{translate("Trạng thái")}</th>
+                <th>{translate("Nguồn / đầu vào")}</th>
+                <th>{translate("Thời gian")}</th>
+                <th className="parking-action-col" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(row => {
+                const detection = row as Detection
+                const parking = row as ParkingTransaction
+                const plate = kind === 'detections'
+                  ? detection.final_plate ?? detection.normalized_plate ?? translate("Không đọc được")
+                  : parking.license_plate
+                return (
+                  <tr key={row.id}>
+                    <td><span className="data-plate">{plate}</span></td>
+                    <td className="data-lane">{row.lane_name ?? row.lane_id}</td>
+                    <td><span className={`badge ${row.status === 'PARKED' || row.status === 'CONFIRMED' || row.status === 'CORRECTED' ? 'badge-success' : row.status === 'NEEDS_CONFIRMATION' ? 'badge-warning' : 'badge-muted'}`}>{row.status}</span></td>
+                    <td>{kind === 'detections' ? detection.input_kind ?? 'Unknown' : parking.source}</td>
+                    <td className="data-time">{new Date(kind === 'detections' ? detection.created_at : parking.check_in_time).toLocaleString()}</td>
+                    <td><Link className="btn btn-sm parking-detail-link" to={kind === 'detections' ? `/detections/${row.id}` : `/parking/${row.id}`}>{translate("Chi tiết")} <span aria-hidden="true">→</span></Link></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!loading && !rows.length && <div className="empty"><p>{translate("Không có kết quả phù hợp.")}</p></div>}
+        <div className="data-pager parking-pager">
+          <span>Trang {page + 1} / {Math.max(1, Math.ceil(total / 20))}</span>
+          <div className="data-pager-actions">
+            <button type="button" className="btn btn-sm" disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)}>{translate("Trước")}</button>
+            <button type="button" className="btn btn-sm btn-primary" disabled={(page + 1) * 20 >= total || loading} onClick={() => setPage(p => p + 1)}>Sau</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
 }

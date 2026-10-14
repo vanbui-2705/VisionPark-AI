@@ -14,14 +14,13 @@ export default function LaneSelector({
   disabled
 }: Props) {
   const active = lanes.filter(lane => lane.active);
-  return <label style={{
-    display: "grid",
-    gap: 6
-  }} htmlFor="lane-select">
-    <strong>Lane</strong>
-    <select id="lane-select" aria-label="Lane" value={selectedLaneId} disabled={disabled} onChange={e => onChange(e.target.value)}>
-      <option value="">{translate("-- Chọn Lane --")}</option>
-      {active.map(lane => <option key={lane.id} value={lane.id}>{lane.name} - {lane.direction}</option>)}
-    </select>
+  return <label className="field scan-control-group" htmlFor="lane-select">
+    <span>Lane</span>
+    <span className="scan-select-wrap">
+      <select id="lane-select" className="scan-select" aria-label="Lane" value={selectedLaneId} disabled={disabled} onChange={e => onChange(e.target.value)}>
+        <option value="">{translate("-- Chọn Lane --")}</option>
+        {active.map(lane => <option key={lane.id} value={lane.id}>{lane.name} - {lane.direction}</option>)}
+      </select>
+    </span>
   </label>;
 }

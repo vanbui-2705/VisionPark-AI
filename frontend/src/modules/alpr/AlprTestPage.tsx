@@ -38,24 +38,38 @@ export function AlprTestPage() {
     finally { setLoading(false) }
   }
   const bbox = result?.bbox
-  return <section>
-    <h2>{translate("Kiểm tra ALPR")}</h2>
-    <p>{translate("Gửi ảnh tới provider đang chạy trên backend. Preview không lưu detection hoặc tạo check-in.")}</p>
+  return <section className="stack scan-page">
+    <header className="scan-hero">
+      <div className="scan-hero-copy">
+        <span className="scan-kicker">DIAGNOSTICS · ALPR TEST LAB</span>
+        <h2>{translate("Kiểm tra ALPR")}</h2>
+        <p>{translate("Gửi ảnh tới provider đang chạy trên backend. Preview không lưu detection hoặc tạo check-in.")}</p>
+      </div>
+    </header>
     {error && <Alert variant="error">{error}</Alert>}
-    <div className="card">
-      <label>{translate("Ảnh đầu vào")}<input type="file" accept="image/jpeg,image/png" disabled={loading} onChange={event => { const selected = event.target.files?.[0] ?? null; setFile(selected); setPreview(selected ? URL.createObjectURL(selected) : ''); setResult(null); setCaptureId(crypto.randomUUID()); }} /></label>
-      <Select label="Lane" value={lane} disabled={loading} onChange={event => { setLane(event.target.value); setResult(null); setCaptureId(crypto.randomUUID()); }}>
-        <option value="">{translate("Chọn làn xe")}</option>
-        {lanes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-      </Select>
-      <Button loading={loading} disabled={!file || !lane} onClick={() => void run()}>{translate("Chạy nhận diện")}</Button>
-      <Button loading={loading} disabled={!file || !lane || Boolean(result?.detection_id)} onClick={() => void run(true)}>{translate("Lưu kết quả")}</Button>
+    <div className="card card-polished stack">
+      <div className="form-grid">
+        <label className="field"><span>{translate("Ảnh đầu vào")}</span><input type="file" accept="image/jpeg,image/png" disabled={loading} onChange={event => { const selected = event.target.files?.[0] ?? null; setFile(selected); setPreview(selected ? URL.createObjectURL(selected) : ''); setResult(null); setCaptureId(crypto.randomUUID()); }} /></label>
+        <Select label="Lane" value={lane} disabled={loading} onChange={event => { setLane(event.target.value); setResult(null); setCaptureId(crypto.randomUUID()); }}>
+          <option value="">{translate("Chọn làn xe")}</option>
+          {lanes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </Select>
+      </div>
+      <div className="row-actions">
+        <Button variant="primary" loading={loading} disabled={!file || !lane} onClick={() => void run()}>{translate("Chạy nhận diện")}</Button>
+        <Button loading={loading} disabled={!file || !lane || Boolean(result?.detection_id)} onClick={() => void run(true)}>{translate("Lưu kết quả")}</Button>
+      </div>
     </div>
-    {file && preview && <DetectionImage key={preview} src={preview} bbox={bbox ? { x: bbox[0], y: bbox[1], w: bbox[2] - bbox[0], h: bbox[3] - bbox[1] } : null} />}
-    {result && <div className="card">
-      {result.detection_id && <p role="status">{translate("Đã lưu detection:")}{result.detection_id}</p>}
-      <p>{translate("Biển số:")}{result.normalized_plate_number ?? translate("Không đọc được biển số")}</p>
-      <pre className="code-block">{JSON.stringify(result, null, 2)}</pre>
+    {file && preview && <div className="card card-polished"><DetectionImage key={preview} src={preview} bbox={bbox ? { x: bbox[0], y: bbox[1], w: bbox[2] - bbox[0], h: bbox[3] - bbox[1] } : null} /></div>}
+    {result && <div className="card scan-result">
+      <div className="scan-card-head">
+        <div>
+          <span className="card-kicker">INFERENCE PAYLOAD</span>
+          <h3>{translate("Biển số:")} {result.normalized_plate_number ?? translate("Không đọc được biển số")}</h3>
+        </div>
+      </div>
+      {result.detection_id && <p role="status" className="alert alert-success">{translate("Đã lưu detection:")}{result.detection_id}</p>}
+      <pre className="code-block" style={{ marginTop: 12 }}>{JSON.stringify(result, null, 2)}</pre>
     </div>}
   </section>
 }

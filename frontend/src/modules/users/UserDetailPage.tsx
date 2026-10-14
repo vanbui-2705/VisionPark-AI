@@ -46,9 +46,15 @@ export function UserDetailPage() {
   if (!user) return <Alert variant="info">{translate("Không tìm thấy user.")}</Alert>
 
   return (
-    <div>
-      <Link to="/admin/users">{translate("← Danh sách")}</Link>
-      <h2 style={{marginTop:8}}>{user.display_name} — {user.username}</h2>
+    <div className="data-page">
+      <section className="data-hero data-hero--forest">
+        <div className="data-hero-copy">
+          <span className="data-kicker">USER RECORD · {user.role}</span>
+          <h2>{user.display_name} — {user.username}</h2>
+          <p>Username: {user.username} — ID: {user.id}</p>
+        </div>
+        <Link to="/admin/users" className="btn btn-secondary">{translate("← Danh sách")}</Link>
+      </section>
       <div className="tabs">
         <button className={tab==='info'?'active':''} onClick={()=>setTab('info')}>{translate("Thông tin")}</button>
         <button className={tab==='perm'?'active':''} onClick={()=>setTab('perm')}>{translate("Phân quyền")}</button>
@@ -57,40 +63,48 @@ export function UserDetailPage() {
       </div>
       {err ? <Alert variant="error">{err}</Alert>:null}
       {tab==='info' && (
-        <section className="card">
-          <Input label="Display Name" value={displayName} onChange={e=>setDisplayName(e.target.value)} />
-          <Input label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-          <Select label="Role" value={role} onChange={e=>setRole(e.target.value as ManagedUser['role'])}><option value="OPERATOR">OPERATOR</option><option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option><option value="BUILDING_ADMIN">BUILDING_ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option><option value="TECHNICIAN">TECHNICIAN</option></Select>
+        <section className="card card-polished stack">
+          <div className="form-grid">
+            <Input label="Display Name" value={displayName} onChange={e=>setDisplayName(e.target.value)} />
+            <Input label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+            <Select label="Role" value={role} onChange={e=>setRole(e.target.value as ManagedUser['role'])}><option value="OPERATOR">OPERATOR</option><option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option><option value="BUILDING_ADMIN">BUILDING_ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option><option value="TECHNICIAN">TECHNICIAN</option></Select>
+          </div>
           <label className="checkbox"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)} /> Active</label>
-          <p className="muted">Username: {user.username} — ID: {user.id}</p>
-          <Button onClick={onSave} loading={saving}>{translate("Lưu")}</Button>
+          <p className="muted" style={{ margin: 0 }}>Username: {user.username} — ID: {user.id}</p>
+          <div className="row-actions">
+            <Button variant="primary" onClick={onSave} loading={saving}>{translate("Lưu")}</Button>
+          </div>
         </section>
       )}
       {tab==='perm' && (
-        <section className="card">
-          <h3>Permission matrix — {role}</h3>
-          <table className="table"><thead><tr><th>{translate("Chức năng")}</th><th>{translate("Quyền")}</th></tr></thead><tbody>{PERMISSION_MATRIX.map(p=> <tr key={p.perm}><td>{translate(p.label)}</td><td>{can({ ...user, role }, p.perm)?'✓':'✗'}</td></tr>)}</tbody></table>
-          <p className="muted">{translate("Quyền theo vai trò được thực thi tại backend.")}</p>
+        <section className="card card-polished">
+          <h3 style={{ marginTop: 0 }}>Permission matrix — {role}</h3>
+          <div className="table-wrap">
+            <table className="table"><thead><tr><th>{translate("Chức năng")}</th><th>{translate("Quyền")}</th></tr></thead><tbody>{PERMISSION_MATRIX.map(p=> <tr key={p.perm}><td>{translate(p.label)}</td><td>{can({ ...user, role }, p.perm)?'✓':'✗'}</td></tr>)}</tbody></table>
+          </div>
+          <p className="muted" style={{ marginBottom: 0 }}>{translate("Quyền theo vai trò được thực thi tại backend.")}</p>
         </section>
       )}
       {tab==='security' && (
-        <section className="card">
-          <h3>{translate("Bảo mật")}</h3>
-          <Link className="btn" to={`/admin/users/${id}/edit`}>{translate("Đổi mật khẩu / khóa tài khoản")}</Link>
-          <Button variant="secondary" disabled={saving} style={{marginLeft:8}} onClick={async () => {
-            setSaving(true); setErr(null); setSecurityMessage('');
-            try { await apiClient.post(`/api/v1/users/${id}/revoke-sessions`); setSecurityMessage(translate("Đã thu hồi các phiên đăng nhập.")); }
-            catch (e) { setErr(e instanceof Error ? e.message : translate("Thu hồi thất bại.")); }
-            finally { setSaving(false); }
-          }}>Force Logout</Button>
-          {securityMessage && <p role="status">{securityMessage}</p>}
+        <section className="card card-polished stack">
+          <h3 style={{ margin: 0 }}>{translate("Bảo mật")}</h3>
+          <div className="row-actions">
+            <Link className="btn" to={`/admin/users/${id}/edit`}>{translate("Đổi mật khẩu / khóa tài khoản")}</Link>
+            <Button variant="secondary" disabled={saving} onClick={async () => {
+              setSaving(true); setErr(null); setSecurityMessage('');
+              try { await apiClient.post(`/api/v1/users/${id}/revoke-sessions`); setSecurityMessage(translate("Đã thu hồi các phiên đăng nhập.")); }
+              catch (e) { setErr(e instanceof Error ? e.message : translate("Thu hồi thất bại.")); }
+              finally { setSaving(false); }
+            }}>Force Logout</Button>
+          </div>
+          {securityMessage && <p role="status" className="alert alert-success">{securityMessage}</p>}
         </section>
       )}
       {tab==='activity' && (
-        <section className="card">
-          <h3>{translate("Hoạt động")}</h3>
-          <p className="muted">Last login: {user.last_login ?? '—'} — Created: {user.created_at ?? '—'}</p>
-          {audit.length ? <ul>{audit.map(a => <li key={a.id}>{new Date(a.time).toLocaleString()} · {a.action} · {a.resource}</li>)}</ul> : <p>{translate("Chưa có nhật ký hoạt động.")}</p>}
+        <section className="card card-polished stack">
+          <h3 style={{ margin: 0 }}>{translate("Hoạt động")}</h3>
+          <p className="muted" style={{ margin: 0 }}>Last login: {user.last_login ?? '—'} — Created: {user.created_at ?? '—'}</p>
+          {audit.length ? <ul className="role-permission-list">{audit.map(a => <li key={a.id} className="role-permission-row"><span>{new Date(a.time).toLocaleString()}</span><strong>{a.action}</strong><code>{a.resource}</code></li>)}</ul> : <p className="muted">{translate("Chưa có nhật ký hoạt động.")}</p>}
         </section>
       )}
     </div>

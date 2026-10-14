@@ -933,12 +933,13 @@ body { background: radial-gradient(circle at top left, rgba(37,99,235,0.08), tra
 }
 
 /* final editorial pass for the operations dashboard */
-.dashboard-v2 { background: #fff; }
+.dashboard-v2 { background: transparent; }
 .dashboard-hero {
-  min-height: 270px;
-  padding: 48px 0 48px;
-  border: 0;
-  border-radius: 0;
+  min-height: 0;
+  padding: 40px 44px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: #fff;
 }
 .hero-status-copy { display: grid; gap: 5px; }
 .hero-status-copy .status-label, .card-kicker {
@@ -1900,4 +1901,1016 @@ body { background: radial-gradient(circle at top left, rgba(37,99,235,0.08), tra
   .profile-detail-row { align-items: flex-start !important; flex-direction: column; gap: 4px !important; justify-content: center !important; padding: 9px 0; }
   .profile-action-buttons { flex-direction: column; }
   .parking-hero-stat { flex-basis: 100%; }
+}
+
+/* ==========================================================================
+   VisionPark Editorial Design System (Aligned with design.md)
+   - White canvas heroes, #181d26 primary ink, weight 400/500 display type
+   - Signature surfaces: #ffffff paper, #f5e9d4 cream, #0a2e0e forest, #181d26 dark
+   - Subtle physics motion without neon gradients or AI-template clichés
+   ========================================================================== */
+
+@keyframes vp-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vp-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vp-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vp-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vp-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes vp-spin-once {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes vp-dot-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* 1. Warm Stone Canvas & Crisp Hairline Header */
+body,
+.admin-main-wrap,
+.admin-main {
+  background: #f6f5f1 !important;
+  color: #181d26;
+}
+
+.app-header {
+  height: 64px;
+  min-height: 64px;
+  padding: 0 28px;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid #e2e4e0 !important;
+  box-shadow: none !important;
+}
+
+.header-status {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #d8dcd6;
+  border-radius: 999px;
+  background: #f8faf8;
+  color: #181d26;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.header-icon-button,
+.profile-trigger {
+  border-color: #dcded9 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.profile-trigger .avatar {
+  background: #181d26 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* 2. Cohesive Matte Ink Sidebar (#181d26 per design.md) */
+.admin-sidebar {
+  width: 248px;
+  padding: 20px 14px;
+  background: #181d26 !important;
+  border-right: 1px solid #262c36 !important;
+  box-shadow: none !important;
+}
+
+.admin-sidebar.collapsed {
+  width: 72px;
+}
+
+.admin-sidebar .brand {
+  min-height: 46px;
+  padding: 2px 10px 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #262c36;
+}
+
+.admin-sidebar .brand > span {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.admin-sidebar .sidebar-group {
+  margin-top: 16px;
+  margin-bottom: 4px;
+  padding: 4px 10px;
+  color: #7c8594;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.admin-sidebar nav {
+  gap: 2px;
+}
+
+.admin-sidebar nav a {
+  position: relative;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: #b8c0cc;
+  font-size: 13.5px;
+  font-weight: 400;
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.admin-sidebar nav a .nav-icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 6px;
+  background: transparent;
+  color: #8c96a6;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+
+.admin-sidebar nav a .nav-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-sidebar nav a:hover {
+  background: #212733 !important;
+  color: #ffffff !important;
+}
+
+.admin-sidebar nav a:hover .nav-icon {
+  color: #ffffff;
+}
+
+.admin-sidebar nav a.active {
+  background: #252c38 !important;
+  border-color: #333c4a !important;
+  color: #ffffff !important;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+.admin-sidebar nav a.active .nav-icon {
+  background: #f5e9d4;
+  color: #181d26;
+}
+
+/* 3. Editorial White Canvas Heroes (No Mesh/Aurora Gradients per design.md) */
+.dashboard-hero,
+.scan-hero,
+.data-hero,
+.utility-hero {
+  position: relative;
+  padding: 36px 40px !important;
+  border: 1px solid #e2e4e0 !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  color: #181d26 !important;
+  box-shadow: 0 1px 3px rgba(24, 29, 38, 0.04) !important;
+  animation: vp-page-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dashboard-hero h1,
+.scan-hero h2,
+.data-hero h2,
+.utility-hero h1 {
+  color: #181d26 !important;
+  font-size: 38px !important;
+  font-weight: 400 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.025em !important;
+  text-shadow: none !important;
+}
+
+.dashboard-hero p,
+.scan-hero p,
+.data-hero p,
+.utility-hero p {
+  color: #424b5a !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+}
+
+.dashboard-hero .eyebrow,
+.scan-hero .scan-kicker,
+.data-hero .data-kicker,
+.utility-hero .utility-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #424b5a !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+}
+
+.eyebrow-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0a2e0e;
+}
+
+/* Hero Primary & Secondary Buttons per design.md */
+.dashboard-hero .btn-primary,
+.scan-hero .btn-primary,
+.data-hero .btn-primary,
+.utility-hero .btn-primary {
+  border: 1px solid #181d26 !important;
+  background: #181d26 !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.dashboard-hero .btn-primary:hover:not(:disabled),
+.scan-hero .btn-primary:hover:not(:disabled),
+.data-hero .btn-primary:hover:not(:disabled),
+.utility-hero .btn-primary:hover:not(:disabled) {
+  background: #272e3b !important;
+  border-color: #272e3b !important;
+  transform: translateY(-1px) !important;
+}
+
+.hero-secondary,
+.scan-hero .btn:not(.btn-primary),
+.data-hero .btn:not(.btn-primary),
+.utility-hero .btn:not(.btn-primary) {
+  border: 1px solid #d5d8d2 !important;
+  background: #ffffff !important;
+  color: #181d26 !important;
+  font-weight: 500 !important;
+}
+
+.hero-secondary:hover:not(:disabled),
+.scan-hero .btn:not(.btn-primary):hover:not(:disabled),
+.data-hero .btn:not(.btn-primary):hover:not(:disabled),
+.utility-hero .btn:not(.btn-primary):hover:not(:disabled) {
+  background: #f6f5f1 !important;
+  border-color: #b8bdb4 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Dashboard Hero Two-Column Layout & Signature Cream Callout Card */
+.dashboard-hero {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.85fr) !important;
+  align-items: stretch !important;
+  gap: 32px !important;
+}
+
+.dashboard-hero-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero-top-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.hero-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid #dcded9;
+  background: #f6f5f1;
+  color: #181d26;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.hero-clock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #dcded9;
+  background: #ffffff;
+  color: #424b5a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-clock-pill b {
+  color: #181d26;
+  font-weight: 600;
+}
+
+.hero-clock-pill small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.hero-name-highlight {
+  color: #181d26;
+  font-weight: 400;
+}
+
+.hero-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 42px !important;
+  padding: 9px 18px !important;
+  border-radius: 10px !important;
+  font-size: 13.5px !important;
+  text-decoration: none !important;
+}
+
+.hero-poll-toggle .poll-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.hero-poll-toggle.is-active {
+  border-color: #0a2e0e !important;
+  background: #f2f7f3 !important;
+  color: #0a2e0e !important;
+}
+
+.hero-poll-toggle.is-active .poll-dot {
+  background: #0a2e0e;
+  animation: vp-dot-pulse 1.8s infinite;
+}
+
+/* Signature Warm Cream Status Callout (#f5e9d4 per design.md) */
+.hero-editorial-summary {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 22px 24px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e5d4b7 !important;
+  background: #f5e9d4 !important;
+  color: #181d26 !important;
+  box-shadow: none !important;
+}
+
+.hero-hud-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(24, 29, 38, 0.1);
+}
+
+.hero-hud-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-editorial-summary .status-label {
+  display: block;
+  color: #5c5343 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+}
+
+.hero-editorial-summary .hero-status-copy b {
+  color: #181d26 !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+}
+
+.hero-provider-chip {
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(24, 29, 38, 0.16);
+  background: rgba(255, 255, 255, 0.65);
+  color: #181d26;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hero-summary-cells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hero-summary-cell {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(24, 29, 38, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.hero-summary-cell span {
+  color: #5c5343;
+  font-size: 11px;
+}
+
+.hero-summary-cell strong {
+  color: #181d26;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-summary-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #4a4336;
+}
+
+.hero-summary-foot strong {
+  color: #181d26;
+  font-weight: 600;
+}
+
+/* 4. Editorial KPI Metric Strip (.stat-grid-v2) */
+.stat-grid-v2 {
+  gap: 16px !important;
+}
+
+.stat-card-v2 {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  min-height: 152px !important;
+  padding: 22px 24px !important;
+  border: 1px solid #e2e4e0 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  color: #181d26 !important;
+  box-shadow: 0 1px 2px rgba(24, 29, 38, 0.03) !important;
+  animation: vp-card-enter 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.stat-card-v2:hover {
+  transform: translateY(-2px);
+  border-color: #c5c9c2 !important;
+  box-shadow: 0 8px 20px -6px rgba(24, 29, 38, 0.07) !important;
+}
+
+.stat-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stat-index {
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.stat-card-v2 .stat-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+  border: 1px solid #e2e4e0 !important;
+  background: #f6f5f1 !important;
+  color: #181d26 !important;
+  box-shadow: none !important;
+}
+
+.stat-card-v2 .stat-icon svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.stat-card-body {
+  display: grid;
+  gap: 4px;
+}
+
+.stat-card-v2 .stat-value {
+  margin: 0 !important;
+  color: #181d26 !important;
+  font-size: 38px !important;
+  font-weight: 400 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.03em !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card-v2 .stat-label {
+  color: #424b5a !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.stat-card-foot {
+  padding-top: 10px;
+  border-top: 1px solid #eef0ec;
+}
+
+.stat-card-foot small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+/* Signature Warm Cream Metric Card (Card 03) */
+.stat-card-v2.stat-card-v2--cream {
+  background: #faf3e6 !important;
+  border-color: #e6d6bc !important;
+}
+
+.stat-card-v2.stat-card-v2--cream .stat-index {
+  color: #6b5d47;
+}
+
+.stat-card-v2.stat-card-v2--cream .stat-icon {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border-color: #decba9 !important;
+  color: #181d26 !important;
+}
+
+.stat-card-v2.stat-card-v2--cream .stat-card-foot {
+  border-top-color: rgba(24, 29, 38, 0.08);
+}
+
+.stat-card-v2.stat-card-v2--cream .stat-card-foot small {
+  color: #5c513f;
+}
+
+/* Signature Deep Forest Metric Card (Card 04: #0a2e0e per design.md) */
+.stat-card-v2.stat-card-v2--forest {
+  background: #0a2e0e !important;
+  border-color: #0a2e0e !important;
+  color: #ffffff !important;
+}
+
+.stat-card-v2.stat-card-v2--forest .stat-index {
+  color: #a8d8c4;
+}
+
+.stat-card-v2.stat-card-v2--forest .stat-icon {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(168, 216, 196, 0.24) !important;
+  color: #a8d8c4 !important;
+}
+
+.stat-card-v2.stat-card-v2--forest .stat-value {
+  color: #ffffff !important;
+}
+
+.stat-card-v2.stat-card-v2--forest .stat-label {
+  color: #e2f2ea !important;
+}
+
+.stat-card-v2.stat-card-v2--forest .stat-card-foot {
+  border-top-color: rgba(168, 216, 196, 0.18);
+}
+
+.stat-card-v2.stat-card-v2--forest .stat-card-foot small {
+  color: #a8d8c4;
+}
+
+/* 5. Restrained Quick Shortcuts Bar (.dashboard-command-dock) */
+.dashboard-command-dock {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 12px;
+}
+
+.command-dock-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e4e0;
+  background: #ffffff;
+  text-decoration: none;
+  color: #181d26;
+  transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.command-dock-tile:hover {
+  transform: translateY(-1.5px);
+  border-color: #181d26;
+  background: #fcfcfa;
+}
+
+.command-dock-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.command-dock-kicker {
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.command-dock-copy strong {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #181d26;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-dock-copy small {
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-dock-arrow {
+  color: #64748b;
+  font-size: 14px;
+  transition: transform 0.16s ease, color 0.16s ease;
+}
+
+.command-dock-tile:hover .command-dock-arrow {
+  transform: translateX(3px);
+  color: #181d26;
+}
+
+/* 6. Main Bento Cards, Tables & Segmented Filter Pills */
+.dashboard-card,
+.scan-video,
+.scan-result,
+.scan-history,
+.data-filter-card,
+.data-table-card,
+.utility-panel,
+.role-panel,
+.docs-index-card,
+.help-panel,
+.card-polished,
+.fs-panel {
+  border: 1px solid #e2e4e0 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(24, 29, 38, 0.03) !important;
+  animation: vp-card-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.card-head h3,
+.scan-card-head h3,
+.utility-panel-head h2,
+.role-panel-head h2 {
+  font-size: 20px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em !important;
+  color: #181d26;
+}
+
+.card-kicker {
+  color: #64748b !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.08em !important;
+}
+
+.card-head-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mini-filter-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e4e0;
+  background: #f6f5f1;
+}
+
+.mini-filter-pills button {
+  appearance: none;
+  border: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: #424b5a;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mini-filter-pills button:hover {
+  color: #181d26;
+}
+
+.mini-filter-pills button.is-active {
+  background: #181d26;
+  color: #ffffff;
+}
+
+.card-head-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid #dcded9;
+  background: #ffffff;
+  color: #181d26 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.card-head-link:hover {
+  border-color: #181d26;
+  background: #f6f5f1;
+}
+
+/* Realistic Tabular Plate Tag */
+.plate-mini,
+.data-plate,
+.parking-plate,
+.scan-plate-cell {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px !important;
+  border: 1px solid #cfd4dc !important;
+  border-radius: 6px !important;
+  background: #f8fafc !important;
+  color: #181d26 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Clean Typographic Empty State */
+.dashboard-empty-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 168px;
+  padding: 24px;
+  border-radius: 10px;
+  border: 1px dashed #d5d8d2;
+  background: #faf9f6;
+}
+
+.dashboard-empty-visual .empty-title {
+  color: #181d26;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.dashboard-empty-desc {
+  max-width: 420px;
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.dashboard-empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dashboard-empty-cta {
+  border: 1px solid #181d26 !important;
+  background: #181d26 !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+}
+
+/* Gate Lane Rows */
+.lane-tile-list {
+  display: grid !important;
+  gap: 8px !important;
+}
+
+.lane-tile {
+  padding: 11px 14px !important;
+  border: 1px solid #e6e8e3 !important;
+  border-radius: 8px !important;
+  background: #faf9f6;
+}
+
+.lane-tile-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lane-dir-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.lane-dir-badge.is-entry {
+  background: #eaf3ec;
+  color: #0a2e0e;
+  border: 1px solid #c5deca;
+}
+
+.lane-dir-badge.is-exit {
+  background: #f5e9d4;
+  color: #181d26;
+  border: 1px solid #e0cfa8;
+}
+
+/* System Health Matte Dark Surface (#181d26 per design.md) */
+.dashboard-card--system.system-card {
+  border-color: #181d26 !important;
+  background: #181d26 !important;
+  color: #ffffff !important;
+}
+
+.system-card .card-head h3 {
+  color: #ffffff !important;
+}
+
+.system-card .card-kicker,
+.system-card .muted {
+  color: #94a3b8 !important;
+}
+
+.system-head-link {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+.system-head-link:hover {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.system-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.system-telemetry-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.system-telemetry-item span {
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.system-telemetry-item strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.system-card .code-block {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  background: #11151c !important;
+  color: #e2e8f0 !important;
+}
+
+.hero-btn.is-spinning {
+  opacity: 0.8;
+}
+
+.dropdown-menu,
+.dialog,
+.toast,
+.alert {
+  animation: vp-pop-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.drawer {
+  animation: vp-drawer-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (max-width: 960px) {
+  .dashboard-hero {
+    grid-template-columns: 1fr !important;
+    padding: 28px 24px !important;
+  }
 }

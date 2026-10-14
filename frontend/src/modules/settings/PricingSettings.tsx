@@ -75,70 +75,89 @@ export function PricingSettings() {
     void save(() => apiClient.post('/api/v1/pricing/versions', { active_from: new Date().toISOString(), rules: [...previous, rule] }))
   }
 
-  return <section className="card">
-    <h2>Cấu hình vé và giá</h2>
-    <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-      <button type="button" role="tab" aria-selected={tab === 'products'} className="btn" onClick={() => setTab('products')}>Loại vé</button>
-      <button type="button" role="tab" aria-selected={tab === 'pricing'} className="btn" onClick={() => setTab('pricing')}>Bảng giá</button>
-      <button type="button" role="tab" aria-selected={tab === 'classes'} className="btn" onClick={() => setTab('classes')}>Hạng khách</button>
+  return <section className="card card-polished">
+    <div className="card-head">
+      <div>
+        <span className="card-kicker">TARIFFS & QUOTAS</span>
+        <h2>Cấu hình vé và giá</h2>
+      </div>
+    </div>
+    <div role="tablist" className="tabs">
+      <button type="button" role="tab" aria-selected={tab === 'products'} className={tab === 'products' ? 'active' : ''} onClick={() => setTab('products')}>Loại vé</button>
+      <button type="button" role="tab" aria-selected={tab === 'pricing'} className={tab === 'pricing' ? 'active' : ''} onClick={() => setTab('pricing')}>Bảng giá</button>
+      <button type="button" role="tab" aria-selected={tab === 'classes'} className={tab === 'classes' ? 'active' : ''} onClick={() => setTab('classes')}>Hạng khách</button>
     </div>
     {error && <Alert variant="error">{error}</Alert>}{message && <Alert variant="success">{message}</Alert>}
-    {tab === 'classes' && <div>
-      <form onSubmit={e => { e.preventDefault(); void save(() => apiClient.post('/api/v1/pricing/customer-classes', { code: classCode, name: className, discount_percent: discount })) }}>
-        <label>Mã hạng<input required maxLength={40} value={classCode} onChange={e => setClassCode(e.target.value)} /></label>
-        <label>Tên hạng<input required maxLength={120} value={className} onChange={e => setClassName(e.target.value)} /></label>
-        <label>Giảm giá (%)<input required type="number" min="0" max="100" value={discount} onChange={e => setDiscount(Number(e.target.value))} /></label>
-        <button className="btn btn-primary" disabled={busy}>Tạo hạng khách</button>
+    {tab === 'classes' && <div className="stack">
+      <form className="stack" onSubmit={e => { e.preventDefault(); void save(() => apiClient.post('/api/v1/pricing/customer-classes', { code: classCode, name: className, discount_percent: discount })) }}>
+        <div className="form-grid">
+          <label className="field"><span>Mã hạng</span><input required maxLength={40} value={classCode} onChange={e => setClassCode(e.target.value)} /></label>
+          <label className="field"><span>Tên hạng</span><input required maxLength={120} value={className} onChange={e => setClassName(e.target.value)} /></label>
+          <label className="field"><span>Giảm giá (%)</span><input required type="number" min="0" max="100" value={discount} onChange={e => setDiscount(Number(e.target.value))} /></label>
+        </div>
+        <div><button className="btn btn-primary" disabled={busy}>Tạo hạng khách</button></div>
       </form>
-      <ul>{classes.map(item => <li key={item.id}>{item.code} — {item.name} — {item.discount_percent}%</li>)}</ul>
-      <form onSubmit={e => { e.preventDefault(); void save(() => apiClient.put('/api/v1/tickets/quotas', { customer_class_id: classId, vehicle_type: vehicleType, max_active: maxActive })) }}>
+      <ul className="rich-list">{classes.map(item => <li key={item.id} className="rich-row">{item.code} — {item.name} — {item.discount_percent}%</li>)}</ul>
+      <form className="stack" style={{ marginTop: 12, paddingTop: 16, borderTop: '1px solid var(--border)' }} onSubmit={e => { e.preventDefault(); void save(() => apiClient.put('/api/v1/tickets/quotas', { customer_class_id: classId, vehicle_type: vehicleType, max_active: maxActive })) }}>
         <h3>Hạn mức hạng khách</h3>
-        <label>Hạng khách<select value={classId} onChange={e => setClassId(e.target.value)}>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label>Loại xe<input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
-        <label>Số xe tối đa<input type="number" min="0" value={maxActive} onChange={e => setMaxActive(Number(e.target.value))} /></label>
-        <button className="btn btn-primary" disabled={busy || !classId}>Lưu hạn mức</button>
+        <div className="form-grid">
+          <label className="field"><span>Hạng khách</span><select value={classId} onChange={e => setClassId(e.target.value)}>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="field"><span>Loại xe</span><input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+          <label className="field"><span>Số xe tối đa</span><input type="number" min="0" value={maxActive} onChange={e => setMaxActive(Number(e.target.value))} /></label>
+        </div>
+        <div><button className="btn btn-primary" disabled={busy || !classId}>Lưu hạn mức</button></div>
       </form>
-      <ul>{quotas.map(item => <li key={item.id}>{classes.find(c => c.id === item.customer_class_id)?.name ?? item.customer_class_id} / {item.vehicle_type}: {item.max_active}</li>)}</ul>
+      <ul className="rich-list">{quotas.map(item => <li key={item.id} className="rich-row">{classes.find(c => c.id === item.customer_class_id)?.name ?? item.customer_class_id} / {item.vehicle_type}: {item.max_active}</li>)}</ul>
     </div>}
-    {tab === 'products' && <div>
-      <form onSubmit={e => { e.preventDefault(); void save(() => apiClient.post('/api/v1/pricing/ticket-products', { code: productCode, name: productName, kind, vehicle_type: vehicleType })) }}>
-        <label>Mã vé<input required maxLength={40} value={productCode} onChange={e => setProductCode(e.target.value)} /></label>
-        <label>Tên vé<input required maxLength={120} value={productName} onChange={e => setProductName(e.target.value)} /></label>
-        <label>Loại<select value={kind} onChange={e => setKind(e.target.value)}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
-        <label>Loại xe<input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
-        <button className="btn btn-primary" disabled={busy}>Tạo loại vé</button>
+    {tab === 'products' && <div className="stack">
+      <form className="stack" onSubmit={e => { e.preventDefault(); void save(() => apiClient.post('/api/v1/pricing/ticket-products', { code: productCode, name: productName, kind, vehicle_type: vehicleType })) }}>
+        <div className="form-grid">
+          <label className="field"><span>Mã vé</span><input required maxLength={40} value={productCode} onChange={e => setProductCode(e.target.value)} /></label>
+          <label className="field"><span>Tên vé</span><input required maxLength={120} value={productName} onChange={e => setProductName(e.target.value)} /></label>
+          <label className="field"><span>Loại</span><select value={kind} onChange={e => setKind(e.target.value)}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
+          <label className="field"><span>Loại xe</span><input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+        </div>
+        <div><button className="btn btn-primary" disabled={busy}>Tạo loại vé</button></div>
       </form>
-      <ul>{products.map(item => <li key={item.id}>{item.code} — {item.name} — {item.kind} / {item.vehicle_type}</li>)}</ul>
+      <ul className="rich-list">{products.map(item => <li key={item.id} className="rich-row">{item.code} — {item.name} — {item.kind} / {item.vehicle_type}</li>)}</ul>
     </div>}
-    {tab === 'pricing' && <div>
-      <p>Mỗi lần lưu tạo một phiên bản giá mới. Phiên bản đã có không bị sửa.</p>
-      <form onSubmit={e => { e.preventDefault(); saveVersion() }}>
-        <label>Loại xe<input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
-        <label>Loại vé<select value={kind} onChange={e => setKind(e.target.value)}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
-        <label>Hạng khách<select required value={classId} onChange={e => setClassId(e.target.value)}>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label>Miễn phí (phút)<input type="number" min="0" value={freeMinutes} onChange={e => setFreeMinutes(Number(e.target.value))} /></label>
-        <label>Khối đầu (phút)<input type="number" min="1" value={initialMinutes} onChange={e => setInitialMinutes(Number(e.target.value))} /></label>
-        <label>Giá khối đầu (VND)<input type="number" min="0" value={initialFee} onChange={e => setInitialFee(Number(e.target.value))} /></label>
-        <label>Khối tiếp theo (phút)<input type="number" min="1" value={blockMinutes} onChange={e => setBlockMinutes(Number(e.target.value))} /></label>
-        <label>Giá khối tiếp theo (VND)<input type="number" min="0" value={blockFee} onChange={e => setBlockFee(Number(e.target.value))} /></label>
-        <label>Trần ngày (VND)<input type="number" min="0" value={dailyCap} onChange={e => setDailyCap(e.target.value)} /></label>
-        <label>Phí qua đêm (VND)<input type="number" min="0" value={overnightFee} onChange={e => setOvernightFee(Number(e.target.value))} /></label>
-        <label>Phí mất vé (VND)<input type="number" min="0" value={lostTicketFee} onChange={e => setLostTicketFee(Number(e.target.value))} /></label>
-        <label>Phí quá giờ (VND)<input type="number" min="0" value={overtimeFee} onChange={e => setOvertimeFee(Number(e.target.value))} /></label>
-        <label>Giá vé ngày (VND)<input type="number" min="0" value={dayPassFee} onChange={e => setDayPassFee(Number(e.target.value))} /></label>
-        <label>Giá vé tháng (VND)<input type="number" min="0" value={monthPassFee} onChange={e => setMonthPassFee(Number(e.target.value))} /></label>
-        <button className="btn btn-primary" disabled={busy || !classId}>Tạo phiên bản giá</button>
+    {tab === 'pricing' && <div className="stack">
+      <p className="muted">Mỗi lần lưu tạo một phiên bản giá mới. Phiên bản đã có không bị sửa.</p>
+      <form className="stack" onSubmit={e => { e.preventDefault(); saveVersion() }}>
+        <div className="form-grid">
+          <label className="field"><span>Loại xe</span><input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+          <label className="field"><span>Loại vé</span><select value={kind} onChange={e => setKind(e.target.value)}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
+          <label className="field"><span>Hạng khách</span><select required value={classId} onChange={e => setClassId(e.target.value)}>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="field"><span>Miễn phí (phút)</span><input type="number" min="0" value={freeMinutes} onChange={e => setFreeMinutes(Number(e.target.value))} /></label>
+          <label className="field"><span>Khối đầu (phút)</span><input type="number" min="1" value={initialMinutes} onChange={e => setInitialMinutes(Number(e.target.value))} /></label>
+          <label className="field"><span>Giá khối đầu (VND)</span><input type="number" min="0" value={initialFee} onChange={e => setInitialFee(Number(e.target.value))} /></label>
+          <label className="field"><span>Khối tiếp theo (phút)</span><input type="number" min="1" value={blockMinutes} onChange={e => setBlockMinutes(Number(e.target.value))} /></label>
+          <label className="field"><span>Giá khối tiếp theo (VND)</span><input type="number" min="0" value={blockFee} onChange={e => setBlockFee(Number(e.target.value))} /></label>
+          <label className="field"><span>Trần ngày (VND)</span><input type="number" min="0" value={dailyCap} onChange={e => setDailyCap(e.target.value)} /></label>
+          <label className="field"><span>Phí qua đêm (VND)</span><input type="number" min="0" value={overnightFee} onChange={e => setOvernightFee(Number(e.target.value))} /></label>
+          <label className="field"><span>Phí mất vé (VND)</span><input type="number" min="0" value={lostTicketFee} onChange={e => setLostTicketFee(Number(e.target.value))} /></label>
+          <label className="field"><span>Phí quá giờ (VND)</span><input type="number" min="0" value={overtimeFee} onChange={e => setOvertimeFee(Number(e.target.value))} /></label>
+          <label className="field"><span>Giá vé ngày (VND)</span><input type="number" min="0" value={dayPassFee} onChange={e => setDayPassFee(Number(e.target.value))} /></label>
+          <label className="field"><span>Giá vé tháng (VND)</span><input type="number" min="0" value={monthPassFee} onChange={e => setMonthPassFee(Number(e.target.value))} /></label>
+        </div>
+        <div><button className="btn btn-primary" disabled={busy || !classId}>Tạo phiên bản giá</button></div>
       </form>
-      <ul>{versions.map(item => <li key={item.id}>Phiên bản {item.version_number} — {new Date(item.active_from).toLocaleString()} — {item.rules.length} quy tắc</li>)}</ul>
-      <h3>Xem trước phí theo bảng giá đang hiệu lực</h3>
-      <label>Giờ vào<input type="datetime-local" value={previewStart} onChange={e => setPreviewStart(e.target.value)} /></label>
-      <label>Giờ ra<input type="datetime-local" value={previewEnd} onChange={e => setPreviewEnd(e.target.value)} /></label>
-      <button type="button" className="btn" disabled={busy || !classId || !previewStart || !previewEnd} onClick={() => {
-        setError(''); setFeePreview(null)
-        void apiClient.post<FeePreview>('/api/v1/pricing/preview', { vehicle_type: vehicleType, ticket_kind: kind, customer_class_id: classId, check_in: new Date(previewStart).toISOString(), check_out: new Date(previewEnd).toISOString() })
-          .then(setFeePreview).catch(e => setError(e instanceof Error ? e.message : 'Không tính được phí.'))
-      }}>Tính thử</button>
-      {feePreview && <div role="status"><strong>Tổng: {feePreview.total.toLocaleString('vi-VN')} {feePreview.currency}</strong><ul>{feePreview.lines.map((line, index) => <li key={`${line.code}-${index}`}>{line.code}: {line.amount.toLocaleString('vi-VN')}</li>)}</ul></div>}
+      <ul className="rich-list">{versions.map(item => <li key={item.id} className="rich-row">Phiên bản {item.version_number} — {new Date(item.active_from).toLocaleString()} — {item.rules.length} quy tắc</li>)}</ul>
+      <div className="stack" style={{ marginTop: 12, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+        <h3>Xem trước phí theo bảng giá đang hiệu lực</h3>
+        <div className="form-grid" style={{ maxWidth: 640 }}>
+          <label className="field"><span>Giờ vào</span><input type="datetime-local" value={previewStart} onChange={e => setPreviewStart(e.target.value)} /></label>
+          <label className="field"><span>Giờ ra</span><input type="datetime-local" value={previewEnd} onChange={e => setPreviewEnd(e.target.value)} /></label>
+        </div>
+        <div>
+          <button type="button" className="btn" disabled={busy || !classId || !previewStart || !previewEnd} onClick={() => {
+            setError(''); setFeePreview(null)
+            void apiClient.post<FeePreview>('/api/v1/pricing/preview', { vehicle_type: vehicleType, ticket_kind: kind, customer_class_id: classId, check_in: new Date(previewStart).toISOString(), check_out: new Date(previewEnd).toISOString() })
+              .then(setFeePreview).catch(e => setError(e instanceof Error ? e.message : 'Không tính được phí.'))
+          }}>Tính thử</button>
+        </div>
+        {feePreview && <div role="status" className="alert alert-info"><div><strong>Tổng: {feePreview.total.toLocaleString('vi-VN')} {feePreview.currency}</strong><ul>{feePreview.lines.map((line, index) => <li key={`${line.code}-${index}`}>{line.code}: {line.amount.toLocaleString('vi-VN')}</li>)}</ul></div></div>}
+      </div>
     </div>}
   </section>
 }

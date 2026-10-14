@@ -30,15 +30,14 @@ export default function ErrorPanel({
 }: Props) {
   if (!error) return null;
   const retryable = error.status === 408 || error.status === 503 || error.status === 0;
-  return <div role="alert" style={{
-    marginTop: 16,
-    padding: 14,
-    border: "2px solid #b42318",
-    borderRadius: 8
-  }}>
-    <strong>{translate("Lỗi Station")}</strong><p>{messageFor(error)}</p><small>{error.code} ({error.status})</small>
-    {retryable && <div style={{
-      marginTop: 10
-    }}><button type="button" onClick={onRetry}>{translate("↻ Thử lại")}</button></div>}
+  return <div role="alert" className="alert alert-danger" style={{ marginTop: 16 }}>
+    <div style={{ display: "grid", gap: 4 }}>
+      <strong>{translate("Lỗi Station")}</strong>
+      <p style={{ margin: 0 }}>{messageFor(error)}</p>
+      <small>{error.code} ({error.status})</small>
+      {retryable && <div style={{ marginTop: 8 }}>
+        <button type="button" className="btn btn-small" onClick={onRetry}>{translate("↻ Thử lại")}</button>
+      </div>}
+    </div>
   </div>;
 }

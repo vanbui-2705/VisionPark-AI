@@ -12,25 +12,34 @@ export function DocsHomePage() {
   useEffect(() => { healthApi.ready().then(setHealth).catch(() => {}) }, [])
   const filtered = useMemo(() => DOCS_LIST.filter((s) => s.includes(q.toLowerCase())), [q])
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>Developer Docs · Duy Anh</div>
-          <h1 style={{ margin: '6px 0 6px', fontSize: 24, fontWeight: 800 }}>VisionPark — Docs Center</h1>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Tài liệu developer/admin — nguồn thật từ")}<code>frontend/docs/*.md</code>{translate(". Không fake số liệu.")}</p>
+    <div className="utility-page">
+      <section className="utility-hero utility-hero--forest">
+        <div className="utility-hero-copy">
+          <span className="utility-kicker">Developer Docs · Duy Anh</span>
+          <h1>VisionPark — Docs Center</h1>
+          <p>{translate("Tài liệu developer/admin — nguồn thật từ")} <code>frontend/docs/*.md</code>{translate(". Không fake số liệu.")}</p>
         </div>
-        <Badge>{filtered.length} docs</Badge>
-      </div>
-      <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-        <h3 style={{ marginTop: 0 }}>{translate("Trạng thái hệ thống (thật)")}</h3>
-        {health ? <pre className="code-block">{JSON.stringify(health, null, 2)}</pre> : <p className="muted">{translate("Không lấy được /health/ready.")}</p>}
-        <p className="muted" style={{ fontSize: 12 }}>{translate("Nguồn: GET /health/ready — dữ liệu live, không fake.")}</p>
+        <div className="utility-hero-stat">
+          <strong>{filtered.length}</strong>
+          <span>docs</span>
+        </div>
       </section>
-      <input className="docs-search" placeholder={translate("Tìm tài liệu...")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={translate("Tìm tài liệu")} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 10 }}>
-        {filtered.map((s) => <Link key={s} to={`/docs/${s === 'overview' ? '' : s}`} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', textDecoration: 'none', color: 'var(--text)', fontWeight: 700, boxShadow: '0 4px 14px rgba(15,23,42,0.05)' }}>{s}</Link>)}
+      <section className="utility-panel utility-health-panel">
+        <div className="utility-panel-head">
+          <div>
+            <span className="utility-section-kicker">LIVE READINESS</span>
+            <h3>{translate("Trạng thái hệ thống (thật)")}</h3>
+          </div>
+          <Badge>{filtered.length} docs</Badge>
+        </div>
+        {health ? <pre className="code-block">{JSON.stringify(health, null, 2)}</pre> : <p className="muted">{translate("Không lấy được /health/ready.")}</p>}
+        <p className="utility-source">{translate("Nguồn: GET /health/ready — dữ liệu live, không fake.")}</p>
+      </section>
+      <input className="docs-search utility-search" placeholder={translate("Tìm tài liệu...")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={translate("Tìm tài liệu")} />
+      <div className="docs-index-grid">
+        {filtered.map((s) => <Link key={s} to={`/docs/${s === 'overview' ? '' : s}`} className="docs-index-card"><span>{s}</span><span>→</span></Link>)}
       </div>
-      <div className="callout">{translate("Gợi ý: mở")}<code>AGENTS.md</code>{translate("tại root để biết quy tắc bootstrap cho agent.")}</div>
+      <div className="utility-callout">{translate("Gợi ý: mở")} <code>AGENTS.md</code> {translate("tại root để biết quy tắc bootstrap cho agent.")}</div>
     </div>
   )
 }

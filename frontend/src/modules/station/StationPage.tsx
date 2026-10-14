@@ -180,78 +180,116 @@ export default function StationPage() {
     error: translate("Xử lý thất bại.")
   };
   const error = actionError ?? detectionError;
-  return <section style={{
-    width: "100%",
-    maxWidth: 1500,
-    margin: "0 auto",
-    padding: 20,
-    boxSizing: "border-box"
-  }}>
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: 12
-    }}><h2>{translate("Trạm quét biển số")}</h2></div>
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 2fr) minmax(320px, 1fr)",
-      gap: 20,
-      alignItems: "start"
-    }}>
-      <div style={{
-        border: "2px solid #555",
-        borderRadius: 10,
-        padding: 20,
-        minWidth: 0
-      }}><h3>{translate("Ảnh / Video")}</h3>
-        <label>{translate("Chế độ nhận diện")}<select aria-label={translate("Chế độ nhận diện")} value={inputMode} disabled={state === 'confirming'} onChange={event => changeInput(event.target.value as 'image' | 'video')}><option value="image">{translate("Ảnh JPEG/PNG")}</option><option value="video">Video MP4</option></select></label>
-        <div style={{
-          display: "grid",
-          gap: 14
-        }}><LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={changeLane} disabled={state === "detecting" || state === "reading" || state === "confirming"} />
-          {scopedLane && <div className="card">
-            <h3>Thông tin tính phí</h3>
-            <label>Loại xe<input value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
-            <label>Loại vé<select value={ticketKind} onChange={e => setTicketKind(e.target.value as PriceContext['ticket_kind'])}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
-            <label>Hạng khách<select value={classId} onChange={e => setClassId(e.target.value)}><option value="">Chọn hạng khách</option>{customerClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-            {(ticketKind === 'DAILY' || ticketKind === 'MONTHLY') && <label>Mã khu vực (nếu có nhiều gói)<input value={zoneId} onChange={e => setZoneId(e.target.value)} /></label>}
-          </div>}
-          {inputMode === 'video' ? <VideoSelector onVideoSelected={onVideo} disabled={state === 'confirming'} /> : <label>{translate("Ảnh đầu vào")}<input aria-label={translate("Ảnh đầu vào")} type="file" accept="image/jpeg,image/png" disabled={state === 'confirming'} onChange={event => chooseImage(event.target.files?.[0] ?? null)} /></label>}{videoName && <div>Video: <strong>{videoName}</strong></div>}</div>
-          {inputMode === 'video' ? <VideoPlayer key={`${selectedLaneId}:${videoUrl || "empty"}`} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} suspended={editingPlate || state === 'confirming' || Boolean(transactionId)} /> : <>
-            {imageUrl && <DetectionImage key={imageUrl} src={imageUrl} bbox={result?.bbox ? { x: result.bbox[0], y: result.bbox[1], w: result.bbox[2] - result.bbox[0], h: result.bbox[3] - result.bbox[1] } : null} />}
-            <button type="button" disabled={!imageFile || !selectedLaneId || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)} onClick={() => { if (imageFile) void onFrame(imageFile).catch(() => undefined); }}>{translate("Nhận diện ảnh")}</button>
-          </>}
+  return <section className="stack scan-page">
+    <header className="scan-hero">
+      <div className="scan-hero-copy">
+        <span className="scan-kicker">TRẠM KIỂM SOÁT CỔNG</span>
+        <h2>{translate("Trạm quét biển số")}</h2>
+        <p>{statusLabel[state]}</p>
       </div>
-      <aside style={{
-        border: "2px solid #555",
-        borderRadius: 10,
-        padding: 20,
-        minWidth: 0
-      }}><h3>ALPR Result</h3>
-        <div style={{
-          padding: 12,
-          border: "1px solid #666",
-          borderRadius: 8
-        }}><strong>Status: {state.toUpperCase()}</strong>
-          <p>{statusLabel[state]}</p>{transactionId && <p role="status">Transaction: <strong>{transactionId}</strong></p>}</div>
+      <div className="scan-hero-actions">
+        <span className="scan-state">Status: {state.toUpperCase()}</span>
+      </div>
+    </header>
+
+    <div className="scan-toolbar">
+      <label className="field scan-control-group">
+        <span>{translate("Chế độ nhận diện")}</span>
+        <span className="scan-select-wrap">
+          <select className="scan-select" aria-label={translate("Chế độ nhận diện")} value={inputMode} disabled={state === 'confirming'} onChange={event => changeInput(event.target.value as 'image' | 'video')}>
+            <option value="image">{translate("Ảnh JPEG/PNG")}</option>
+            <option value="video">Video MP4</option>
+          </select>
+        </span>
+      </label>
+      <LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={changeLane} disabled={state === "detecting" || state === "reading" || state === "confirming"} />
+      {inputMode === 'video' ? (
+        <VideoSelector onVideoSelected={onVideo} disabled={state === 'confirming'} />
+      ) : (
+        <label className="field scan-control-group">
+          <span>{translate("Ảnh đầu vào")}</span>
+          <input aria-label={translate("Ảnh đầu vào")} type="file" accept="image/jpeg,image/png" disabled={state === 'confirming'} onChange={event => chooseImage(event.target.files?.[0] ?? null)} />
+        </label>
+      )}
+      {videoName && <div className="scan-file-name">Video: <strong>{videoName}</strong></div>}
+    </div>
+
+    {scopedLane && <div className="card card-polished">
+      <div className="scan-card-head" style={{ marginBottom: 12 }}>
+        <div>
+          <span className="card-kicker">BIỂU PHÍ ÁP DỤNG</span>
+          <h3>Thông tin tính phí</h3>
+        </div>
+      </div>
+      <div className="form-grid">
+        <label className="field"><span>Loại xe</span><input value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+        <label className="field"><span>Loại vé</span><select value={ticketKind} onChange={e => setTicketKind(e.target.value as PriceContext['ticket_kind'])}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
+        <label className="field"><span>Hạng khách</span><select value={classId} onChange={e => setClassId(e.target.value)}><option value="">Chọn hạng khách</option>{customerClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        {(ticketKind === 'DAILY' || ticketKind === 'MONTHLY') && <label className="field"><span>Mã khu vực (nếu có nhiều gói)</span><input value={zoneId} onChange={e => setZoneId(e.target.value)} /></label>}
+      </div>
+    </div>}
+
+    <div className="grid-2 scan-grid">
+      <div className="card scan-video">
+        <div className="scan-card-head">
+          <div>
+            <span className="card-kicker">LUỒNG HÌNH ẢNH</span>
+            <h3>{translate("Ảnh / Video")}</h3>
+          </div>
+          <span className="scan-state">{inputMode === 'video' ? 'VIDEO MP4' : 'IMAGE JPEG/PNG'}</span>
+        </div>
+        {inputMode === 'video' ? (
+          <VideoPlayer key={`${selectedLaneId}:${videoUrl || "empty"}`} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} suspended={editingPlate || state === 'confirming' || Boolean(transactionId)} />
+        ) : (
+          <div className="stack" style={{ gap: 14 }}>
+            {imageUrl ? (
+              <DetectionImage key={imageUrl} src={imageUrl} bbox={result?.bbox ? { x: result.bbox[0], y: result.bbox[1], w: result.bbox[2] - result.bbox[0], h: result.bbox[3] - result.bbox[1] } : null} />
+            ) : (
+              <div className="video-placeholder" style={{ position: "relative", display: "grid", placeItems: "center" }}>
+                <div className="bbox"><span>IMAGE READY</span></div>
+                <span className="video-placeholder-caption">{translate("Chọn ảnh JPEG/PNG để bắt đầu.")}</span>
+              </div>
+            )}
+            <div className="scan-controls">
+              <button type="button" className="btn btn-primary" disabled={!imageFile || !selectedLaneId || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)} onClick={() => { if (imageFile) void onFrame(imageFile).catch(() => undefined); }}>{translate("Nhận diện ảnh")}</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <aside className="card scan-result">
+        <div className="scan-card-head">
+          <div>
+            <span className="card-kicker">RECOGNITION OUTPUT</span>
+            <h3>ALPR Result</h3>
+            <p>{statusLabel[state]}</p>
+          </div>
+          <span className="scan-state">Status: {state.toUpperCase()}</span>
+        </div>
+        {transactionId && <p role="status" className="alert alert-success">Transaction: <strong>{transactionId}</strong></p>}
         <ResultPanel result={result} />
         <ConfirmationPanel key={result?.candidate_id ?? result?.detection_id ?? "none"} onEditingChange={setEditingPlate} disabled={state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)} result={result} onConfirmCorrect={id => confirm(id)} onConfirmCorrection={(id, plate) => confirm(id, plate)} />
-        <form onSubmit={event => { event.preventDefault(); void confirmManual(); }}>
-          <h3>{translate("Check-in thủ công")}</h3>
-          {scopedLane && <label><input type="checkbox" checked={useTicketCode} onChange={e => { setUseTicketCode(e.target.checked); manualKey.current = crypto.randomUUID(); }} />Dùng mã vé thay biển số (xe đạp)</label>}
-          <label htmlFor="manual-plate">{useTicketCode ? 'Mã vé' : translate("Biển số nhập tay")}</label>
-          <input id="manual-plate" value={manualPlate} disabled={state === 'confirming' || Boolean(transactionId)} onChange={event => { setManualPlate(event.target.value); manualKey.current = crypto.randomUUID(); }} />
-          <button type="submit" disabled={!selectedLaneId || manualPlate.replace(/[^a-z0-9]/gi, '').length < 3 || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)}>{translate("Tạo check-in")}</button>
+        <form className="stack" style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #ead9bb", gap: 10 }} onSubmit={event => { event.preventDefault(); void confirmManual(); }}>
+          <span className="card-kicker">MANUAL OVERRIDE</span>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 400 }}>{translate("Check-in thủ công")}</h3>
+          {scopedLane && <label className="checkbox-row"><input type="checkbox" checked={useTicketCode} onChange={e => { setUseTicketCode(e.target.checked); manualKey.current = crypto.randomUUID(); }} /><span>Dùng mã vé thay biển số (xe đạp)</span></label>}
+          <div className="field">
+            <label htmlFor="manual-plate">{useTicketCode ? 'Mã vé' : translate("Biển số nhập tay")}</label>
+            <input id="manual-plate" value={manualPlate} placeholder="29A12345" disabled={state === 'confirming' || Boolean(transactionId)} onChange={event => { setManualPlate(event.target.value); manualKey.current = crypto.randomUUID(); }} />
+          </div>
+          <div className="scan-result-actions" style={{ marginTop: 4 }}>
+            <button type="submit" className="btn btn-primary btn-small" disabled={!selectedLaneId || manualPlate.replace(/[^a-z0-9]/gi, '').length < 3 || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)}>{translate("Tạo check-in")}</button>
+            {transactionId && <button type="button" className="btn btn-small" onClick={() => { setTransactionId(null); setEditingPlate(false); setManualPlate(''); setActionError(null); manualKey.current = crypto.randomUUID(); clearCandidates(); reset(); }}>{translate("Xe tiếp theo")}</button>}
+          </div>
         </form>
-        {transactionId && <button type="button" onClick={() => { setTransactionId(null); setEditingPlate(false); setManualPlate(''); setActionError(null); manualKey.current = crypto.randomUUID(); clearCandidates(); reset(); }}>{translate("Xe tiếp theo")}</button>}
         <ErrorPanel error={error} onRetry={() => {
           setActionError(null);
           setEditingPlate(false);
           void retry().catch(() => undefined);
         }} />
-        <RecentHistory items={history} />
       </aside>
     </div>
+
+    <RecentHistory items={history} />
   </section>;
 }

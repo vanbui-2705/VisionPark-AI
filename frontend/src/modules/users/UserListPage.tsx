@@ -52,46 +52,60 @@ export function UserListPage() {
   if (err) return <div><Alert variant="error">{err}</Alert><Button onClick={() => void load()}>{translate("Thử lại")}</Button></div>
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>User Management · Duy Anh</div>
-          <h2 style={{ margin: '6px 0 6px', fontSize: 22, fontWeight: 800 }}>{translate("Người dùng")}</h2>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>{translate("Quản lý tài khoản và vai trò, trạng thái hoạt động và hồ sơ vận hành.")}</p>
+    <div className="data-page users-page">
+      <section className="data-hero data-hero--forest">
+        <div className="data-hero-copy">
+          <span className="data-kicker">User Management · Duy Anh</span>
+          <h2>{translate("Người dùng")}</h2>
+          <p>{translate("Quản lý tài khoản và vai trò, trạng thái hoạt động và hồ sơ vận hành.")}</p>
         </div>
-        <Link to="/admin/users/new" className="btn btn-primary">{translate("+ Tạo tài khoản")}</Link>
-      </div>
-      <div className="filters">
-        <Input label={translate("Tìm kiếm")} value={q} onChange={(e) => setQ(e.target.value)} placeholder={translate("Tên / username / email")} />
-        <Select label={translate("Vai trò")} value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="ALL">ALL</option>
-          <option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option>
-          <option value="OPERATOR">OPERATOR</option>
-          <option value="ACCOUNTANT">ACCOUNTANT</option>
-          <option value="TECHNICIAN">TECHNICIAN</option>
-        </Select>
-        <Select label={translate("Trạng thái")} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="ALL">ALL</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </Select>
-      </div>
+        <Link to="/admin/users/new" className="btn btn-secondary">{translate("+ Tạo tài khoản")}</Link>
+      </section>
+
+      <section className="data-filter-card data-filter-card--compact">
+        <span className="data-section-kicker">{translate("Bộ lọc tài khoản")}</span>
+        <div className="data-filter-grid data-filter-grid--users">
+          <Input label={translate("Tìm kiếm")} value={q} onChange={(e) => setQ(e.target.value)} placeholder={translate("Tên / username / email")} />
+          <Select label={translate("Vai trò")} value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="ALL">ALL</option>
+            <option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option>
+            <option value="OPERATOR">OPERATOR</option>
+            <option value="ACCOUNTANT">ACCOUNTANT</option>
+            <option value="TECHNICIAN">TECHNICIAN</option>
+          </Select>
+          <Select label={translate("Trạng thái")} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="ALL">ALL</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+          </Select>
+        </div>
+      </section>
+
       {filtered.length === 0 ? <EmptyState title={translate("Không có người dùng phù hợp")} /> : (
-        <Table>
-          <thead><tr><th>Username</th><th>{translate("Họ tên")}</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody>
-            {filtered.map((u) => (
-              <tr key={u.id}>
-                <td>{u.username}</td>
-                <td>{u.display_name}</td>
-                <td>{u.email ?? '—'}</td>
-                <td><span className={`badge ${u.role === 'SYSTEM_ADMIN' ? 'badge-info' : u.role === 'ACCOUNTANT' ? 'badge-success' : u.role === 'TECHNICIAN' ? 'badge-warn' : 'badge-muted'}`}>{u.role}</span></td>
-                <td><span className={`badge ${u.active ? 'badge-success' : 'badge-muted'}`}>{u.active ? 'Active' : 'Locked'}</span></td>
-                <td><Link to={`/admin/users/${u.id}`}>{translate("Sửa")}</Link></td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <section className="data-table-card">
+          <div className="data-table-head">
+            <div>
+              <span className="data-section-kicker">DANH BẠ NHÂN SỰ</span>
+              <h3>{translate("Danh sách tài khoản")}</h3>
+            </div>
+            <span className="data-table-meta">{filtered.length} / {users?.length ?? 0}</span>
+          </div>
+          <Table>
+            <thead><tr><th>Username</th><th>{translate("Họ tên")}</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              {filtered.map((u) => (
+                <tr key={u.id}>
+                  <td className="data-mono"><strong>{u.username}</strong></td>
+                  <td>{u.display_name}</td>
+                  <td>{u.email ?? '—'}</td>
+                  <td><span className={`badge ${u.role === 'SYSTEM_ADMIN' ? 'badge-info' : u.role === 'ACCOUNTANT' ? 'badge-success' : u.role === 'TECHNICIAN' ? 'badge-warn' : 'badge-muted'}`}>{u.role}</span></td>
+                  <td><span className={`badge ${u.active ? 'badge-success' : 'badge-muted'}`}>{u.active ? 'Active' : 'Locked'}</span></td>
+                  <td><Link to={`/admin/users/${u.id}`} className="data-inline-action">{translate("Sửa")}</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </section>
       )}
     </div>
   )

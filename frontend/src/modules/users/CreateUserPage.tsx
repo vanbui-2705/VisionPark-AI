@@ -57,48 +57,64 @@ export function CreateUserPage() {
   }
 
   return (
-    <div>
-      <h2>{translate("Tạo tài khoản nhân viên")}</h2>
+    <div className="data-page">
+      <section className="data-hero data-hero--forest">
+        <div className="data-hero-copy">
+          <span className="data-kicker">USER PROVISIONING · VISIONPARK</span>
+          <h2>{translate("Tạo tài khoản nhân viên")}</h2>
+          <p>{translate("Quản lý tài khoản và vai trò, trạng thái hoạt động và hồ sơ vận hành.")}</p>
+        </div>
+        <Link to="/admin/users" className="btn btn-secondary">{translate("Hủy")}</Link>
+      </section>
       {err ? <Alert variant="error">{err}</Alert> : null}
-      <form onSubmit={onSubmit} noValidate className="form-grid">
-        <section className="card">
-          <h3>{translate("Thông tin cá nhân")}</h3>
-          <Input label={translate("Họ và tên *")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} error={touched && !displayName.trim() ? translate("Không được để trống") : undefined} />
-          <Input label={translate("Tên đăng nhập *")} value={username} onChange={(e) => setUsername(e.target.value)} error={touched && !username.trim() ? translate("Không được để trống") : undefined} />
-          <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </section>
-        <section className="card">
-          <h3>{translate("Bảo mật")}</h3>
-          <div className="field">
-            <label>{translate("Mật khẩu *")}</label>
-            <div className="input-with-action">
-              <input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} />
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShow((v) => !v)}>{show ? translate("Ẩn") : translate("Hiện")}</button>
+      <form onSubmit={onSubmit} noValidate className="stack">
+        <div className="grid-2" style={{ alignItems: 'start' }}>
+          <section className="card card-polished stack">
+            <span className="card-kicker">IDENTITY</span>
+            <h3 style={{ margin: '0 0 8px' }}>{translate("Thông tin cá nhân")}</h3>
+            <Input label={translate("Họ và tên *")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} error={touched && !displayName.trim() ? translate("Không được để trống") : undefined} />
+            <Input label={translate("Tên đăng nhập *")} value={username} onChange={(e) => setUsername(e.target.value)} error={touched && !username.trim() ? translate("Không được để trống") : undefined} />
+            <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </section>
+          <section className="card card-polished stack">
+            <span className="card-kicker">CREDENTIALS</span>
+            <h3 style={{ margin: '0 0 8px' }}>{translate("Bảo mật")}</h3>
+            <div className="field">
+              <label>{translate("Mật khẩu *")}</label>
+              <div className="input-with-action">
+                <input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShow((v) => !v)}>{show ? translate("Ẩn") : translate("Hiện")}</button>
+              </div>
             </div>
+            <Input label={translate("Xác nhận mật khẩu *")} type={show ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} error={touched && password !== confirm ? translate("Không khớp") : undefined} />
+          </section>
+        </div>
+        <section className="card card-polished stack">
+          <span className="card-kicker">ROLE & ACCESS</span>
+          <h3 style={{ margin: '0 0 8px' }}>{translate("Vai trò")}</h3>
+          <div className="form-grid">
+            <Select label={translate("Vai trò *")} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
+              <option value="OPERATOR">OPERATOR — Vận hành</option>
+              {user?.role === 'SYSTEM_ADMIN' && <option value="SYSTEM_ADMIN">SYSTEM_ADMIN — Quản trị hệ thống</option>}
+              {user?.role === 'SYSTEM_ADMIN' && <option value="BUILDING_ADMIN">BUILDING_ADMIN — Quản trị tòa nhà</option>}
+              <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
+              <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>
+            </Select>
+            {user?.role === 'SYSTEM_ADMIN' && (
+              <Select label="Tòa nhà" value={buildingId} onChange={(e) => setBuildingId(e.target.value)}>
+                <option value="">Chưa gán</option>
+                {buildings.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </Select>
+            )}
           </div>
-          <Input label={translate("Xác nhận mật khẩu *")} type={show ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} error={touched && password !== confirm ? translate("Không khớp") : undefined} />
-        </section>
-        <section className="card">
-          <h3>{translate("Vai trò")}</h3>
-          <Select label={translate("Vai trò *")} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
-            <option value="OPERATOR">OPERATOR — Vận hành</option>
-            {user?.role === 'SYSTEM_ADMIN' && <option value="SYSTEM_ADMIN">SYSTEM_ADMIN — Quản trị hệ thống</option>}
-            {user?.role === 'SYSTEM_ADMIN' && <option value="BUILDING_ADMIN">BUILDING_ADMIN — Quản trị tòa nhà</option>}
-            <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
-            <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>
-          </Select>
-          {user?.role === 'SYSTEM_ADMIN' && <Select label="Tòa nhà" value={buildingId} onChange={(e) => setBuildingId(e.target.value)}>
-            <option value="">Chưa gán</option>
-            {buildings.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </Select>}
           <div className="perm-list">
             {perms.map((p) => <div key={p.perm} className="perm-row"><span>{translate(p.label)}</span><span>{p.granted ? '✓' : '✗'}</span></div>)}
           </div>
           <label className="checkbox"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />{translate("Kích hoạt tài khoản")}</label>
         </section>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
           <Link to="/admin/users" className="btn">{translate("Hủy")}</Link>
-          <Button type="submit" loading={loading}>{translate("Tạo tài khoản")}</Button>
+          <Button type="submit" variant="primary" loading={loading}>{translate("Tạo tài khoản")}</Button>
         </div>
       </form>
     </div>
