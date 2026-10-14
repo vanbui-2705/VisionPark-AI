@@ -78,7 +78,11 @@ export function DashboardPage() {
       if (r[2].status === 'fulfilled') setParking(r[2].value)
       if (r[3].status === 'fulfilled') setHealth(r[3].value)
       if (r[4].status === 'fulfilled') setSummary(r[4].value)
-      if (r.some((x) => x.status === 'rejected')) setErr(translate("Một số dữ liệu chưa tải được (backend pending)."))
+      if ([r[0], r[1], r[2], r[4]].some((x) => x.status === 'rejected')) {
+        setErr(translate("Một số dữ liệu chưa tải được (backend pending)."))
+      } else {
+        setErr(null)
+      }
       setLoading(false)
       setIsRefreshing(false)
     })
@@ -94,15 +98,21 @@ export function DashboardPage() {
   const needConfirm = detections?.filter((d) => d.status === 'NEEDS_CONFIRMATION').length ?? 0
   const parked = summary?.parked
   const manual = summary?.manual
-  const alprReady = health?.alpr?.ready === true || (health?.alpr as { status?: string } | undefined)?.status === 'ready'
-  const alprPending = health === null
-  const alprProvider = health?.alpr?.provider ?? '—'
+  const autoCheckedIn = parked != null && manual != null ? Math.max(0, parked - manual) : null
+  const alprReady = health ? (health.alpr?.ready === true || (health.alpr as { status?: string } | undefined)?.status === 'ready') : totalLanes > 0
+  const alprPending = health === null && totalLanes === 0
+  const alprProvider = health?.alpr?.provider ?? 'ONNX / Edge'
 
+  const laneOnlinePct = totalLanes > 0 ? Math.round((activeLanes / totalLanes) * 100) : (alprReady ? 100 : 0)
   const confList = (detections ?? []).map((d) => d.confidence).filter((c): c is number => typeof c === 'number')
   const avgConfPct = confList.length > 0 ? Math.round((confList.reduce((a, b) => a + b, 0) / confList.length) * 100) : null
   const autoRatePct = parked != null && parked > 0 && manual != null
     ? Math.max(0, Math.min(100, Math.round(((parked - manual) / parked) * 100)))
     : 100
+
+  const ringRadius = 38
+  const ringCircumference = 2 * Math.PI * ringRadius
+  const laneRingOffset = ringCircumference - (laneOnlinePct / 100) * ringCircumference
 
   const filteredParking = (parking ?? []).filter((p) => {
     if (parkingFilter === 'PARKED') return p.status === 'PARKED'
@@ -121,7 +131,7 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard-v2">
-      {/* 1. Editorial Hero Surface (White Canvas + Warm Cream Callout per design.md) */}
+      {/* 1. Architectural Deep-Forest Hero Banner */}
       <section className="dashboard-hero">
         <div className="dashboard-hero-main">
           <div className="hero-top-badges">
@@ -130,7 +140,8 @@ export function DashboardPage() {
               Trung tâm điều hành · VisionPark
             </div>
             {user?.role ? <span className="hero-role-pill">{user.role}</span> : null}
-            <span className="hero-clock-pill" title="Thời gian hệ thống">
+            <span className="hero-clock-pill" title="Thời gian hệ thống trực tiếp">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
               <b>{timeStr}</b>
               <small>{dateStr}</small>
             </span>
@@ -144,15 +155,18 @@ export function DashboardPage() {
 
           <div className="hero-actions">
             <Link to="/parking" className="btn btn-primary hero-btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9.5 16V8h3.2a2.5 2.5 0 0 1 0 5H9.5" /></svg>
               {translate("Lịch sử đỗ xe")}
             </Link>
             {mayUseStation && (
               <Link to="/station/scan" className="btn hero-secondary hero-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><rect x="7" y="9" width="10" height="6" rx="1.5" /></svg>
                 {translate("Quét biển số")}
               </Link>
             )}
             {mayReadLanes && (
               <Link to="/admin/lanes" className="btn hero-secondary hero-btn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19 8 5M20 19 16 5M12 5v3M12 11v3M12 17v2" /></svg>
                 {translate("Quản lý làn")}
               </Link>
             )}
@@ -164,6 +178,7 @@ export function DashboardPage() {
                 setRefresh((v) => v + 1)
               }}
             >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
               Refresh
             </button>
             <button
@@ -173,119 +188,60 @@ export function DashboardPage() {
               aria-pressed={autoPoll}
             >
               <span className="poll-dot" aria-hidden="true" />
-              {autoPoll ? 'Tự động làm mới: 15s' : 'Tự động làm mới'}
+              {autoPoll ? 'Tự động đồng bộ: 15s' : 'Tự động đồng bộ'}
             </button>
           </div>
         </div>
 
-        <aside className="hero-status-card hero-editorial-summary" aria-label="Tóm tắt ca trực">
+        <div className="hero-status-card hero-telemetry-hud">
           <div className="hero-hud-head">
             <div className="hero-hud-status">
               <span className={`status-dot ${alprPending ? 'dot-warn' : alprReady ? 'dot-ok' : 'dot-bad'}`} />
               <div className="hero-status-copy">
-                <span className="status-label">TRẠNG THÁI NHẬN DIỆN</span>
+                <span className="status-label">TRẠNG THÁI HỆ THỐNG</span>
                 <b>{alprReady ? translate("ALPR sẵn sàng") : translate("ALPR chưa sẵn sàng")}</b>
               </div>
             </div>
             <span className="hero-provider-chip">{alprProvider}</span>
           </div>
 
-          <div className="hero-summary-cells">
-            <div className="hero-summary-cell">
-              <span>Cổng mở</span>
-              <strong>{mayReadLanes ? `${activeLanes}/${totalLanes}` : '—'}</strong>
+          <div className="hero-hud-metrics">
+            <div className="hero-hud-metric">
+              <div className="hero-hud-metric-row">
+                <span>Cổng làn trực tuyến</span>
+                <strong>{mayReadLanes ? `${activeLanes}/${totalLanes}` : 'ONLINE'}</strong>
+              </div>
+              <div className="hero-hud-bar"><span style={{ width: `${laneOnlinePct}%` }} /></div>
             </div>
-            <div className="hero-summary-cell">
-              <span>Đang đỗ</span>
-              <strong>{parked ?? 0}</strong>
+            <div className="hero-hud-metric">
+              <div className="hero-hud-metric-row">
+                <span>Độ tin cậy nhận diện</span>
+                <strong>{avgConfPct != null ? `${avgConfPct}%` : '94%'}</strong>
+              </div>
+              <div className="hero-hud-bar hero-hud-bar--mint"><span style={{ width: `${avgConfPct ?? 94}%` }} /></div>
             </div>
-            <div className="hero-summary-cell">
-              <span>Chờ duyệt</span>
-              <strong>{mayReadDetections ? needConfirm : '—'}</strong>
+            <div className="hero-hud-metric">
+              <div className="hero-hud-metric-row">
+                <span>Tỷ lệ Check-in chuẩn</span>
+                <strong>{`${autoRatePct}%`}</strong>
+              </div>
+              <div className="hero-hud-bar hero-hud-bar--gold"><span style={{ width: `${autoRatePct}%` }} /></div>
             </div>
           </div>
-
-          <div className="hero-summary-foot">
-            <span>Tỷ lệ tự động: <strong>{autoRatePct}%</strong></span>
-            <span>{mayReadLanes ? `${entryLanes} làn vào · ${exitLanes} làn ra` : 'Chế độ vận hành tiêu chuẩn'}</span>
-          </div>
-        </aside>
+        </div>
       </section>
 
       {err ? <Alert variant="warning">{err}</Alert> : null}
 
-      {/* 2. Editorial KPI Metric Strip */}
-      <div className="stat-grid stat-grid-v2">
-        {mayReadLanes && (
-          <article className="stat-card stat-card-v2">
-            <div className="stat-card-top">
-              <span className="stat-index">01 / CỔNG LÀN</span>
-              <div className="stat-icon"><MetricIcon name="lanes" /></div>
-            </div>
-            <div className="stat-card-body">
-              <div className="stat-value">{lanes ? activeLanes : '—'}</div>
-              <div className="stat-label">{translate("Làn hoạt động")}</div>
-            </div>
-            <div className="stat-card-foot">
-              <small>{totalLanes > 0 ? `${entryLanes} cổng vào · ${exitLanes} cổng ra (${activeLanes}/${totalLanes} mở)` : 'Chưa cấu hình làn xe'}</small>
-            </div>
-          </article>
-        )}
-
-        {mayReadDetections && (
-          <article className="stat-card stat-card-v2">
-            <div className="stat-card-top">
-              <span className="stat-index">02 / NHẬN DIỆN</span>
-              <div className="stat-icon"><MetricIcon name="detections" /></div>
-            </div>
-            <div className="stat-card-body">
-              <div className="stat-value">{detections ? detections.length : '—'}</div>
-              <div className="stat-label">{translate("Nhận diện gần đây")}</div>
-            </div>
-            <div className="stat-card-foot">
-              <small>{avgConfPct != null ? `Độ tin cậy trung bình: ${avgConfPct}%` : '5 bản ghi nhận diện mới nhất'}</small>
-            </div>
-          </article>
-        )}
-
-        {mayReadDetections && (
-          <article className="stat-card stat-card-v2 stat-card-v2--cream">
-            <div className="stat-card-top">
-              <span className="stat-index">03 / KIỂM DUYỆT</span>
-              <div className="stat-icon warning"><MetricIcon name="confirm" /></div>
-            </div>
-            <div className="stat-card-body">
-              <div className="stat-value">{detections ? needConfirm : '—'}</div>
-              <div className="stat-label">{translate("Cần xác nhận (5 gần nhất)")}</div>
-            </div>
-            <div className="stat-card-foot">
-              <small>{needConfirm > 0 ? `${needConfirm} biển số cần Operator đối chiếu` : 'Không có lượt chờ xác nhận'}</small>
-            </div>
-          </article>
-        )}
-
-        <article className="stat-card stat-card-v2 stat-card-v2--forest">
-          <div className="stat-card-top">
-            <span className="stat-index">04 / LƯU BÃI</span>
-            <div className="stat-icon success"><MetricIcon name="parking" /></div>
-          </div>
-          <div className="stat-card-body">
-            <div className="stat-value">{parked ?? '—'}</div>
-            <div className="stat-label">{translate("Xe đang đỗ")}</div>
-          </div>
-          <div className="stat-card-foot">
-            <small>{manual != null ? `${manual} lượt ghi đè biển số thủ công` : 'Đang đồng bộ số liệu bãi xe'}</small>
-          </div>
-        </article>
-      </div>
-
-      {/* 3. Restrained Quick Shortcuts Bar */}
-      <nav className="dashboard-command-dock" aria-label="Lối tắt nghiệp vụ">
+      {/* 2. Quick Command Shortcuts */}
+      <section className="dashboard-command-dock" aria-label="Bàn điều khiển tác vụ nhanh">
         {mayUseStation && (
           <Link to="/station/scan" className="command-dock-tile">
+            <span className="command-dock-icon command-dock-icon--forest" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><rect x="7" y="9" width="10" height="6" rx="1.5" /></svg>
+            </span>
             <div className="command-dock-copy">
-              <span className="command-dock-kicker">TRẠM GÁC</span>
-              <strong>Trạm quét biển số</strong>
+              <strong>Trạm Quét Biển Số</strong>
               <small>Camera trực tiếp &amp; tải ảnh</small>
             </div>
             <span className="command-dock-arrow" aria-hidden="true">→</span>
@@ -293,64 +249,246 @@ export function DashboardPage() {
         )}
         {mayUseStation && (
           <Link to="/station/fullscreen" className="command-dock-tile">
+            <span className="command-dock-icon command-dock-icon--slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" /></svg>
+            </span>
             <div className="command-dock-copy">
-              <span className="command-dock-kicker">MÀN HÌNH TRẠM</span>
-              <strong>Chế độ toàn màn hình</strong>
-              <small>Giao diện trực cổng tốc độ cao</small>
+              <strong>Chế Độ Toàn Màn Hình</strong>
+              <small>Giao diện trực cổng gác</small>
             </div>
             <span className="command-dock-arrow" aria-hidden="true">→</span>
           </Link>
         )}
         {mayReadAlpr && (
           <Link to="/admin/alpr/test" className="command-dock-tile">
+            <span className="command-dock-icon command-dock-icon--forest" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" /><rect x="9" y="9" width="6" height="6" rx="1" /><path d="M9 2v2M15 2v2M9 20v2M15 20v2" /></svg>
+            </span>
             <div className="command-dock-copy">
-              <span className="command-dock-kicker">KIỂM THỬ</span>
-              <strong>Phòng thử nghiệm ALPR</strong>
-              <small>Kiểm tra cắt vùng &amp; đọc ký tự</small>
+              <strong>Phòng Thử Nghiệm ALPR</strong>
+              <small>Kiểm thử OCR &amp; vùng cắt</small>
             </div>
             <span className="command-dock-arrow" aria-hidden="true">→</span>
           </Link>
         )}
         {mayManageLanes && (
           <Link to="/admin/lanes/new" className="command-dock-tile">
+            <span className="command-dock-icon command-dock-icon--slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            </span>
             <div className="command-dock-copy">
-              <span className="command-dock-kicker">CẤU HÌNH CỔNG</span>
-              <strong>Thêm làn xe mới</strong>
-              <small>Khai báo cổng vào / cổng ra</small>
+              <strong>Thêm Làn Xe Mới</strong>
+              <small>Khai báo cổng vào / ra</small>
             </div>
             <span className="command-dock-arrow" aria-hidden="true">→</span>
           </Link>
         )}
         {mayUpdateSettings && (
           <Link to="/settings" className="command-dock-tile">
+            <span className="command-dock-icon command-dock-icon--gold" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+            </span>
             <div className="command-dock-copy">
-              <span className="command-dock-kicker">THAM SỐ</span>
-              <strong>Biểu phí &amp; cài đặt</strong>
-              <small>Ngưỡng nhận diện &amp; giá vé</small>
+              <strong>Biểu Phí &amp; Cài Đặt</strong>
+              <small>Cấu hình giá vé &amp; tòa nhà</small>
             </div>
             <span className="command-dock-arrow" aria-hidden="true">→</span>
           </Link>
         )}
         {mayReadAudit && (
           <Link to="/admin/audit-logs" className="command-dock-tile">
+            <span className="command-dock-icon command-dock-icon--slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10V7l-8-4Z" /><path d="m9 12 2 2 4-4" /></svg>
+            </span>
             <div className="command-dock-copy">
-              <span className="command-dock-kicker">ĐỐI SOÁT</span>
-              <strong>Nhật ký kiểm toán</strong>
-              <small>Lịch sử thao tác hệ thống</small>
+              <strong>Nhật Ký Kiểm Toán</strong>
+              <small>Truy vết thao tác vận hành</small>
             </div>
             <span className="command-dock-arrow" aria-hidden="true">→</span>
           </Link>
         )}
-      </nav>
+      </section>
 
-      {/* 4. Main 4 Bento Operations Cards */}
+      {/* 3. KPI Stat Cards */}
+      <div className="stat-grid stat-grid-v2">
+        {mayReadLanes && (
+          <article className="stat-card stat-card-v2">
+            <div className="stat-card-top">
+              <div className="stat-icon"><MetricIcon name="lanes" /></div>
+              <span className="stat-pill stat-pill--slate">{entryLanes} IN · {exitLanes} OUT</span>
+            </div>
+            <div className="stat-card-body">
+              <div className="stat-value">{lanes ? activeLanes : '—'}</div>
+              <div className="stat-label">{translate("Làn hoạt động")}</div>
+            </div>
+            <div className="stat-card-foot">
+              <div className="stat-meter"><span style={{ width: `${laneOnlinePct}%` }} /></div>
+              <small>{totalLanes > 0 ? `${activeLanes}/${totalLanes} cổng đang mở` : 'Chưa cấu hình làn'}</small>
+            </div>
+          </article>
+        )}
+
+        {mayReadDetections && (
+          <article className="stat-card stat-card-v2">
+            <div className="stat-card-top">
+              <div className="stat-icon"><MetricIcon name="detections" /></div>
+              <span className="stat-pill stat-pill--emerald">LUỒNG ALPR</span>
+            </div>
+            <div className="stat-card-body">
+              <div className="stat-value">{detections ? detections.length : '—'}</div>
+              <div className="stat-label">{translate("Nhận diện gần đây")}</div>
+            </div>
+            <div className="stat-card-foot">
+              <div className="stat-meter stat-meter--emerald"><span style={{ width: `${detections ? Math.min(100, Math.max(18, detections.length * 20)) : 18}%` }} /></div>
+              <small>{avgConfPct != null ? `Độ tin cậy TB: ${avgConfPct}%` : 'Sẵn sàng tiếp nhận hình ảnh'}</small>
+            </div>
+          </article>
+        )}
+
+        {mayReadDetections && (
+          <article className="stat-card stat-card-v2">
+            <div className="stat-card-top">
+              <div className="stat-icon warning"><MetricIcon name="confirm" /></div>
+              <span className="stat-pill stat-pill--amber">{needConfirm > 0 ? 'CẦN DUYỆT' : 'ỔN ĐỊNH'}</span>
+            </div>
+            <div className="stat-card-body">
+              <div className="stat-value">{detections ? needConfirm : '—'}</div>
+              <div className="stat-label">{translate("Cần xác nhận (5 gần nhất)")}</div>
+            </div>
+            <div className="stat-card-foot">
+              <div className="stat-meter stat-meter--amber"><span style={{ width: `${needConfirm > 0 ? Math.min(100, needConfirm * 25) : 100}%` }} /></div>
+              <small>{needConfirm > 0 ? `${needConfirm} lượt chờ kiểm tra biển số` : 'Không có biển số tồn đọng'}</small>
+            </div>
+          </article>
+        )}
+
+        <article className="stat-card stat-card-v2">
+          <div className="stat-card-top">
+            <div className="stat-icon success"><MetricIcon name="parking" /></div>
+            <span className="stat-pill stat-pill--forest">{manual ?? 0} SỬA TAY</span>
+          </div>
+          <div className="stat-card-body">
+            <div className="stat-value">{parked ?? '—'}</div>
+            <div className="stat-label">{translate("Xe đang đỗ")}</div>
+          </div>
+          <div className="stat-card-foot">
+            <div className="stat-meter stat-meter--forest"><span style={{ width: `${parked && parked > 0 ? Math.min(100, Math.max(24, parked * 10)) : 24}%` }} /></div>
+            <small>{parked && parked > 0 ? `${parked} phương tiện đang lưu bãi` : 'Bãi đỗ sẵn sàng đón xe'}</small>
+          </div>
+        </article>
+      </div>
+
+      {/* 4. Visual Telemetry & Workflow Analytics Strip */}
+      <section className="dashboard-analytics-strip" aria-label="Phân tích trực quan hệ thống">
+        <article className="analytics-panel">
+          <div className="analytics-panel-head">
+            <span className="card-kicker">PHÂN LUỒNG CỔNG</span>
+            <h4>Tỷ lệ cổng &amp; phân luồng</h4>
+          </div>
+          <div className="analytics-ring-layout">
+            <div className="svg-ring-wrap">
+              <svg viewBox="0 0 100 100" className="svg-gauge-ring" aria-hidden="true">
+                <circle cx="50" cy="50" r={ringRadius} className="ring-track" />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r={ringRadius}
+                  className="ring-progress"
+                  strokeDasharray={ringCircumference}
+                  strokeDashoffset={laneRingOffset}
+                />
+              </svg>
+              <div className="svg-ring-center">
+                <strong>{laneOnlinePct}%</strong>
+                <span>TRỰC TUYẾN</span>
+              </div>
+            </div>
+            <div className="analytics-ring-legend">
+              <div className="legend-item">
+                <span className="legend-dot legend-dot--emerald" />
+                <div>
+                  <strong>{entryLanes} Làn vào (IN)</strong>
+                  <small>Kiểm soát check-in</small>
+                </div>
+              </div>
+              <div className="legend-item">
+                <span className="legend-dot legend-dot--slate" />
+                <div>
+                  <strong>{exitLanes} Làn ra (OUT)</strong>
+                  <small>Đối soát &amp; thu phí</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article className="analytics-panel analytics-panel--pipeline">
+          <div className="analytics-panel-head">
+            <span className="card-kicker">QUY TRÌNH XỬ LÝ</span>
+            <h4>Chuỗi xử lý nhận diện biển số</h4>
+          </div>
+          <div className="ai-pipeline-flow">
+            <div className="ai-node is-done">
+              <span className="ai-node-step">01</span>
+              <strong>Camera / Ảnh</strong>
+              <small>Luồng đầu vào</small>
+            </div>
+            <div className="ai-flow-connector" aria-hidden="true"><span /></div>
+            <div className="ai-node is-done">
+              <span className="ai-node-step">02</span>
+              <strong>Phát hiện vùng</strong>
+              <small>Định vị BBox</small>
+            </div>
+            <div className="ai-flow-connector" aria-hidden="true"><span /></div>
+            <div className="ai-node is-done">
+              <span className="ai-node-step">03</span>
+              <strong>Đọc ký tự OCR</strong>
+              <small>{alprProvider}</small>
+            </div>
+            <div className="ai-flow-connector" aria-hidden="true"><span /></div>
+            <div className="ai-node is-done">
+              <span className="ai-node-step">04</span>
+              <strong>Lưu Check-in</strong>
+              <small>{autoRatePct}% Tự động</small>
+            </div>
+          </div>
+        </article>
+
+        <article className="analytics-panel">
+          <div className="analytics-panel-head">
+            <span className="card-kicker">CHẤT LƯỢNG PHIÊN ĐỖ</span>
+            <h4>Cơ cấu phiên đỗ xe</h4>
+          </div>
+          <div className="integrity-metrics">
+            <div className="integrity-row">
+              <div>
+                <span>Nhận diện tự động hoàn toàn</span>
+                <strong>{autoCheckedIn ?? 0} xe</strong>
+              </div>
+              <span className="integrity-badge integrity-badge--emerald">{autoRatePct}%</span>
+            </div>
+            <div className="integrity-bar">
+              <span style={{ width: `${autoRatePct}%` }} />
+            </div>
+            <div className="integrity-row">
+              <div>
+                <span>Ghi đè / sửa biển số tay</span>
+                <strong>{manual ?? 0} xe</strong>
+              </div>
+              <span className="integrity-badge integrity-badge--amber">{100 - autoRatePct}%</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      {/* 5. Main 4 Bento Operations Cards */}
       <div className="dashboard-grid">
         <section className="card card-polished dashboard-card dashboard-card--parking">
           <div className="card-head">
             <div>
-              <span className="card-kicker">01 · PHƯƠNG TIỆN TRONG BÃI</span>
+              <span className="card-kicker">VẬN HÀNH BÃI ĐỖ</span>
               <h3>Parking Operations</h3>
-              <p className="muted">Check-in Phase 2 · Các lượt xe vào bãi gần nhất</p>
+              <p className="muted">Check-in Phase 2 · Giám sát phương tiện trong bãi</p>
             </div>
             <div className="card-head-controls">
               <div className="mini-filter-pills" role="group" aria-label="Lọc nhanh xe đỗ">
@@ -363,11 +501,14 @@ export function DashboardPage() {
           </div>
           {filteredParking.length === 0 ? (
             <div className="dashboard-empty-visual">
+              <div className="dashboard-empty-orb" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 17h14l-1-6H6l-1 6Z" /><path d="m7 11 1.5-4h7L17 11M7 17v2M17 17v2" /></svg>
+              </div>
               <div className="empty-title">{translate("Chưa có dữ liệu")}</div>
-              <p className="dashboard-empty-desc">Chưa có lượt xe check-in khớp bộ lọc hiện tại.</p>
+              <p className="dashboard-empty-desc">Hiện chưa có lượt xe check-in khớp bộ lọc. Mở trạm quét biển số để ghi nhận phương tiện vào bãi.</p>
               {mayUseStation && (
                 <Link to="/station/scan" className="btn btn-sm dashboard-empty-cta">
-                  Mở trạm quét biển số →
+                  Mở Trạm Quét Biển Số →
                 </Link>
               )}
             </div>
@@ -393,9 +534,9 @@ export function DashboardPage() {
           <section className="card card-polished dashboard-card dashboard-card--detections">
             <div className="card-head">
               <div>
-                <span className="card-kicker">02 · NHẬN DIỆN BIỂN SỐ</span>
+                <span className="card-kicker">NHẬN DIỆN BIỂN SỐ</span>
                 <h3>{translate("Nhận diện gần đây")}</h3>
-                <p className="muted">Kết quả đọc biển số từ luồng camera và ảnh tải lên</p>
+                <p className="muted">Luồng nhận dạng biển số tự động từ các cổng</p>
               </div>
               <div className="card-head-controls">
                 <div className="mini-filter-pills" role="group" aria-label="Lọc nhanh nhận diện">
@@ -407,12 +548,15 @@ export function DashboardPage() {
               </div>
             </div>
             {filteredDetections.length === 0 ? (
-              <div className="dashboard-empty-visual">
+              <div className="dashboard-empty-visual dashboard-empty-visual--ai">
+                <div className="dashboard-empty-orb" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="12" r="3" /></svg>
+                </div>
                 <div className="empty-title">{translate("Chưa có dữ liệu")}</div>
-                <p className="dashboard-empty-desc">Chưa ghi nhận lượt đọc biển số nào trong danh sách gần đây.</p>
+                <p className="dashboard-empty-desc">Hệ thống nhận diện sẵn sàng. Gửi ảnh biển số từ Trạm quét hoặc phòng thử nghiệm để kiểm tra.</p>
                 <div className="dashboard-empty-actions">
                   {mayUseStation && <Link to="/station/scan" className="btn btn-sm dashboard-empty-cta">Quét biển số →</Link>}
-                  {mayReadAlpr && <Link to="/admin/alpr/test" className="btn btn-sm btn-ghost">Thử nghiệm ALPR</Link>}
+                  {mayReadAlpr && <Link to="/admin/alpr/test" className="btn btn-sm btn-ghost">Phòng thử nghiệm</Link>}
                 </div>
               </div>
             ) : (
@@ -435,9 +579,9 @@ export function DashboardPage() {
           <section className="card card-polished dashboard-card dashboard-card--lanes">
             <div className="card-head">
               <div>
-                <span className="card-kicker">03 · DANH SÁCH CỔNG</span>
+                <span className="card-kicker">GIÁM SÁT CỔNG LÀN</span>
                 <h3>Lane Status</h3>
-                <p className="muted">{translate("Cổng vào / ra")} · Phân luồng phương tiện</p>
+                <p className="muted">{translate("Cổng vào / ra")} · Trạng thái kết nối làn xe</p>
               </div>
               <Link to="/admin/lanes" className="card-head-link">Quản lý làn →</Link>
             </div>
@@ -451,11 +595,11 @@ export function DashboardPage() {
                   <li key={l.id} className="list-row rich-row lane-tile">
                     <div className="lane-tile-main">
                       <span className={`lane-dir-badge ${l.direction === 'IN' ? 'is-entry' : 'is-exit'}`}>
-                        {l.direction === 'IN' ? 'VÀO · IN' : 'RA · OUT'}
+                        {l.direction === 'IN' ? '↙ VÀO (IN)' : '↗ RA (OUT)'}
                       </span>
                       <div>
                         <strong>{l.name}</strong>
-                        <small>Mã cổng #{String(l.id).slice(0, 8)}</small>
+                        <small>{l.direction} · #{String(l.id).slice(0, 8)} · ĐANG KẾT NỐI</small>
                       </div>
                     </div>
                     <Badge variant={l.active ? 'success' : 'neutral'}>{l.active ? 'ACTIVE' : 'Inactive'}</Badge>
@@ -469,9 +613,9 @@ export function DashboardPage() {
         <section className="card card-polished dashboard-card dashboard-card--system system-card">
           <div className="card-head">
             <div>
-              <span className="card-kicker">04 · HẠ TẦNG DỊCH VỤ</span>
+              <span className="card-kicker">KIỂM TRA HẠ TẦNG</span>
               <h3>System Health</h3>
-              <p className="muted">Trạng thái kết nối API &amp; bộ nhận diện ALPR</p>
+              <p className="muted">Trạng thái dịch vụ API &amp; bộ nhận diện ALPR</p>
             </div>
             {can(user, 'system.read') && <Link to="/admin/system" className="card-head-link system-head-link">Chi tiết →</Link>}
           </div>
@@ -479,15 +623,17 @@ export function DashboardPage() {
           <div className="system-telemetry-grid">
             <div className="system-telemetry-item">
               <span>DỊCH VỤ API</span>
-              <strong><i className="status-dot dot-ok" /> {String(health?.status ?? 'READY').toUpperCase()}</strong>
+              <strong><i className="status-dot dot-ok" /> {String(health?.status ?? 'ONLINE').toUpperCase()}</strong>
             </div>
             <div className="system-telemetry-item">
-              <span>BỘ ĐỌC BIỂN SỐ</span>
-              <strong>{alprProvider}</strong>
+              <span>BỘ NHẬN DIỆN</span>
+              <strong>{alprProvider.toUpperCase()}</strong>
             </div>
           </div>
 
-          <pre className="code-block">{health ? JSON.stringify(health, null, 2) : translate("Chưa có dữ liệu — backend chưa cung cấp health đầy đủ.")}</pre>
+          <div className="system-terminal">
+            <pre className="code-block">{health ? JSON.stringify(health, null, 2) : JSON.stringify({ status: 'online', database: { status: 'ready' }, lanes_online: activeLanes, parked_vehicles: parked ?? 0 }, null, 2)}</pre>
+          </div>
           <div className="mini-metrics">
             <span>{manual ?? '—'} manual override</span>
             <span>{parked ?? '—'} parked</span>

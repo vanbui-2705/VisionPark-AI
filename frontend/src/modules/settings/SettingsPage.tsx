@@ -11,7 +11,7 @@ export function SettingsPage() {
   const [notice, setNotice] = useState('')
   return <div className="data-page">
     <PreferencesEditor />
-    {user?.role === 'SYSTEM_ADMIN' && <section className="card card-polished">
+    {(user?.role === 'SYSTEM_ADMIN' || (user?.role as string) === 'ADMIN') && <section className="card card-polished">
       <div className="card-head">
         <div>
           <span className="card-kicker">HẠ TẦNG TÒA NHÀ</span>
@@ -34,6 +34,6 @@ export function SettingsPage() {
       </form>
       {notice && <p role="status" className="alert alert-info" style={{ marginTop: 12 }}>{notice}</p>}
     </section>}
-    {user?.role === 'BUILDING_ADMIN' && <PricingSettings />}
+    {(user?.role === 'BUILDING_ADMIN' || user?.role === 'SYSTEM_ADMIN' || (user?.role as string) === 'ADMIN') && <PricingSettings />}
   </div>
 }

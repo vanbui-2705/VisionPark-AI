@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshCurrentUser,
       isAuthenticated: !!user && !!token,
-      isAdmin: user?.role === 'SYSTEM_ADMIN',
+      isAdmin: user?.role === 'SYSTEM_ADMIN' || (user?.role as string) === 'ADMIN',
     }),
     [user, token, initialized, loading, error, login, logout, refreshCurrentUser],
   )

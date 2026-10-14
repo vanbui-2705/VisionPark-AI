@@ -57,8 +57,9 @@ export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolea
   { perm: 'docs.read', label: 'Docs Center', admin: true, operator: false, accountant: false, technician: false },
 ]
 
-const ROLE_COLUMN: Record<Exclude<CurrentUser['role'], 'BUILDING_ADMIN'>, 'admin' | 'operator' | 'accountant' | 'technician'> = {
+const ROLE_COLUMN: Record<string, 'admin' | 'operator' | 'accountant' | 'technician'> = {
   SYSTEM_ADMIN: 'admin',
+  ADMIN: 'admin',
   OPERATOR: 'operator',
   ACCOUNTANT: 'accountant',
   TECHNICIAN: 'technician',
