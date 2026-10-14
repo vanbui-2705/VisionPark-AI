@@ -13,7 +13,26 @@ Application mock providers, fixture fallbacks and the development mock API have 
 - Theme/language preferences, notifications/read state and sanitized error events use database APIs.
 
 Vehicle checkout, payment, pricing, monthly passes, barrier control and live RTSP are outside the current implementation. Fire detection training is deferred.
-Real-vehicle accuracy and video latency acceptance still require a licensed, labelled dataset; model readiness alone does not prove these metrics.
+The tracked licensed dataset and benchmark establish the current recognition-quality baseline;
+model readiness alone does not prove accuracy.
+
+## Phase 2 status
+
+The implemented ALPR check-in workflow has **functional acceptance: PASS**. Real-provider
+readiness, image/video preview, operator correction, manual fallback, persistence, duplicate
+protection, idempotency and audit evidence are complete and rerunnable.
+
+The **recognition-quality release remains HOLD**: validation exact match is 25% and demo exact
+match is 0%, below the 80% release floor. Run the two gates independently:
+
+```powershell
+cd backend
+py -3 scripts/release_gate.py --functional-only --skip-tests  # PASS
+py -3 scripts/release_gate.py --skip-tests                    # HOLD until model quality passes
+```
+
+See the [Phase 2 release report](docs/phase-2-release-report-2026-10-09.md) and
+[evidence index](docs/phase-2-evidence/evidence-index.json).
 
 ## Docker setup
 

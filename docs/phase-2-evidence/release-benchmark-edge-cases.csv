@@ -1,0 +1,5 @@
+id,vehicle_id,scenario,expected_plate,actual_plate,exact_match,character_accuracy,no_result,false_positive,error,full_latency_ms,detector_latency_ms,ocr_latency_ms,processing_time_ms,requires_confirmation,quality_flags
+commons-evening-dark,commons-evening-dark,dark,,,False,1.0,True,False,,306.022,115.86629999510478,177.20610000833403,305,True,[]
+commons-kim-ma-motion-blur,commons-kim-ma-motion-blur,blur,,,False,1.0,True,False,,157.337,142.06430000194814,,156,True,[]
+commons-honda-small-partial,commons-honda-small-partial,small-or-partial,,,False,1.0,True,False,,163.893,148.57150000170805,,163,True,[]
+commons-vinfast-side-negative,commons-vinfast-side-negative,negative,,,False,1.0,True,False,,146.551,130.47639999422245,,146,True,[]

@@ -52,6 +52,35 @@ def test_recognition_model_is_lazy_loaded_and_normalizes_text(monkeypatch):
     assert FakeTextRecognition.instances == 1
 
 
+def test_recognition_splits_square_two_row_plate(monkeypatch):
+    class FakeTextRecognition:
+        def __init__(self, **kwargs):
+            pass
+
+        def predict(self, **kwargs):
+            image = kwargs["input"]
+            if image.shape[0] > 50:
+                text, score = "noise", 0.2
+            elif image.mean() < 100:
+                text, score = "29A", 0.91
+            else:
+                text, score = "749.52", 0.88
+            return [{"rec_texts": [text], "rec_scores": [score]}]
+
+    monkeypatch.setitem(
+        sys.modules, "paddleocr", SimpleNamespace(TextRecognition=FakeTextRecognition)
+    )
+    provider = PaddleOCRTextRecognition()
+    image = np.zeros((80, 80, 3), dtype=np.uint8)
+    image[40:] = 200
+
+    result = provider.recognize(image)
+
+    assert result.raw_text == "29A\n749.52"
+    assert result.normalized_text == "29A74952"
+    assert result.confidence == 0.88
+
+
 def test_model_load_and_inference_errors_are_typed(monkeypatch):
     class BrokenTextRecognition:
         def __init__(self, **kwargs):

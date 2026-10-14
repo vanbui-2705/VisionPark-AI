@@ -1,0 +1,4 @@
+id,vehicle_id,scenario,expected_plate,actual_plate,exact_match,character_accuracy,no_result,false_positive,error,full_latency_ms,detector_latency_ms,ocr_latency_ms,processing_time_ms,requires_confirmation,quality_flags
+user-toyota-44500,user-toyota-29A90101,low-confidence,29A90101,29A9001,False,0.875,False,False,,197.72,118.55650000507012,61.32360000628978,197,True,[]
+user-hyundai-90000,user-hyundai-30V4495,success,30V4495,30V4495,True,1.0,False,False,,198.778,124.10339999769349,60.02160000207368,198,True,[]
+user-title-no-plate,user-title,no-plate,,,False,1.0,True,False,,138.622,124.23169999965467,,138,True,[]

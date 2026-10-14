@@ -58,6 +58,15 @@ def test_crop_with_quality_expands_and_clamps_bbox():
     assert "bbox_out_of_bounds" not in flags
 
 
+def test_crop_with_quality_accepts_square_two_row_plate():
+    image = np.random.default_rng(7).integers(40, 220, size=(120, 120, 3), dtype=np.uint8)
+
+    crop, _, flags = crop_with_quality(image, (20, 20, 100, 100), margin=0.0)
+
+    assert crop.shape == (80, 80, 3)
+    assert "crop_invalid_ratio" not in flags
+
+
 def test_crop_with_quality_reports_small_dark_blurry_crop():
     image = np.zeros((20, 20, 3), dtype=np.uint8)
 

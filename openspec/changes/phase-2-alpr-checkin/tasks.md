@@ -140,16 +140,30 @@
 
 ## 5. M4 — Benchmark, hardening và demo
 
-- [ ] 5.1 Tạo split `smoke`, `validation`, `demo`, `edge_cases` theo video/xe, không random frame liền nhau.
+- [x] 5.1.1 Chốt nguồn dữ liệu thật được phép sử dụng và ghi provenance, quyền sử dụng, dataset version và fingerprint.
+- [x] 5.1.2 Tạo manifest cho từng mẫu với `id`, `vehicle_id`, `image`, `expected_plate`, `scenario` và `split`.
+- [x] 5.1.3 Tách `smoke`, `validation`, `demo`, `edge_cases` theo xe/video; không để frame liền nhau hoặc cùng xe rò sang nhiều split.
+- [x] 5.1.4 Phủ tối thiểu success, no-plate, low-confidence, blur, dark, oblique, small/partial plate và negative frame bằng dữ liệu thật.
+- [x] 5.1.5 Validate đường dẫn, nhãn, split, hash và số mẫu trước benchmark; không commit ảnh/video nhạy cảm vào Git.
 - [x] 5.2 Viết benchmark JSON/CSV cho detector, OCR và full pipeline.
 - [x] 5.3 Đo exact match, character accuracy, no-result, false positive, p50/p95 latency.
 - [x] 5.4 Đo time-to-stable, OCR calls/vehicle, candidate flip rate và provider error rate.
 - [x] 5.5 Chạy cold/warm benchmark CPU demo.
 - [x] 5.6 Chạy restart/model missing/OCR disabled/timeout/duplicate/idempotency checks.
 - [x] 5.7 Real-only runbook and schema-compatible rollback; obsolete mock rollback removed.
-- [ ] 5.8 Chụp screenshot/video evidence cho flow thành công, low-confidence, no-plate, sửa tay, duplicate và retry.
+- [x] 5.8.1 Ghi evidence low-confidence thật: response yêu cầu xác nhận và Operator sửa/xác nhận trước check-in.
+- [x] 5.8.2 Ghi evidence no-plate thật: request không crash, preview không persist transaction và manual fallback hoạt động.
+- [x] 5.8.3 Ghi evidence corrected plate có AI plate, final plate, actor, source, transaction và audit liên kết.
+- [x] 5.8.4 Ghi evidence duplicate trả HTTP 409 và không tạo transaction thứ hai.
+- [x] 5.8.5 Ghi evidence retry/idempotency trả lại cùng transaction cho cùng key/payload.
+- [x] 5.8.6 Tạo evidence index liên kết input provenance, model version, screenshot/video, API JSON, database state và audit record cho từng scenario.
 - [x] 5.9 Chạy backend pytest/ruff và frontend test/lint/build.
-- [ ] 5.10 Chỉ đóng Phase 2 khi release gate pass.
+- [x] 5.10.1 Chạy backend pytest/ruff và frontend test/lint/build trên commit release candidate.
+- [x] 5.10.2 Chạy Docker real-provider startup, readiness, warmup, inference và persistence lifecycle.
+- [x] 5.10.3 Chạy lại vertical slice MP4 → ALPR → consensus → confirm/edit/manual → một `PARKED` → history/audit.
+- [ ] 5.10.4 Review dataset, benchmark và evidence; không còn lỗi Critical/High và không suy diễn accuracy ngoài coverage. (Quality blocker: validation exact 25%, demo exact 0%.)
+- [x] 5.10.5 Lập release report có commit hash, model/checksum, dataset fingerprint, lệnh kiểm tra, kết quả, giới hạn và quyết định PASS/FAIL.
+- [ ] 5.10.6 Chỉ đóng Phase 2 khi toàn bộ evidence truy vết và chạy lại được.
 
 ## 6. Lệnh kiểm tra
 
@@ -172,6 +186,11 @@ cache. CI không tải model thật và không yêu cầu GPU.
 
 ## 7. Release gate
 
+**Functional acceptance (2026-10-09): PASS.** Gate độc lập
+`py -3 scripts/release_gate.py --functional-only --skip-tests` xác nhận luồng nghiệp vụ,
+evidence, traceability, latency và safe edge-case đều đạt. Recognition-quality release vẫn
+HOLD tại các mục chưa check bên dưới cho đến khi validation/demo cùng đạt exact match 80%.
+
 - [x] `/station/scan` chạy video MP4 local.
 - [x] Real readiness hợp lệ trên máy đã provision model asset.
 - [x] YOLO + OCR đọc được video demo chính trên máy đã provision model asset.
@@ -182,8 +201,8 @@ cache. CI không tải model thật và không yêu cầu GPU.
 - [x] Duplicate/idempotency/audit pass.
 - [x] Preview không tạo transaction rác.
 - [x] CI với test doubles xanh; mock ứng dụng đã loại bỏ.
-- [x] Warm p95 mục tiêu dưới 1 giây hoặc có benchmark ghi rõ giới hạn phần cứng. (CPU limit report: p95 3.03s; sub-second target not met.)
-- [ ] Có benchmark report thật, runbook và đầy đủ evidence; còn thiếu coverage thật đa cảnh cho nghiệm thu chất lượng.
+- [x] Warm p95 mục tiêu dưới 1 giây hoặc có benchmark ghi rõ giới hạn phần cứng. (Release candidate full p95 tối đa 337,212 ms trên CPU Windows.)
+- [ ] Có benchmark report thật trên split độc lập, runbook, evidence index đầy đủ và release report PASS; giới hạn phần cứng/coverage được ghi rõ.
 
 ## 8. Integration reconciliation (2026-10-07)
 
@@ -211,8 +230,8 @@ restore riêng; Docker lifecycle giữ nguyên row/media hashes. OCR smoke 2.4.8
 Evidence: `docs/phase-2-evidence/completion-user-video-benchmark.json`,
 `completion-browser.json`, `completion-lifecycle-final.json` và
 `docs/real-data-completion-report-2026-10-07.md`.
-M4 vẫn mở: 5.1 chưa đủ dữ liệu để chia validation/demo/edge_cases độc lập;
-5.8 chưa có đầy đủ screenshot/video từng tình huống thật; 5.10/release chất lượng
-chưa đóng. Không suy ra accuracy tổng quát từ hai xe/frame liền nhau, không tự động
+M4 vẫn mở ở 5.10.4 và 5.10.6: dataset 15 case đã đủ bốn split và tám scenario,
+nhưng validation exact match 25% và demo exact match 0% chưa đạt release floor 80%.
+Không suy ra accuracy tổng quát từ hai xe/frame liền nhau, không tự động
 thông xe. Evidence mock/synthetic ở mục lịch sử chỉ chứng minh contract.
 Ứng dụng hiện chỉ có real provider; test doubles giữ trong tests.
