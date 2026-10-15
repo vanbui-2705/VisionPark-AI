@@ -12,6 +12,13 @@ class LaneDirection(enum.StrEnum):
     OUT = "OUT"
 
 
+class AllowedVehicleType(enum.StrEnum):
+    ALL = "ALL"
+    CAR = "CAR"
+    MOTORBIKE = "MOTORBIKE"
+    BICYCLE = "BICYCLE"
+
+
 class Lane(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "lanes"
     __table_args__ = (Index("ix_lanes_building_name", "building_id", "name", unique=True),)
@@ -28,3 +35,12 @@ class Lane(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     camera: Mapped[str | None] = mapped_column(String(255), nullable=True)
     barrier: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    allowed_vehicle_type: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        default=AllowedVehicleType.ALL,
+        server_default="ALL",
+    )
+    camera_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    barrier_id: Mapped[str | None] = mapped_column(String(100), nullable=True)

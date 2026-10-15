@@ -35,7 +35,13 @@ def create_lane(db: Session, lane_data: dict) -> Lane:
 def update_lane(db: Session, db_lane: Lane, update_data: dict) -> Lane:
     """Cập nhật thông tin lane."""
     for key, value in update_data.items():
-        if value is not None or key in {"camera", "barrier"}:
+        if value is not None or key in {
+            "camera",
+            "barrier",
+            "camera_id",
+            "barrier_id",
+            "allowed_vehicle_type",
+        }:
             setattr(db_lane, key, value)
     db.flush()
     return db_lane

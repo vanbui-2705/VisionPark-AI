@@ -14,6 +14,7 @@ __pycache__/
 .coverage
 htmlcov/
 backend/var/
+var/
 *.egg-info/
 
 # Bundle the approved demo detector; keep other training artifacts ignored.
@@ -23,3 +24,5 @@ backend/app/alpr/weights/*
 
 # Database
 *.db
+#
+docs/nghiepvu.md
