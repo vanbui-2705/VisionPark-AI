@@ -1,16 +1,15 @@
-
 """M5 storage models; operational workflows are implemented separately."""
 
 from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
     Index,
     Integer,
-    JSON,
     Numeric,
     String,
     UniqueConstraint,
