@@ -9,6 +9,7 @@ import { LaneListPage } from '../modules/lanes/LaneListPage.tsx'
 import { LaneCreatePage, LaneEditPage, LaneDetailPage } from '../modules/lanes/LanePages.tsx'
 import { AppShell } from '../layouts/AppShell.tsx'
 import { ForbiddenPage, NotFoundPage } from '../modules/error/ErrorPages.tsx'
+import { M5Page } from '../modules/m5/M5Page.tsx'
 import { DashboardPage } from '../modules/dashboard/DashboardPage.tsx'
 import StationPage from '../modules/station/StationPage.tsx'
 import { DetectionHistoryPage } from '../modules/detections/DetectionHistoryPage.tsx'
@@ -89,6 +90,7 @@ export function AppRoutes() {
 
         {/* Admin-only */}
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/admin/m5" element={<PermissionGuard permission="dashboard.read"><M5Page /></PermissionGuard>} />
         <Route path="/admin/dashboard" element={<PermissionGuard permission="dashboard.read"><DashboardPage /></PermissionGuard>} />
         <Route path="/admin/lanes" element={<PermissionGuard permission="lanes.read"><LaneListPage /></PermissionGuard>} />
         <Route path="/admin/lanes/new" element={<AdminGuard><LaneCreatePage /></AdminGuard>} />

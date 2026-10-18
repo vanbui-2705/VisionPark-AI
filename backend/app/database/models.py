@@ -46,3 +46,5 @@ __all__ = [
 ]
 
 from app.modules.operations.models import ErrorEvent, Notification, UserPreference  # noqa: F401
+
+from app.modules.m5.models import DailyStat, Device  # noqa: F401

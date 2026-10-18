@@ -26,3 +26,6 @@ api_router.include_router(audit_logs_router)
 api_router.include_router(users_router)
 api_router.include_router(lot_settings_router)
 api_router.include_router(operations_router)
+
+from app.modules.m5.router import router as m5_router
+api_router.include_router(m5_router)
