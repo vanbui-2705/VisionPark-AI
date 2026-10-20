@@ -57,7 +57,7 @@ async def create_detection(
     lane_id: str = Form(...),
     image: UploadFile = File(...),
     mode: Literal["preview", "final"] = Form("preview"),
-    persist: bool | None = Form(None),
+    persist: str | bool | None = Form(None),
     capture_id: UUID | None = Form(None),
     input_kind: Literal["IMAGE_UPLOAD", "VIDEO_FRAME"] | None = Form(None),
     video_time_ms: int | None = Form(None, ge=0),
@@ -114,11 +114,30 @@ async def create_detection(
         ) from None
 
     try:
-        should_persist = mode != "preview" if persist is None else persist
-        if capture_id and not should_persist:
+        parsed_persist: bool | None = None
+        if persist is not None:
+            if isinstance(persist, bool):
+                parsed_persist = persist
+            else:
+                p_lower = str(persist).strip().lower()
+                if p_lower in ("true", "1", "yes", "t"):
+                    parsed_persist = True
+                elif p_lower in ("false", "0", "no", "f"):
+                    parsed_persist = False
+
+        if capture_id and parsed_persist is False:
             raise AppError(
-                status_code=422, code="INVALID_CAPTURE", message="Capture ID requires persistence."
+                status_code=422,
+                code="INVALID_CAPTURE",
+                message="Capture ID requires persistence.",
             )
+        if capture_id:
+            should_persist = True
+        elif parsed_persist is not None:
+            should_persist = parsed_persist
+        else:
+            should_persist = mode == "final"
+
         kwargs = {"persist": should_persist, "actor_id": str(current_user.id)}
         if capture_id:
             kwargs["capture_id"] = str(capture_id)
