@@ -114,11 +114,19 @@ async def create_detection(
         ) from None
 
     try:
-        should_persist = mode != "preview" if persist is None else persist
-        if capture_id and not should_persist:
+        if capture_id and persist is False:
             raise AppError(
-                status_code=422, code="INVALID_CAPTURE", message="Capture ID requires persistence."
+                status_code=422,
+                code="INVALID_CAPTURE",
+                message="Capture ID requires persistence.",
             )
+        if capture_id:
+            should_persist = True
+        elif persist is not None:
+            should_persist = persist
+        else:
+            should_persist = mode == "final"
+
         kwargs = {"persist": should_persist, "actor_id": str(current_user.id)}
         if capture_id:
             kwargs["capture_id"] = str(capture_id)
