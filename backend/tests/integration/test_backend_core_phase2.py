@@ -197,6 +197,7 @@ def test_additive_migration_and_rollback_preserve_existing_data(database_url):
                 is_active=True,
             )
         )
+        session.flush()
         old_detections = Table("detections", MetaData(), autoload_with=engine)
         old_detections.c.id.type = Uuid()
         old_detections.c.lane_id.type = Uuid()

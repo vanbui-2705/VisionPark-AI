@@ -1,8 +1,15 @@
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
-from app.modules.checkin.models import CheckInSource, ParkingTransaction
+from app.modules.checkin.models import (
+    CheckInSource,
+    ParkingTransaction,
+    TransactionStatus,
+    VehicleType,
+)
 from app.modules.lanes.models import Lane
 from app.modules.users.models import User
 
@@ -86,3 +93,75 @@ def test_provenance_locking_and_snapshot(client, db_session, operator_headers):
     history = client.get(f"/api/v1/parking/transactions/{data['id']}", headers=operator_headers)
     assert history.status_code == 200
     assert history.json()["lane_name"] == "LANE_IN_01"  # Kept the snapshot
+
+
+def test_phase3_session_schema_expansion(client, db_session, operator_headers):
+    lane = db_session.scalar(select(Lane).where(Lane.name == "LANE_IN_01"))
+    operator = db_session.scalar(select(User).where(User.username == "operator"))
+
+    # Test creating a session without plate (e.g. bicycle) and with new status and fields
+    tx = ParkingTransaction(
+        id=uuid4(),
+        lane_id=lane.id,
+        license_plate=None,
+        normalized_plate=None,
+        ticket_code="TC-BIKE-001",
+        vehicle_type=VehicleType.BICYCLE,
+        status=TransactionStatus.ENTERED,
+        fee=5000.0,
+        price_snapshot={"base_rate": 5000, "vehicle_type": "BICYCLE"},
+        check_in_operator_id=operator.id,
+        source=CheckInSource.MANUAL_ENTRY,
+        idempotency_key="tx-bike-01",
+        request_fingerprint="b" * 64,
+    )
+    db_session.add(tx)
+    db_session.commit()
+
+    # Query through API
+    resp = client.get(f"/api/v1/parking/transactions/{tx.id}", headers=operator_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["license_plate"] is None
+    assert body["normalized_plate"] is None
+    assert body["ticket_code"] == "TC-BIKE-001"
+    assert body["vehicle_type"] == "BICYCLE"
+    assert body["status"] == "ENTERED"
+    assert body["fee"] == 5000.0
+
+
+def test_phase3_active_ticket_code_unique(db_session):
+    lane = db_session.scalar(select(Lane).where(Lane.name == "LANE_IN_01"))
+
+    tx1 = ParkingTransaction(
+        id=uuid4(),
+        lane_id=lane.id,
+        license_plate=None,
+        normalized_plate=None,
+        ticket_code="TC-DUP-999",
+        vehicle_type=VehicleType.BICYCLE,
+        status=TransactionStatus.PARKED,
+        source=CheckInSource.MANUAL_ENTRY,
+        idempotency_key="dup-key-1",
+        request_fingerprint="c" * 64,
+    )
+    db_session.add(tx1)
+    db_session.commit()
+
+    # Duplicate active ticket_code must fail with IntegrityError
+    tx2 = ParkingTransaction(
+        id=uuid4(),
+        lane_id=lane.id,
+        license_plate=None,
+        normalized_plate=None,
+        ticket_code="TC-DUP-999",
+        vehicle_type=VehicleType.BICYCLE,
+        status=TransactionStatus.ENTERED,
+        source=CheckInSource.MANUAL_ENTRY,
+        idempotency_key="dup-key-2",
+        request_fingerprint="d" * 64,
+    )
+    db_session.add(tx2)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()

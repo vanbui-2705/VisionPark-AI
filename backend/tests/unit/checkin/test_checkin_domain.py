@@ -40,6 +40,7 @@ def lane_in():
     lane.is_active = True
     lane.direction = LaneDirection.IN
     lane.name = "Test Lane IN"
+    lane.allowed_vehicle_type = "ALL"
     return lane
 
 
