@@ -84,7 +84,9 @@ export function DashboardPage() {
       parkingTransactionsApi.summary(),
     ]).then((r) => {
       if (!alive) return
-      if (r[0].status === 'fulfilled') setBuildings(r[0].value)
+      if (r[0].status === 'fulfilled') {
+  setBuildings(Array.isArray(r[0].value) ? r[0].value : [])
+}
       else setBuildings(null)
       if (r[1].status === 'fulfilled') setLanes(r[1].value)
       else setLanes(null)
@@ -215,7 +217,7 @@ export function DashboardPage() {
               Lọc làn theo tòa
               <select aria-label="Lọc làn theo tòa nhà" value={buildingId} onChange={(event) => setBuildingId(event.target.value)}>
                 <option value="ALL">Tất cả tòa</option>
-                {(buildings ?? []).map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}
+                {(Array.isArray(buildings) ? buildings : []).map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}
               </select>
             </label>
             <small>{lastUpdated ? `Cập nhật: ${lastUpdated.toLocaleTimeString('vi-VN')}` : 'Chưa đồng bộ'}</small>
