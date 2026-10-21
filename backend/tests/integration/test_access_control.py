@@ -249,3 +249,187 @@ def test_access_check_endpoint(
     )
     assert res3.status_code == 200
     assert res3.json()["decision"] == "DENY"
+
+
+def test_checkin_subscription_valid_allows_entry(
+    client: TestClient, operator_token: str, in_lane: Lane, db_session: Session
+):
+    """Xe có vé tháng M4 còn hiệu lực được phép vào bãi (ALLOW)."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.alpr.utils import normalize_plate
+    from app.modules.pricing.models import CustomerClass, Subscription, TicketProduct, Vehicle
+
+    b_id = in_lane.building_id
+    c_class = CustomerClass(building_id=b_id, code=f"RES-{uuid4().hex[:6]}", name="Resident")
+    db_session.add(c_class)
+    db_session.flush()
+
+    prod = TicketProduct(
+        building_id=b_id,
+        code=f"M-CAR-{uuid4().hex[:6]}",
+        name="Ve Thang Oto",
+        kind="MONTHLY",
+        vehicle_type="CAR",
+        customer_class_id=c_class.id,
+    )
+    db_session.add(prod)
+    db_session.flush()
+
+    plate = f"30M{uuid4().hex[:5].upper()}"
+    veh = Vehicle(
+        building_id=b_id,
+        normalized_plate=normalize_plate(plate),
+        vehicle_type="CAR",
+        customer_class_id=c_class.id,
+    )
+    db_session.add(veh)
+    db_session.flush()
+
+    sub = Subscription(
+        building_id=b_id,
+        product_id=prod.id,
+        vehicle_id=veh.id,
+        zone_id=uuid4(),
+        valid_from=datetime.now(UTC) - timedelta(days=1),
+        valid_until=datetime.now(UTC) + timedelta(days=29),
+        grace_days=3,
+    )
+    db_session.add(sub)
+    db_session.commit()
+
+    headers = {
+        "Authorization": f"Bearer {operator_token}",
+        "Idempotency-Key": str(uuid4()),
+    }
+    response = client.post(
+        "/api/v1/parking/check-in",
+        json={"lane_id": str(in_lane.id), "license_plate": plate, "vehicle_type": "CAR"},
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert data["transaction"]["license_plate"] == plate
+
+
+def test_checkin_subscription_expired_allowed_as_visitor(
+    client: TestClient, operator_token: str, in_lane: Lane, db_session: Session
+):
+    """Xe có vé tháng M4 đã hết hạn vẫn được vào bãi theo dạng vé lượt (BR-07, ALLOW 201)."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.alpr.utils import normalize_plate
+    from app.modules.pricing.models import CustomerClass, Subscription, TicketProduct, Vehicle
+
+    b_id = in_lane.building_id
+    c_class = CustomerClass(building_id=b_id, code=f"EXP-{uuid4().hex[:6]}", name="ExpiredClass")
+    db_session.add(c_class)
+    db_session.flush()
+
+    prod = TicketProduct(
+        building_id=b_id,
+        code=f"EXP-PROD-{uuid4().hex[:6]}",
+        name="Ve Thang Het Han",
+        kind="MONTHLY",
+        vehicle_type="CAR",
+        customer_class_id=c_class.id,
+    )
+    db_session.add(prod)
+    db_session.flush()
+
+    plate = f"30E{uuid4().hex[:5].upper()}"
+    veh = Vehicle(
+        building_id=b_id,
+        normalized_plate=normalize_plate(plate),
+        vehicle_type="CAR",
+        customer_class_id=c_class.id,
+    )
+    db_session.add(veh)
+    db_session.flush()
+
+    sub = Subscription(
+        building_id=b_id,
+        product_id=prod.id,
+        vehicle_id=veh.id,
+        zone_id=uuid4(),
+        valid_from=datetime.now(UTC) - timedelta(days=40),
+        valid_until=datetime.now(UTC) - timedelta(days=10),
+        grace_days=3,
+    )
+    db_session.add(sub)
+    db_session.commit()
+
+    headers = {
+        "Authorization": f"Bearer {operator_token}",
+        "Idempotency-Key": str(uuid4()),
+    }
+    response = client.post(
+        "/api/v1/parking/check-in",
+        json={"lane_id": str(in_lane.id), "license_plate": plate, "vehicle_type": "CAR"},
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert data["transaction"]["license_plate"] == plate
+
+
+def test_checkin_subscription_vehicle_type_mismatch_denied(
+    client: TestClient, operator_token: str, in_lane: Lane, db_session: Session
+):
+    """Xe có vé tháng đăng ký loại xe khác với loại xe thực tế vào làn bị từ chối (DENY 403)."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.alpr.utils import normalize_plate
+    from app.modules.pricing.models import CustomerClass, Subscription, TicketProduct, Vehicle
+
+    b_id = in_lane.building_id
+    c_class = CustomerClass(building_id=b_id, code=f"MIS-{uuid4().hex[:6]}", name="MismatchClass")
+    db_session.add(c_class)
+    db_session.flush()
+
+    prod = TicketProduct(
+        building_id=b_id,
+        code=f"MIS-PROD-{uuid4().hex[:6]}",
+        name="Ve Thang Xe May",
+        kind="MONTHLY",
+        vehicle_type="MOTORBIKE",
+        customer_class_id=c_class.id,
+    )
+    db_session.add(prod)
+    db_session.flush()
+
+    plate = f"30M{uuid4().hex[:5].upper()}"
+    veh = Vehicle(
+        building_id=b_id,
+        normalized_plate=normalize_plate(plate),
+        vehicle_type="MOTORBIKE",
+        customer_class_id=c_class.id,
+    )
+    db_session.add(veh)
+    db_session.flush()
+
+    sub = Subscription(
+        building_id=b_id,
+        product_id=prod.id,
+        vehicle_id=veh.id,
+        zone_id=uuid4(),
+        valid_from=datetime.now(UTC) - timedelta(days=1),
+        valid_until=datetime.now(UTC) + timedelta(days=29),
+        grace_days=3,
+    )
+    db_session.add(sub)
+    db_session.commit()
+
+    headers = {
+        "Authorization": f"Bearer {operator_token}",
+        "Idempotency-Key": str(uuid4()),
+    }
+    # Xe vào làn nhưng khai báo loại xe CAR thay vì MOTORBIKE
+    response = client.post(
+        "/api/v1/parking/check-in",
+        json={"lane_id": str(in_lane.id), "license_plate": plate, "vehicle_type": "CAR"},
+        headers=headers,
+    )
+    assert response.status_code == 403, response.text
+    err = response.json()
+    assert err["code"] == "ACCESS_DENIED"
