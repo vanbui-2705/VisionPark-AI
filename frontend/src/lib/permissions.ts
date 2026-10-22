@@ -28,83 +28,54 @@ export type Permission =
   | 'help.read'
   | 'docs.read'
 
-const ADMIN_ALL: Permission[] = [
-  'dashboard.read',
-  'station.use',
-  'station.history.read',
-  'detections.read',
-  'detections.confirm',
-  'checkin.create',
-  'transactions.read',
-  'lanes.read',
-  'lanes.create',
-  'lanes.update',
-  'lanes.manage',
-  'users.read',
-  'users.manage',
-  'roles.read',
-  'permissions.read',
-  'alpr.read',
-  'alpr.test',
-  'audit.read',
-  'errors.read',
-  'system.read',
-  'profile.read',
-  'profile.update',
-  'settings.update',
-  'notifications.read',
-  'help.read',
-  'docs.read',
+export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolean; operator: boolean; accountant: boolean; technician: boolean }[] = [
+  { perm: 'dashboard.read', label: 'Dashboard', admin: true, operator: false, accountant: true, technician: false },
+  { perm: 'station.use', label: 'Quét biển số', admin: true, operator: true, accountant: false, technician: true },
+  { perm: 'station.history.read', label: 'Lịch sử station', admin: true, operator: true, accountant: false, technician: true },
+  { perm: 'detections.read', label: 'Xem detection', admin: true, operator: true, accountant: false, technician: true },
+  { perm: 'detections.confirm', label: 'Xác nhận / sửa biển số', admin: true, operator: true, accountant: false, technician: true },
+  { perm: 'checkin.create', label: 'Check-in / đăng ký vào bãi', admin: true, operator: true, accountant: false, technician: true },
+  { perm: 'transactions.read', label: 'Lịch sử đỗ xe', admin: true, operator: true, accountant: true, technician: false },
+  { perm: 'lanes.read', label: 'Xem làn xe', admin: true, operator: true, accountant: false, technician: true },
+  { perm: 'lanes.create', label: 'Tạo làn xe', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'lanes.update', label: 'Cập nhật làn xe', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'lanes.manage', label: 'Quản lý làn xe', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'users.read', label: 'Xem người dùng', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'users.manage', label: 'Quản lý người dùng', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'roles.read', label: 'Xem vai trò', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'permissions.read', label: 'Xem ma trận phân quyền', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'alpr.read', label: 'ALPR', admin: true, operator: false, accountant: false, technician: true },
+  { perm: 'alpr.test', label: 'ALPR Test Lab (dev)', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'audit.read', label: 'Audit Logs', admin: true, operator: false, accountant: true, technician: false },
+  { perm: 'errors.read', label: 'Error Center', admin: true, operator: false, accountant: false, technician: false },
+  { perm: 'system.read', label: 'System Health', admin: true, operator: false, accountant: false, technician: true },
+  { perm: 'profile.read', label: 'Hồ sơ cá nhân', admin: true, operator: true, accountant: true, technician: true },
+  { perm: 'profile.update', label: 'Cập nhật hồ sơ', admin: true, operator: true, accountant: true, technician: true },
+  { perm: 'settings.update', label: 'Cài đặt (frontend prefs)', admin: true, operator: true, accountant: true, technician: true },
+  { perm: 'notifications.read', label: 'Thông báo', admin: true, operator: true, accountant: true, technician: true },
+  { perm: 'help.read', label: 'Trợ giúp', admin: true, operator: true, accountant: true, technician: true },
+  { perm: 'docs.read', label: 'Docs Center', admin: true, operator: false, accountant: false, technician: false },
 ]
 
-// OPERATOR — spec: station.use, detections.read, detections.confirm, lanes.read,
-// profile.read, profile.update + trang cá nhân/cài đặt/thông báo/trợ giúp.
-const OPERATOR_PERMS: Permission[] = [
-  'station.use',
-  'station.history.read',
-  'detections.read',
-  'detections.confirm',
-  'checkin.create',
-  'transactions.read',
-  'lanes.read',
-  'profile.read',
-  'profile.update',
-  'settings.update',
-  'notifications.read',
-  'help.read',
-]
+const ROLE_COLUMN: Record<string, 'admin' | 'operator' | 'accountant' | 'technician'> = {
+  SYSTEM_ADMIN: 'admin',
+  ADMIN: 'admin',
+  OPERATOR: 'operator',
+  ACCOUNTANT: 'accountant',
+  TECHNICIAN: 'technician',
+}
+
+const BUILDING_ADMIN_PERMISSIONS = new Set<Permission>([
+  'dashboard.read', 'station.use', 'station.history.read', 'detections.read',
+  'detections.confirm', 'checkin.create', 'transactions.read', 'lanes.read',
+  'lanes.create', 'lanes.update', 'lanes.manage', 'users.read', 'users.manage',
+  'audit.read', 'profile.read',
+  'profile.update', 'settings.update', 'notifications.read', 'help.read',
+])
 
 export function can(user: CurrentUser | null | undefined, perm: Permission): boolean {
   if (!user) return false
-  if (user.role === 'ADMIN') return (ADMIN_ALL as string[]).includes(perm)
-  if (user.role === 'OPERATOR') return (OPERATOR_PERMS as string[]).includes(perm)
-  return ['profile.read', 'profile.update', 'settings.update', 'help.read', 'notifications.read'].includes(perm)
+  if (user.role === 'BUILDING_ADMIN') return BUILDING_ADMIN_PERMISSIONS.has(perm)
+  const column = ROLE_COLUMN[user.role]
+  return column ? (PERMISSION_MATRIX.find((entry) => entry.perm === perm)?.[column] ?? false) : false
 }
-
-export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolean; operator: boolean }[] = [
-  { perm: 'dashboard.read', label: 'Dashboard', admin: true, operator: false },
-  { perm: 'station.use', label: 'Quét biển số', admin: true, operator: true },
-  { perm: 'station.history.read', label: 'Lịch sử station', admin: true, operator: true },
-  { perm: 'detections.read', label: 'Xem detection', admin: true, operator: true },
-  { perm: 'detections.confirm', label: 'Xác nhận / sửa biển số', admin: true, operator: true },
-  { perm: 'checkin.create', label: 'Check-in / đăng ký vào bãi', admin: true, operator: true },
-  { perm: 'transactions.read', label: 'Lịch sử đỗ xe', admin: true, operator: true },
-  { perm: 'lanes.read', label: 'Xem làn xe', admin: true, operator: true },
-  { perm: 'lanes.create', label: 'Tạo làn xe', admin: true, operator: false },
-  { perm: 'lanes.update', label: 'Cập nhật làn xe', admin: true, operator: false },
-  { perm: 'users.read', label: 'Xem người dùng', admin: true, operator: false },
-  { perm: 'users.manage', label: 'Quản lý người dùng', admin: true, operator: false },
-  { perm: 'roles.read', label: 'Xem vai trò', admin: true, operator: false },
-  { perm: 'permissions.read', label: 'Xem ma trận phân quyền', admin: true, operator: false },
-  { perm: 'alpr.read', label: 'ALPR', admin: true, operator: false },
-  { perm: 'alpr.test', label: 'ALPR Test Lab (dev)', admin: true, operator: false },
-  { perm: 'audit.read', label: 'Audit Logs', admin: true, operator: false },
-  { perm: 'errors.read', label: 'Error Center', admin: true, operator: false },
-  { perm: 'system.read', label: 'System Health', admin: true, operator: false },
-  { perm: 'profile.read', label: 'Hồ sơ cá nhân', admin: true, operator: true },
-  { perm: 'profile.update', label: 'Cập nhật hồ sơ', admin: true, operator: true },
-  { perm: 'settings.update', label: 'Cài đặt (frontend prefs)', admin: true, operator: true },
-  { perm: 'notifications.read', label: 'Thông báo', admin: true, operator: true },
-  { perm: 'help.read', label: 'Trợ giúp', admin: true, operator: true },
-  { perm: 'docs.read', label: 'Docs Center', admin: true, operator: false },
-]

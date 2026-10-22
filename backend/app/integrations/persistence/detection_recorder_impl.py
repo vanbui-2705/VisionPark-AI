@@ -10,6 +10,7 @@ from app.alpr.schema import ALPRResult, BoundingBox
 from app.alpr.utils import normalize_plate
 from app.core.errors import AppError
 from app.modules.alpr.models import Detection
+from app.modules.buildings.models import DEFAULT_BUILDING_ID
 from app.modules.lanes.models import Lane
 
 
@@ -86,9 +87,11 @@ class DatabaseDetectionRecorder(DetectionRecorder):
             else (None, None, None, None)
         )
         lane = self.session.get(Lane, UUID(lane_id))
+        building_id = lane.building_id if (lane and lane.building_id) else DEFAULT_BUILDING_ID
         detection = Detection(
             **({"id": UUID(capture_id)} if capture_id else {}),
             lane_id=UUID(lane_id),
+            building_id=building_id,
             image_key=image_key,
             image_content_type="image/png" if image_key.endswith(".png") else "image/jpeg",
             image_size_bytes=result.image_size_bytes,
@@ -126,7 +129,6 @@ class DatabaseDetectionRecorder(DetectionRecorder):
             vehicle_bbox_x2=bbox_v[2],
             vehicle_bbox_y2=bbox_v[3],
             model_version_detector=result.model_version,
-            building_id=getattr(result, "building_id", None),
         )
         self.session.add(detection)
         try:

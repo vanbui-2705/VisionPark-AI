@@ -27,7 +27,7 @@ def seed_database(session: Session, settings: Settings) -> None:
             settings.seed_admin_username,
             "VisionPark Administrator",
             settings.seed_admin_password,
-            RoleName.ADMIN,
+            RoleName.SYSTEM_ADMIN,
         ),
         (
             settings.seed_operator_username,

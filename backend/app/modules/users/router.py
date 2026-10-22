@@ -13,7 +13,15 @@ from app.modules.users.schemas import ManagedUserPublic, RoleName, UserCreate, U
 from app.modules.users.service import UserManagementService, to_managed_user
 
 router = APIRouter(tags=["users"])
-Admin = Annotated[User, Depends(require_roles(RoleName.ADMIN))]
+Admin = Annotated[User, Depends(require_roles(RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN))]
+OperatorOrAdmin = Annotated[
+    User,
+    Depends(
+        require_roles(
+            RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.OPERATOR, RoleName.ACCOUNTANT
+        )
+    ),
+]
 Db = Annotated[Session, Depends(get_db)]
 
 
@@ -44,7 +52,7 @@ def update_user(user_id: UUID, payload: UserUpdate, db: Db, actor: Admin):
 
 
 @router.get("/roles")
-def list_roles(db: Db, actor: Admin):
+def list_roles(db: Db, actor: OperatorOrAdmin):
     return [
         {"name": role.name, "display_name": role.name, "description": ""}
         for role in db.scalars(select(Role).order_by(Role.name))

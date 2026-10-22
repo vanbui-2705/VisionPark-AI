@@ -1,7 +1,6 @@
 """Preserve transaction context when lane or operator names change."""
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision = "20261007_0010"

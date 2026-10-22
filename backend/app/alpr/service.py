@@ -1,5 +1,6 @@
 import hashlib
 import time
+from collections.abc import Callable
 from typing import Any
 
 from .interface import ALPRRuntime
@@ -27,6 +28,7 @@ class ALPRApplicationService:
         detection_recorder: DetectionRecorder,
         *,
         debounce_window_seconds: float = 5.0,
+        review_policy: Callable[[str, ALPRResult], ALPRResult] | None = None,
     ):
         self.runtime = runtime
         self.lane_checker = lane_checker
@@ -34,6 +36,7 @@ class ALPRApplicationService:
         self.detection_recorder = detection_recorder
         self.debounce_window_seconds = debounce_window_seconds
         self._cooldown_cache: dict[tuple[str, str], tuple[float, str]] = {}
+        self.review_policy = review_policy
 
     def process_detection(
         self,
@@ -85,6 +88,9 @@ class ALPRApplicationService:
                 "building_id": building_id or merged_settings.get("building_id") or getattr(raw_result, "building_id", None),
             }
         )
+
+        if self.review_policy is not None:
+            result = self.review_policy(lane_id, result)
 
         if not persist:
             return result.model_copy(update={"detection_id": None})

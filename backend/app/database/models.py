@@ -6,10 +6,50 @@ business models inside the database package.
 
 from app.modules.alpr.models import Detection
 from app.modules.audit_logs.models import AuditLog
+from app.modules.barriers.models import BarrierEvent
+from app.modules.buildings.models import Building, ParkingLot, UserBuilding
+from app.modules.checkin.counter_models import CounterEvent, ParkingCounter
+from app.modules.checkin.lifecycle_models import LifecycleEvent
 from app.modules.checkin.models import ParkingTransaction
 from app.modules.lanes.models import Lane
+from app.modules.pricing.models import (
+    ClassQuota,
+    CustomerClass,
+    GuestInvite,
+    Invoice,
+    Payment,
+    PricingRule,
+    PricingVersion,
+    Subscription,
+    TicketProduct,
+    Vehicle,
+)
 from app.modules.users.models import Role, User
 
-__all__ = ["Role", "User", "Lane", "Detection", "AuditLog", "ParkingTransaction"]
+__all__ = [
+    "Role",
+    "User",
+    "Lane",
+    "Detection",
+    "AuditLog",
+    "ParkingTransaction",
+    "LifecycleEvent",
+    "ParkingCounter",
+    "CounterEvent",
+    "Building",
+    "ParkingLot",
+    "UserBuilding",
+    "CustomerClass",
+    "ClassQuota",
+    "TicketProduct",
+    "PricingVersion",
+    "PricingRule",
+    "Vehicle",
+    "Subscription",
+    "GuestInvite",
+    "Invoice",
+    "Payment",
+    "BarrierEvent",
+]
 
 from app.modules.operations.models import ErrorEvent, Notification, UserPreference  # noqa: F401

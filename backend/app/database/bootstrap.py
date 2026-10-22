@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from app.core.config import Settings
 from app.database.seed import seed_database
 from app.database.session import DatabaseManager

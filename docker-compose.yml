@@ -25,6 +25,7 @@ services:
       args:
         INSTALL_REAL_ALPR: ${INSTALL_REAL_ALPR:-true}
         INSTALL_OCR: ${INSTALL_OCR:-true}
+        INSTALL_TORCH_CPU: ${INSTALL_TORCH_CPU:-true}
     environment: &backend-environment
       ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-visionpark}:${POSTGRES_PASSWORD:-visionpark}@db:5432/${POSTGRES_DB:-visionpark}
@@ -54,6 +55,7 @@ services:
       args:
         INSTALL_REAL_ALPR: ${INSTALL_REAL_ALPR:-true}
         INSTALL_OCR: ${INSTALL_OCR:-true}
+        INSTALL_TORCH_CPU: ${INSTALL_TORCH_CPU:-true}
     environment: *backend-environment
     ports:
       - "${BACKEND_PORT:-8000}:8000"

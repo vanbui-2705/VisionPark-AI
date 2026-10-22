@@ -28,6 +28,7 @@ export function useAlprDetection() {
   const [error, setError] = useState<ApiError | null>(null);
   const generationRef = useRef(0);
   const processingRef = useRef(false);
+  const requestIdRef = useRef(0);
   const lastRequestRef = useRef<LastRequest | null>(null);
   const candidatesRef = useRef<DetectionResult[]>([]);
   const lastBboxRef = useRef<DetectionResult["bbox"]>(null);
@@ -38,6 +39,7 @@ export function useAlprDetection() {
       message: "Một yêu cầu ALPR đang được xử lý."
     } satisfies ApiError;
     const generation = generationRef.current;
+    const requestId = ++requestIdRef.current;
     processingRef.current = true;
     setState("detecting");
     setError(null);
@@ -63,7 +65,7 @@ export function useAlprDetection() {
       setState("error");
       throw apiError;
     } finally {
-      processingRef.current = false;
+      if (requestId === requestIdRef.current) processingRef.current = false;
     }
   }, []);
   const detect = useCallback(async (image: Blob, laneId: string, context: InputContext = { inputKind: "VIDEO_FRAME" }) => {
@@ -89,6 +91,8 @@ export function useAlprDetection() {
   }, [execute]);
   const reset = useCallback(() => {
     generationRef.current += 1;
+    // Keep the in-flight lock until the old request actually settles.
+    // The generation guard below discards its stale response.
     setState("idle");
     setResult(null);
     setError(null);

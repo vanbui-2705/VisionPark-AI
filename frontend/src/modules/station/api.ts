@@ -5,6 +5,7 @@ import type { CheckInResponse } from '../../api/domain.ts'
 import type { ConfirmationPayload, DetectionResult, Lane, RecentHistoryItem } from './types.ts'
 
 export type InputContext = { inputKind: "IMAGE_UPLOAD" | "VIDEO_FRAME"; videoTimeMs?: number }
+export type PriceContext = { vehicle_type: string; ticket_kind: 'HOURLY' | 'DAILY' | 'MONTHLY' | 'NIGHT'; customer_class_id: string; zone_id?: string }
 type Candidate = { image: Blob; laneId: string; context: InputContext; final?: DetectionResult }
 const candidates = new Map<string, Candidate>()
 let candidateGeneration = 0
@@ -43,9 +44,10 @@ export function clearCandidates(): void {
   confirmations.clear()
 }
 
-export async function confirmDetection(candidateId: string, laneId: string, payload: ConfirmationPayload): Promise<{ transactionId: string }> {
+export async function confirmDetection(candidateId: string, laneId: string, payload: ConfirmationPayload, price?: PriceContext): Promise<{ transactionId: string }> {
   const existing = confirmations.get(candidateId)
   const plate = (payload.confirmed_plate_number ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (plate.length < 3) throw { status: 422, code: 'PLATE_REQUIRED', message: 'Vui lòng nhập biển số hợp lệ trước khi xác nhận.' }
   if (existing) {
     if (existing.laneId !== laneId || existing.plate !== plate) {
       throw { status: 409, code: 'IDEMPOTENCY_KEY_REUSED', message: 'Khung hình đã được xác nhận với dữ liệu khác.' }
@@ -61,7 +63,7 @@ export async function confirmDetection(candidateId: string, laneId: string, payl
     if (!candidate.final.detection_id) throw new Error('Final detection was not persisted.')
     const response = await apiClient.post<CheckInResponse>(
       `/api/v1/alpr/detections/${candidate.final.detection_id}/confirm`,
-      { confirmed_plate: payload.confirmed_plate_number, check_in: true },
+      { confirmed_plate: payload.confirmed_plate_number, check_in: true, ...price },
       { headers: { 'Idempotency-Key': `station-${candidateId}` } },
     )
     return { transactionId: response.transaction.id }
@@ -74,9 +76,9 @@ export async function confirmDetection(candidateId: string, laneId: string, payl
 
 }
 
-export async function manualCheckIn(laneId: string, plate: string, key: string): Promise<{ transactionId: string }> {
+export async function manualCheckIn(laneId: string, plate: string, key: string, price?: PriceContext, useTicketCode = false): Promise<{ transactionId: string }> {
   const response = await parkingTransactionsApi.checkIn({
-    lane_id: laneId, license_plate: plate, source: 'MANUAL_ENTRY',
+    lane_id: laneId, ...(useTicketCode ? { ticket_code: plate } : { license_plate: plate }), source: 'MANUAL_ENTRY', ...price,
   }, key)
   return { transactionId: response.transaction.id }
 }

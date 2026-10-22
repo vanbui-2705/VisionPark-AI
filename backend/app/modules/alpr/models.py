@@ -4,9 +4,10 @@ from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integ
 from sqlalchemy.orm import relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
-class Detection(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class Detection(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Bảng lưu lịch sử nhận diện biển số xe."""
 
     __tablename__ = "detections"
@@ -56,8 +57,6 @@ class Detection(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     vehicle_bbox_y2 = Column(Integer, nullable=True)
     model_version_detector = Column(String(120), nullable=True)
 
-    # Cô lập đa tòa nhà (SPEC-AI-02 & v2.0 Architecture)
-    building_id = Column(String(50), nullable=True, index=True)
 
     @property
     def lane_name(self):

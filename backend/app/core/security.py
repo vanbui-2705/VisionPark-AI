@@ -33,6 +33,7 @@ def create_access_token(
     *,
     expires_delta: timedelta | None = None,
     token_version: int = 0,
+    building_id: UUID | None = None,
 ) -> str:
     now = datetime.now(UTC)
     expires_at = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
@@ -44,6 +45,8 @@ def create_access_token(
         "jti": str(uuid4()),
         "ver": token_version,
     }
+    if building_id is not None:
+        claims["building_id"] = str(building_id)
     return jwt.encode(
         claims,
         settings.jwt_secret_key.get_secret_value(),

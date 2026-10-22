@@ -13,6 +13,7 @@ export interface UsersApi {
     email?: string | null
     password: string
     role: ManagedUser['role']
+    building_id?: string | null
     active?: boolean
   }): Promise<ManagedUser>
   patch(id: string, payload: Partial<ManagedUser & { password?: string }>): Promise<ManagedUser>

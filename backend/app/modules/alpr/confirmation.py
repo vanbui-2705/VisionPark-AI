@@ -82,6 +82,12 @@ def confirm_detection(
                 detection_id=detection.id,
                 source=payload.source,
                 override_reason=payload.override_reason,
+                vehicle_type=(
+                    payload.vehicle_type or getattr(detection, "vehicle_type", None) or "CAR"
+                ),
+                ticket_kind=payload.ticket_kind,
+                customer_class_id=payload.customer_class_id,
+                zone_id=payload.zone_id,
             ),
             operator=operator,
             idempotency_key=idempotency_key,

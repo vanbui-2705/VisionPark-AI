@@ -9,6 +9,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.security import decode_access_claims
 from app.database.session import get_db
+from app.database.tenant import resolve_building
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import RoleName
@@ -42,7 +43,25 @@ def get_current_user(
             message="The access token is no longer valid.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    building_id = resolve_building(session, user, claims.get("building_id"))
+    session.info["building_id"] = building_id
+    from app.modules.lot_settings.contracts import no_pricing_provider
+
+    session.info["effective_pricing"] = getattr(
+        request.app.state, "effective_pricing", no_pricing_provider
+    )
+    request.state.building_id = building_id
     request.state.actor_id = user.id
+    if user.must_change_password and request.url.path not in {
+        "/api/v1/auth/me",
+        "/api/v1/auth/change-password",
+        "/api/v1/auth/logout",
+    }:
+        raise AppError(
+            status_code=403,
+            code="PASSWORD_CHANGE_REQUIRED",
+            message="Change your temporary password before using the application.",
+        )
     return user
 
 
@@ -63,3 +82,19 @@ def require_roles(*allowed_roles: RoleName) -> Callable[..., User]:
         return current_user
 
     return role_checker
+
+
+def require_permissions(*permissions: str) -> Callable[..., User]:
+    from app.modules.users.permissions import has_permission
+
+    def permission_checker(current_user: CurrentUser) -> User:
+        if not all(has_permission(current_user, permission) for permission in permissions):
+            raise AppError(
+                status_code=403,
+                code="FORBIDDEN",
+                message="You do not have the required business permission.",
+                details={"required_permissions": list(permissions)},
+            )
+        return current_user
+
+    return permission_checker

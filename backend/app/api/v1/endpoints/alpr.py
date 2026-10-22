@@ -1,5 +1,6 @@
-import os
+import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -23,12 +24,13 @@ from app.core.errors import AppError
 from app.database.session import get_db
 from app.di_container import get_alpr_service
 from app.integrations.persistence.database_health import get_database_readiness
+from app.integrations.storage.paths import media_root
 from app.modules.alpr.confirmation import confirm_detection as confirm_detection_service
 from app.modules.alpr.models import Detection
 from app.modules.alpr.schemas import DetectionConfirmRequest, DetectionResponse
 
 #
-from app.modules.auth.dependencies import require_roles
+from app.modules.auth.dependencies import CurrentUser, require_roles
 from app.modules.checkin.schemas import CheckInResponse
 from app.modules.lanes.models import Lane, LaneDirection
 from app.modules.users.models import User
@@ -55,12 +57,15 @@ async def create_detection(
     lane_id: str = Form(...),
     image: UploadFile = File(...),
     mode: Literal["preview", "final"] = Form("preview"),
-    persist: bool | None = Form(None),
+    persist: str | bool | None = Form(None),
     capture_id: UUID | None = Form(None),
     input_kind: Literal["IMAGE_UPLOAD", "VIDEO_FRAME"] | None = Form(None),
     video_time_ms: int | None = Form(None, ge=0),
     alpr_service: ALPRApplicationService = Depends(resolve_alpr_service),
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    current_user: Annotated[
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
+    ] = None,
 ):
     # 1. Check định dạng
     if image.content_type not in ["image/jpeg", "image/png"]:
@@ -109,11 +114,30 @@ async def create_detection(
         ) from None
 
     try:
-        should_persist = mode != "preview" if persist is None else persist
-        if capture_id and not should_persist:
+        parsed_persist: bool | None = None
+        if persist is not None:
+            if isinstance(persist, bool):
+                parsed_persist = persist
+            else:
+                p_lower = str(persist).strip().lower()
+                if p_lower in ("true", "1", "yes", "t"):
+                    parsed_persist = True
+                elif p_lower in ("false", "0", "no", "f"):
+                    parsed_persist = False
+
+        if capture_id and parsed_persist is False:
             raise AppError(
-                status_code=422, code="INVALID_CAPTURE", message="Capture ID requires persistence."
+                status_code=422,
+                code="INVALID_CAPTURE",
+                message="Capture ID requires persistence.",
             )
+        if capture_id:
+            should_persist = True
+        elif parsed_persist is not None:
+            should_persist = parsed_persist
+        else:
+            should_persist = mode == "final"
+
         kwargs = {"persist": should_persist, "actor_id": str(current_user.id)}
         if capture_id:
             kwargs["capture_id"] = str(capture_id)
@@ -192,6 +216,7 @@ async def create_detection(
             message=str(e),
         ) from e
     except Exception:
+        logging.getLogger("visionpark.alpr").exception("Detection persistence failed")
         raise AppError(
             status_code=500,
             code="INTERNAL_SERVER_ERROR",
@@ -244,39 +269,41 @@ async def alpr_ready_health(
 
 
 @router.get("/media/{image_key}")
-async def get_detection_image(image_key: str):
-    """API lấy ảnh (Media Serve) để hiển thị lên UI."""
-    settings = get_settings()
-    try:
-        lane_id = image_key.split("_")[0]
-        file_path = os.path.join(settings.local_storage_path, lane_id, image_key)
-
-        if not os.path.exists(file_path):
-            from app.core.errors import AppError
-
-            raise AppError(status_code=404, code="NOT_FOUND", message="Không tìm thấy file ảnh")
-
-        return FileResponse(
-            file_path,
-            media_type="image/png" if image_key.lower().endswith(".png") else "image/jpeg",
-        )
-    except AppError:
-        raise
-    except Exception:
-        from app.core.errors import AppError
-
-        raise AppError(
-            status_code=400,
-            code="BAD_REQUEST",
-            message="Image key không hợp lệ",
-        ) from None
+async def get_detection_image(
+    image_key: str,
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    """Serve an authenticated detection image from the account's building only."""
+    if Path(image_key).name != image_key or Path(image_key).suffix.lower() not in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+    }:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Image not found.")
+    detection = db.scalar(select(Detection).where(Detection.image_key == image_key))
+    if detection is None:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Image not found.")
+    root = media_root(settings.local_storage_path)
+    file_path = (root / str(detection.lane_id) / image_key).resolve()
+    if root not in file_path.parents or not file_path.is_file():
+        raise AppError(status_code=404, code="NOT_FOUND", message="Image not found.")
+    return FileResponse(
+        file_path,
+        media_type=detection.image_content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.get("/detections", response_model=list[DetectionResponse] | dict)
 def get_detection_history(
+    request: Request,
     lane_id: UUID | None = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    page: int | None = Query(None, ge=0),
+    pageSize: int | None = Query(None, ge=1, le=100),
     q: str | None = None,
     paginated: bool = False,
     input_kind: str | None = None,
@@ -289,9 +316,23 @@ def get_detection_history(
     to_time: Annotated[datetime | None, Query(alias="to")] = None,
     db: Session = Depends(get_db),
     # Yêu cầu phải đăng nhập mới xem được lịch sử
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    current_user: Annotated[
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
+    ] = None,
 ):
     """API lấy danh sách lịch sử nhận diện (có phân trang và lọc theo làn)."""
+    del current_user
+    is_paginated = (
+        paginated
+        or ("page" in request.query_params)
+        or ("pageSize" in request.query_params)
+        or (request.query_params.get("format") == "paginated")
+    )
+    eff_page_size = pageSize if pageSize is not None else limit
+    eff_page = page if page is not None else (skip // max(1, eff_page_size) if skip else 0)
+    eff_skip = eff_page * eff_page_size if page is not None else skip
+
     query = select(Detection).order_by(Detection.created_at.desc(), Detection.id.desc())
 
     if lane_id:
@@ -303,11 +344,12 @@ def get_detection_history(
     if max_confidence is not None:
         query = query.where(Detection.confidence <= max_confidence)
     if q:
-        q = normalize_plate(q) or q
+        clean_q = normalize_plate(q) or q
         query = query.where(
             or_(
-                Detection.normalized_plate.ilike(f"%{q}%"),
-                Detection.confirmed_plate.ilike(f"%{q}%"),
+                Detection.raw_plate.ilike(f"%{q}%"),
+                Detection.normalized_plate.ilike(f"%{clean_q}%"),
+                Detection.confirmed_plate.ilike(f"%{clean_q}%"),
             )
         )
     if direction:
@@ -344,16 +386,20 @@ def get_detection_history(
             else or_(~same_plate, Detection.normalized_plate.is_(None))
         )
 
-    detections = db.scalars(query.offset(skip).limit(limit)).all()
-    if paginated:
-        total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+    detections = db.scalars(query.offset(eff_skip).limit(eff_page_size)).all()
+    if is_paginated:
+        total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery())) or 0
+        total_pages = max(1, (total + eff_page_size - 1) // eff_page_size)
         return {
             "items": [
                 DetectionResponse.model_validate(d).model_dump(mode="json") for d in detections
             ],
             "total": total,
-            "limit": limit,
-            "offset": skip,
+            "page": eff_page,
+            "pageSize": eff_page_size,
+            "totalPages": total_pages,
+            "limit": eff_page_size,
+            "offset": eff_skip,
         }
     return detections
 
@@ -362,7 +408,10 @@ def get_detection_history(
 def get_detection(
     detection_id: UUID,
     db: Session = Depends(get_db),
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    current_user: Annotated[
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
+    ] = None,
 ):
     detection = db.get(Detection, detection_id)
     if detection is None:
@@ -378,10 +427,13 @@ def confirm_detection(
     payload: DetectionConfirmRequest,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     db: Session = Depends(get_db),
-    # Yêu cầu quyền OPERATOR (Nhân viên) hoặc ADMIN để xác nhận
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    # Station operators and technicians may confirm detections.
+    current_user: Annotated[
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
+    ] = None,
 ):
-    """API Nhân viên (Operator) xác nhận và sửa biển số bằng tay."""
+    """Confirm or correct a detected plate for an authorized Station user."""
     detection = db.scalar(select(Detection).where(Detection.id == detection_id))
     if not detection:
         from app.core.errors import AppError
@@ -402,7 +454,7 @@ async def detect_fire_smoke(
     building_id: str | None = Form(None),
     zone_code: str | None = Form(None),
     request: Request = None,
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN))] = None,
 ):
     """API phat hien Khoi va Lua tu camera an ninh giam sat bai xe (SPEC-AI-03)."""
     fire_runtime = getattr(request.app.state, "fire_runtime", None) if request else None

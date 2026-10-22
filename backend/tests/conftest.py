@@ -5,6 +5,7 @@ from typing import Annotated
 from uuid import uuid4
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
@@ -12,7 +13,6 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from alembic import command
 from app.core.config import Settings, get_settings
 from app.database.session import database
 from app.modules.auth.dependencies import require_roles
@@ -21,7 +21,7 @@ from app.modules.users.schemas import RoleName
 
 TEST_JWT_SECRET = "test-secret-key-with-at-least-thirty-two-characters"
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-AdminUser = Annotated[User, Depends(require_roles(RoleName.ADMIN))]
+AdminUser = Annotated[User, Depends(require_roles(RoleName.SYSTEM_ADMIN))]
 
 
 @pytest.fixture(autouse=True)
@@ -29,6 +29,7 @@ def required_settings_environment(monkeypatch):
     """Tests supply their own required configuration without reading a developer's secrets."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("JWT_SECRET_KEY", TEST_JWT_SECRET)
+    monkeypatch.setenv("ALPR_PROVIDER", "real")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -95,11 +96,14 @@ def app(settings: Settings) -> FastAPI:
     from app.core.security import hash_password
     from app.database.seed import seed_database
     from app.main import create_app
+    from app.modules.buildings.models import DEFAULT_BUILDING_ID, UserBuilding
     from app.modules.lanes.models import Lane
     from app.modules.users.models import Role
     from tests.alpr_double import FakeALPRRuntime
 
     test_app = create_app(settings)
+    # Explicit M4 test double. Production without a pricing provider remains blocked.
+    test_app.state.effective_pricing = lambda db, building_id, at: True
     test_app.state.alpr_runtime = FakeALPRRuntime()
     test_app.state.alpr_readiness_probe = RuntimeALPRProbe(
         test_app.state.alpr_runtime, provider="test", version="test"
@@ -112,15 +116,28 @@ def app(settings: Settings) -> FastAPI:
             with database.create_session() as session:
                 seed_database(session, settings)
                 role = session.scalar(select(Role).where(Role.name == "OPERATOR"))
-                session.add(
-                    User(
-                        username="operator",
-                        display_name="Test operator",
-                        password_hash=hash_password("operator-test-password"),
-                        role=role,
-                        is_active=True,
-                    )
+                operator = User(
+                    username="operator",
+                    display_name="Test operator",
+                    password_hash=hash_password("operator-test-password"),
+                    role=role,
+                    is_active=True,
                 )
+                session.add(operator)
+                session.flush()
+                session.add(UserBuilding(user_id=operator.id, building_id=DEFAULT_BUILDING_ID))
+                from app.modules.buildings.models import Building, ParkingLot
+                from app.modules.lot_settings.schemas import default_settings
+
+                lot = session.scalar(
+                    select(ParkingLot).where(ParkingLot.building_id == DEFAULT_BUILDING_ID)
+                )
+                config = default_settings(session.get(Building, DEFAULT_BUILDING_ID))
+                config.ai.plate_confidence = 0.85
+                for capacity in config.capacities.values():
+                    capacity.physical_capacity = 100
+                    capacity.safe_capacity = 100
+                lot.settings = config.model_dump(mode="json")
                 session.add_all(
                     [
                         Lane(

@@ -1,7 +1,6 @@
 """Add optional email for the existing administration forms."""
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision = "20261007_0008"

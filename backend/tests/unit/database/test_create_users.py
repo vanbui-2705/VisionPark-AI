@@ -77,5 +77,5 @@ def test_create_user_validates_input(
             username=username,
             display_name=display_name,
             password=password,
-            role_name=RoleName.TECHNICIAN,
+            role_name=RoleName.BUILDING_ADMIN,
         )

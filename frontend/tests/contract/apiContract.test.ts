@@ -1,0 +1,88 @@
+import { describe, it, expect } from 'vitest'
+import type { PaginatedResponse, ParkingTransaction, ManagedUser } from '../../src/api/domain.ts'
+import { can, PERMISSION_MATRIX } from '../../src/lib/permissions.ts'
+import type { CurrentUser } from '../../src/api/types.ts'
+
+describe('API Contract Tests — VisionPark Phase 2', () => {
+  it('validates PaginatedResponse contract shape', () => {
+    const samplePagination: PaginatedResponse<ParkingTransaction> = {
+      items: [],
+      total: 0,
+      page: 0,
+      pageSize: 20,
+      totalPages: 1,
+    }
+    expect(samplePagination).toHaveProperty('items')
+    expect(samplePagination).toHaveProperty('total')
+    expect(samplePagination).toHaveProperty('page')
+    expect(samplePagination).toHaveProperty('pageSize')
+    expect(samplePagination).toHaveProperty('totalPages')
+    expect(Array.isArray(samplePagination.items)).toBe(true)
+    expect(typeof samplePagination.total).toBe('number')
+  })
+
+  it('validates ManagedUser contract contains 5 allowed roles and active flag', () => {
+    const roles: ManagedUser['role'][] = ['SYSTEM_ADMIN', 'BUILDING_ADMIN', 'OPERATOR', 'ACCOUNTANT', 'TECHNICIAN']
+    roles.forEach((r) => {
+      const u: ManagedUser = {
+        id: 'u-1',
+        username: 'test',
+        display_name: 'Test',
+        role: r,
+        active: true,
+      }
+      expect(u.role).toBe(r)
+      expect(typeof u.active).toBe('boolean')
+    })
+  })
+
+  it('validates permission matrix covers 4 roles for every permission', () => {
+    expect(new Set(PERMISSION_MATRIX.map((entry) => entry.perm)).size).toBe(PERMISSION_MATRIX.length)
+    expect(PERMISSION_MATRIX.some((entry) => entry.perm === 'lanes.manage')).toBe(true)
+    PERMISSION_MATRIX.forEach((entry) => {
+      expect(entry).toHaveProperty('perm')
+      expect(entry).toHaveProperty('label')
+      expect(typeof entry.admin).toBe('boolean')
+      expect(typeof entry.operator).toBe('boolean')
+      expect(typeof entry.accountant).toBe('boolean')
+      expect(typeof entry.technician).toBe('boolean')
+    })
+  })
+
+  it('validates can() evaluation across all 5 roles', () => {
+    const makeUser = (role: CurrentUser['role']): CurrentUser => ({
+      id: '1',
+      username: 'u',
+      display_name: 'U',
+      role,
+      active: true,
+    })
+
+    // SYSTEM_ADMIN has full access
+    expect(can(makeUser('SYSTEM_ADMIN'), 'dashboard.read')).toBe(true)
+    expect(can(makeUser('SYSTEM_ADMIN'), 'users.manage')).toBe(true)
+
+    // BUILDING_ADMIN can manage lanes but not system-wide documentation
+    expect(can(makeUser('BUILDING_ADMIN'), 'lanes.manage')).toBe(true)
+    expect(can(makeUser('BUILDING_ADMIN'), 'docs.read')).toBe(false)
+
+    // OPERATOR has operations access, no users.manage
+    expect(can(makeUser('OPERATOR'), 'station.use')).toBe(true)
+    expect(can(makeUser('OPERATOR'), 'users.manage')).toBe(false)
+
+    // ACCOUNTANT has dashboard & transactions & audit, no lanes.create
+    expect(can(makeUser('ACCOUNTANT'), 'dashboard.read')).toBe(true)
+    expect(can(makeUser('ACCOUNTANT'), 'transactions.read')).toBe(true)
+    expect(can(makeUser('ACCOUNTANT'), 'lanes.create')).toBe(false)
+
+    // TECHNICIAN has station, lanes, system health, no dashboard
+    expect(can(makeUser('TECHNICIAN'), 'station.use')).toBe(true)
+    expect(can(makeUser('TECHNICIAN'), 'system.read')).toBe(true)
+    expect(can(makeUser('TECHNICIAN'), 'dashboard.read')).toBe(false)
+    expect(can(makeUser('TECHNICIAN'), 'checkin.create')).toBe(true)
+    expect(can(makeUser('TECHNICIAN'), 'transactions.read')).toBe(false)
+    expect(can(makeUser('ACCOUNTANT'), 'audit.read')).toBe(true)
+    expect(can(makeUser('ACCOUNTANT'), 'checkin.create')).toBe(false)
+    expect(can(makeUser('SYSTEM_ADMIN'), 'lanes.manage')).toBe(true)
+  })
+})

@@ -10,6 +10,45 @@ import { getUnreadCount, subscribeNotifications } from '../lib/notifications.ts'
 
 type NavItem = { to: string; label: string; icon: string; perm: Permission }
 
+function SidebarIcon({ to, fallback }: { to: string; fallback: string }) {
+  switch (to) {
+    case '/admin/dashboard':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2" /><rect x="14" y="3" width="7" height="5" rx="2" /><rect x="14" y="12" width="7" height="9" rx="2" /><rect x="3" y="16" width="7" height="5" rx="2" /></svg>
+    case '/station/scan':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><rect x="7" y="9" width="10" height="6" rx="1.5" /><path d="M10 12h4" /></svg>
+    case '/detections':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5M8 11h6M11 8v6" /></svg>
+    case '/parking':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9.5 16V8h3.2a2.5 2.5 0 0 1 0 5H9.5" /></svg>
+    case '/admin/lanes':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19 8 5M20 19 16 5M12 5v3M12 11v3M12 17v2" /></svg>
+    case '/admin/users':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 7a3 3 0 0 1 0 6M16.5 19a4.5 4.5 0 0 1 4-4.4" /></svg>
+    case '/admin/roles':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10V7l-8-4Z" /><path d="m9 12 2 2 4-4" /></svg>
+    case '/admin/permissions':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 8.2-8.2M16 7l3 3M18 4l2 2" /></svg>
+    case '/admin/alpr':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" /><rect x="9" y="9" width="6" height="6" rx="1" /><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" /></svg>
+    case '/admin/audit-logs':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" /></svg>
+    case '/admin/errors':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></svg>
+    case '/admin/system':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 7L9 5l-3 7H2" /></svg>
+    case '/profile':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M5 20a7 7 0 0 1 14 0" /></svg>
+    case '/settings':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.02 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
+    case '/help':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4M12 17h.01" /></svg>
+    case '/docs':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></svg>
+    default:
+      return <>{fallback}</>
+  }
+}
+
 const NAV: NavItem[] = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: '▣', perm: 'dashboard.read' },
   { to: '/station/scan', label: 'Quét biển số', icon: '◎', perm: 'station.use' },
@@ -110,7 +149,7 @@ function Sidebar({
         {!isCollapsed && <div className="sidebar-group">{title}</div>}
         {list.map((it) => (
           <NavLink key={it.to} to={it.to} onClick={onCloseMobile} className={({ isActive }) => (isActive ? 'active' : undefined)}>
-            <span className="nav-icon">{it.icon}</span> {!isCollapsed && it.label}
+            <span className="nav-icon" aria-hidden="true"><SidebarIcon to={it.to} fallback={it.icon} /></span> {!isCollapsed && it.label}
           </NavLink>
         ))}
       </>
@@ -215,26 +254,29 @@ export function AppShell() {
       />
       <div className="admin-main-wrap">
         <header className="app-header">
-          <div className="header-left" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)} aria-label={translate("Mở menu")} style={{ display: 'none' }} id="hamburger">
-              ☰
+          <div className="header-left">
+            <button type="button" className="header-menu-button btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)} aria-label={translate("Mở menu")} id="hamburger">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
             </button>
             <Breadcrumb items={crumbs(loc.pathname)} />
           </div>
-          <div className="header-right" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <span title={healthOk === null ? translate("Đang kiểm tra ALPR...") : healthOk ? translate("ALPR sẵn sàng") : translate("ALPR không sẵn sàng")} style={{ fontSize: 12, color: 'var(--muted)' }}>
+          <div className="header-right">
+            <span className="header-status" title={healthOk === null ? translate("Đang kiểm tra ALPR...") : healthOk ? translate("ALPR sẵn sàng") : translate("ALPR không sẵn sàng")}>
               <span className={`status-dot ${healthOk === null ? 'dot-warn' : healthOk ? 'dot-ok' : 'dot-bad'}`} />
               ALPR
             </span>
-            <NavLink to="/notifications" className="notif-wrap btn btn-ghost btn-sm" aria-label={translate("Thông báo")}>
-              🔔{unread > 0 ? <span className="notif-count">{unread > 99 ? '99+' : unread}</span> : null}
+            <NavLink to="/notifications" className="notif-wrap header-icon-button btn btn-ghost btn-sm" aria-label={translate("Thông báo")}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+              {unread > 0 ? <span className="notif-count">{unread > 99 ? '99+' : unread}</span> : null}
             </NavLink>
             <div className="dropdown" ref={menuRef}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMenuOpen((v) => !v)} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button type="button" className={`profile-trigger btn btn-ghost btn-sm${menuOpen ? ' is-open' : ''}`} onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen}>
                 <span className="avatar">{initial}</span>
-                <span>
-                  {user?.display_name} <small style={{ color: 'var(--muted)' }}>{user?.role}</small>
+                <span className="profile-copy">
+                  <strong>{user?.display_name}</strong>
+                  <small>{user?.role}</small>
                 </span>
+                <svg className="profile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
               </button>
               {menuOpen ? (
                 <div className="dropdown-menu">

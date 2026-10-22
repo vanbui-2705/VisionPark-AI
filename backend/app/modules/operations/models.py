@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class UserPreference(Base):
@@ -14,7 +15,7 @@ class UserPreference(Base):
     language: Mapped[str] = mapped_column(String(5), default="vi")
 
 
-class Notification(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class Notification(BuildingOwnedMixin, UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "notifications"
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(String(120))
@@ -23,7 +24,7 @@ class Notification(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class ErrorEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class ErrorEvent(BuildingOwnedMixin, UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "error_events"
     user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     code: Mapped[str] = mapped_column(String(64))

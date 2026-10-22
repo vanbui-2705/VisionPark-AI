@@ -86,6 +86,29 @@ describe('AuditLogsPage', () => {
     await waitFor(() => expect(screen.getByText(/không có quyền/i)).toBeInTheDocument())
   })
 
+  it('filter by resource and pagination to page 2', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    const calls: string[] = []
+    renderPage(async (u) => {
+      const s = String(u)
+      if (s.includes('/auth/me')) return j({ id: '1', username: 'admin', display_name: 'Admin', role: 'ADMIN', active: true })
+      if (s.includes('/audit-logs')) {
+        calls.push(s)
+        if (s.includes('page=1')) {
+          return j({ items: [{ ...audits[0], id: 'a-page2', action: 'PAGE2_ACTION' }], total: 40, page: 1, pageSize: 20, totalPages: 2 })
+        }
+        return j({ items: audits, total: 40, page: 0, pageSize: 20, totalPages: 2 })
+      }
+      return j({})
+    })
+    await waitFor(() => expect(screen.getAllByText('LANE_CREATE').length).toBeGreaterThan(0))
+    const nextBtn = screen.getByRole('button', { name: /Sau/i })
+    expect(nextBtn).toBeEnabled()
+    await userEvent.click(nextBtn)
+    await waitFor(() => expect(screen.getByText('PAGE2_ACTION')).toBeInTheDocument())
+    expect(calls.some((c) => c.includes('page=1'))).toBe(true)
+  })
+
   it('500 shows retry', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
     renderPage(async (u) => {

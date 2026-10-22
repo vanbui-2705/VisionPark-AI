@@ -1,9 +1,9 @@
 import os
-from pathlib import Path
 from uuid import uuid4
 
 from app.alpr.ports.image_storage import ImageStorage
 from app.core.config import Settings, get_settings
+from app.integrations.storage.paths import media_root
 
 
 class LocalStorageAdapter(ImageStorage):
@@ -13,7 +13,7 @@ class LocalStorageAdapter(ImageStorage):
 
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
-        self.base_dir = Path(self.settings.local_storage_path)
+        self.base_dir = media_root(self.settings.local_storage_path)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def _validate_extension(self, file_bytes: bytes, suggested_ext: str) -> str:

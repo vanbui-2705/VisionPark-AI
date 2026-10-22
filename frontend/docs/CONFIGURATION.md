@@ -9,6 +9,8 @@ INSTALL_REAL_ALPR và INSTALL_OCR chọn optional dependency ở Docker build.
 
 Secret chỉ lưu trong .env bị gitignore. Không copy credential/token vào docs.
 
+RBAC frontend cấu hình tĩnh trong `src/lib/permissions.ts` qua `PERMISSION_MATRIX`; `can()` dùng cùng ma trận. Không có biến môi trường để nới quyền. Backend vẫn kiểm tra role cho từng API.
+
 ALPR_PROVIDER=real; ALPR_OCR_ENABLED=true. Station supports IMAGE_UPLOAD and VIDEO_FRAME; preview is temporary and final captures persist.
 
 Current runtime: backend API only, ALPR_PROVIDER=real with OCR enabled. Preferences, notifications and error events persist in PostgreSQL.

@@ -3,6 +3,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     func,
     text,
@@ -18,12 +20,26 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class TransactionStatus(StrEnum):
+    CREATED = "CREATED"
+    ENTERED = "ENTERED"
     PARKED = "PARKED"
+    PAYMENT_PENDING = "PAYMENT_PENDING"
+    PAID = "PAID"
+    EXITED = "EXITED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+    EXCEPTION = "EXCEPTION"
+
+
+class VehicleType(StrEnum):
+    CAR = "CAR"
+    MOTORBIKE = "MOTORBIKE"
+    BICYCLE = "BICYCLE"
+    UNKNOWN = "UNKNOWN"
 
 
 class CheckInSource(StrEnum):
@@ -34,11 +50,15 @@ class CheckInSource(StrEnum):
     OPERATOR_MANUAL = "OPERATOR_MANUAL"
 
 
-class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+class ParkingTransaction(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "parking_transactions"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('PARKED', 'COMPLETED', 'CANCELLED')", name="ck_parking_transactions_status"
+            "status IN ("
+            "'CREATED', 'ENTERED', 'PARKED', 'PAYMENT_PENDING', "
+            "'PAID', 'EXITED', 'COMPLETED', 'CANCELLED', 'EXCEPTION'"
+            ")",
+            name="ck_parking_transactions_status",
         ),
         CheckConstraint(
             "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
@@ -53,21 +73,47 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ),
         Index(
             "uq_parking_transactions_active_plate",
+            "building_id",
             "normalized_plate",
             unique=True,
-            sqlite_where=text("status = 'PARKED'"),
-            postgresql_where=text("status = 'PARKED'"),
+            sqlite_where=text(
+                "status IN ('PARKED', 'ENTERED', 'PAYMENT_PENDING', 'PAID') "
+                "AND normalized_plate IS NOT NULL"
+            ),
+            postgresql_where=text(
+                "status IN ('PARKED', 'ENTERED', 'PAYMENT_PENDING', 'PAID') "
+                "AND normalized_plate IS NOT NULL"
+            ),
         ),
+        Index(
+            "uq_parking_transactions_active_ticket",
+            "ticket_code",
+            unique=True,
+            sqlite_where=text(
+                "status IN ('PARKED', 'ENTERED', 'PAYMENT_PENDING', 'PAID') "
+                "AND ticket_code IS NOT NULL"
+            ),
+            postgresql_where=text(
+                "status IN ('PARKED', 'ENTERED', 'PAYMENT_PENDING', 'PAID') "
+                "AND ticket_code IS NOT NULL"
+            ),
+        ),
+        UniqueConstraint("building_id", "idempotency_key", name="uq_parking_building_key"),
     )
 
-    license_plate: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    normalized_plate: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    license_plate: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    normalized_plate: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     original_ai_plate: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ticket_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    vehicle_type: Mapped[str] = mapped_column(String(20), nullable=False, default=VehicleType.CAR)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=TransactionStatus.PARKED
     )
     lane_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("lanes.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    exit_lane_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("lanes.id", ondelete="SET NULL"), nullable=True, index=True
     )
     detection_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
@@ -80,17 +126,32 @@ class ParkingTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     check_in_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    exit_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    fee: Mapped[float | None] = mapped_column(Float, nullable=True, default=0.0)
+    price_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # TODO: Chờ module M4 hoàn thành bảng ticket_products
+    # để liên kết ForeignKey("ticket_products.id")
+    ticket_product_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, index=True
+    )
+
     check_in_operator_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    operator_snapshot_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    lane_snapshot_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    lane_snapshot_direction: Mapped[str | None] = mapped_column(String(20), nullable=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     lane_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
     operator_name_snapshot: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_manual_override: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    price_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    lane = relationship("Lane")
+    lane = relationship("Lane", foreign_keys=[lane_id])
+    exit_lane = relationship("Lane", foreign_keys=[exit_lane_id])
     detection = relationship("Detection")
     check_in_operator = relationship("User")

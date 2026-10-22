@@ -7,11 +7,8 @@ export default function VideoSelector({
   onVideoSelected,
   disabled = false
 }: Props) {
-  return <label style={{
-    display: "grid",
-    gap: 6
-  }} htmlFor="video-file">
-    <strong>Video MP4</strong>
+  return <label className="field scan-control-group" htmlFor="video-file">
+    <span>Video MP4</span>
     <input id="video-file" aria-label="Video MP4" type="file" accept="video/mp4,.mp4" disabled={disabled} onChange={event => {
       const file = event.target.files?.[0];
       if (!file) return;

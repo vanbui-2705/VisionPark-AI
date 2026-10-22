@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     database_echo: bool = False
 
     jwt_secret_key: SecretStr
+    mock_vietqr_callback_secret: SecretStr | None = None
     jwt_algorithm: Literal["HS256"] = "HS256"
     access_token_expire_minutes: int = 60
 
@@ -93,6 +94,11 @@ class Settings(BaseSettings):
             "replace-this-with-a-long-random-secret",
         }:
             raise ValueError("JWT_SECRET_KEY must not use a sample or development signing key")
+        if (
+            self.mock_vietqr_callback_secret is not None
+            and len(self.mock_vietqr_callback_secret.get_secret_value()) < 16
+        ):
+            raise ValueError("MOCK_VIETQR_CALLBACK_SECRET must contain at least 16 characters")
         if self.auto_seed and (
             self.seed_admin_password is None or len(self.seed_admin_password.get_secret_value()) < 8
         ):
