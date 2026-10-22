@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import threading
 import time
 from pathlib import Path
@@ -22,14 +23,14 @@ from .errors import (
 )
 from .interface import ALPRRuntime
 from .ocr_provider import OCRReadResult, PaddleOCRTextRecognition
-from .schema import ALPRResult, BoundingBox
+from .schema import ALPRResult, BoundingBox, VehicleType
 from .utils import clamp_bbox, crop_with_quality, decode_image, requires_confirmation
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class UltralyticsPaddleALPRRuntime(ALPRRuntime):
-    """Run plate detection with ``best.pt`` and optionally OCR on the crop.
+    """Run dual vehicle and plate detection with ``plate.onnx`` / ``best.pt`` plus OCR.
 
     Heavy dependencies are imported lazily so unit tests do not require
     PyTorch, Ultralytics, PaddleOCR, or a model weight.
@@ -152,7 +153,10 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             ) from exc
 
         try:
-            self._model = YOLO(str(weights_path))
+            try:
+                self._model = YOLO(str(weights_path), task="detect")
+            except TypeError:
+                self._model = YOLO(str(weights_path))
             self._ocr = self._create_ocr(manifest) if self.ocr_enabled else None
             if self._ocr is not None:
                 self._ocr.ensure_loaded()
@@ -207,41 +211,123 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             return float(value[0])
         return float(value)
 
-    def _find_plate(self, prediction: Any) -> tuple[BoundingBox | None, float]:
+    @classmethod
+    def _map_vehicle_type(cls, label: str) -> str:
+        folded = str(label).casefold()
+        if folded in ("car", "truck", "bus", "van", "automobile"):
+            return VehicleType.CAR.value
+        if folded in ("motorcycle", "motorbike", "moto", "scooter"):
+            return VehicleType.MOTORBIKE.value
+        if folded in ("bicycle", "bike", "cyclist"):
+            return VehicleType.BICYCLE.value
+        return VehicleType.UNKNOWN.value
+
+    def _extract_detections(
+        self, prediction: Any, thresholds: dict[str, float]
+    ) -> tuple[list[tuple[BoundingBox, float]], list[tuple[BoundingBox, float, str]]]:
+        """Extract all valid plate bounding boxes and vehicle bounding boxes."""
         boxes = getattr(prediction, "boxes", None)
         names = getattr(self._model, "names", {})
         if boxes is None or len(boxes) == 0:
-            return None, 0.0
+            return [], []
 
-        best: tuple[BoundingBox | None, float] = (None, 0.0)
         plate_class_name = (
             str(self._manifest.get("detector", {}).get("plate_class", "plate"))
             if self._manifest
             else "plate"
-        )
+        ).casefold()
+
+        plates: list[tuple[BoundingBox, float]] = []
+        vehicles: list[tuple[BoundingBox, float, str]] = []
+
         for index in range(len(boxes)):
             class_id = int(self._scalar(boxes.cls[index]))
             label = names.get(class_id, str(class_id)) if isinstance(names, dict) else str(class_id)
-            if str(label).casefold() != plate_class_name.casefold():
-                continue
+            label_fold = str(label).casefold()
             confidence = self._scalar(boxes.conf[index])
-            raw_coordinates = boxes.xyxy[index]
-            coordinates = (
-                raw_coordinates.tolist()
-                if hasattr(raw_coordinates, "tolist")
-                else list(raw_coordinates)
-            )
-            if len(coordinates) != 4:
+
+            raw_coords = boxes.xyxy[index]
+            coords = raw_coords.tolist() if hasattr(raw_coords, "tolist") else list(raw_coords)
+            if len(coords) != 4:
                 continue
+
             bbox = BoundingBox(
-                x1=int(coordinates[0]),
-                y1=int(coordinates[1]),
-                x2=int(coordinates[2]),
-                y2=int(coordinates[3]),
+                x1=int(coords[0]),
+                y1=int(coords[1]),
+                x2=int(coords[2]),
+                y2=int(coords[3]),
             )
-            if confidence > best[1]:
-                best = (bbox, confidence)
-        return best
+
+            if label_fold == plate_class_name:
+                min_conf = thresholds.get("plate", self.detector_confidence)
+                if confidence >= min_conf:
+                    plates.append((bbox, confidence))
+            else:
+                vehicle_type = self._map_vehicle_type(label_fold)
+                # Check specific vehicle threshold
+                type_key = label_fold if label_fold in thresholds else vehicle_type.lower()
+                min_conf = thresholds.get(type_key, 0.35)
+                if confidence >= min_conf:
+                    vehicles.append((bbox, confidence, vehicle_type))
+
+        # Sort descending by confidence
+        plates.sort(key=lambda item: item[1], reverse=True)
+        vehicles.sort(key=lambda item: item[1], reverse=True)
+        return plates, vehicles
+
+    @staticmethod
+    def _associate_plate_with_vehicle(
+        plate_box: BoundingBox, vehicles: list[tuple[BoundingBox, float, str]]
+    ) -> tuple[BoundingBox | None, float | None, str]:
+        """Find the vehicle that contains or is closest to the given plate."""
+        if not vehicles:
+            return None, None, VehicleType.UNKNOWN.value
+
+        px1, py1, px2, py2 = plate_box.as_tuple
+        plate_area = max(1, (px2 - px1) * (py2 - py1))
+        pcx, pcy = (px1 + px2) / 2.0, (py1 + py2) / 2.0
+
+        best_containment: float = 0.0
+        best_vehicle: tuple[BoundingBox, float, str] | None = None
+
+        for v_box, v_conf, v_type in vehicles:
+            vx1, vy1, vx2, vy2 = v_box.as_tuple
+            ix1, iy1 = max(px1, vx1), max(py1, vy1)
+            ix2, iy2 = min(px2, vx2), min(py2, vy2)
+
+            if ix2 > ix1 and iy2 > iy1:
+                inter_area = (ix2 - ix1) * (iy2 - iy1)
+                containment = inter_area / plate_area
+                if containment > best_containment:
+                    best_containment = containment
+                    best_vehicle = (v_box, v_conf, v_type)
+
+        # Containment >= 50% means plate is inside vehicle box
+        if best_vehicle is not None and best_containment >= 0.50:
+            return best_vehicle[0], best_vehicle[1], best_vehicle[2]
+
+        # Fallback: minimum distance between centers
+        closest_vehicle = None
+        min_dist = float("inf")
+        for v_box, v_conf, v_type in vehicles:
+            vx1, vy1, vx2, vy2 = v_box.as_tuple
+            vcx, vcy = (vx1 + vx2) / 2.0, (vy1 + vy2) / 2.0
+            dist = math.hypot(pcx - vcx, pcy - vcy)
+            if dist < min_dist:
+                min_dist = dist
+                closest_vehicle = (v_box, v_conf, v_type)
+
+        if closest_vehicle is not None:
+            return closest_vehicle[0], closest_vehicle[1], closest_vehicle[2]
+
+        return None, None, VehicleType.UNKNOWN.value
+
+    def _find_plate(self, prediction: Any) -> tuple[BoundingBox | None, float]:
+        """Legacy helper maintained for test compatibility."""
+        plates, _ = self._extract_detections(prediction, {"plate": self.detector_confidence})
+        if plates:
+            return plates[0]
+        return None, 0.0
 
     @classmethod
     def _collect_ocr_candidates(cls, value: Any, output: list[tuple[str, float]]) -> None:
@@ -252,28 +338,98 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             return OCRReadResult(None, None, 0.0)
         return self._ocr.recognize(crop)
 
-    def detect_and_read(self, image_bytes: bytes) -> ALPRResult:
+    def detect_and_read(
+        self, image_bytes: bytes, settings: dict[str, Any] | None = None
+    ) -> ALPRResult:
         started = time.perf_counter()
         try:
             self._ensure_loaded()
             image = decode_image(image_bytes)
+
+            # Resolve effective thresholds (from dynamic settings or manifest/defaults)
+            settings = settings or {}
+            manifest_thresh = (
+                self._manifest.get("detector", {}).get("confidence_thresholds", {})
+                if self._manifest
+                else {}
+            )
+            thresholds: dict[str, float] = {
+                "plate": float(
+                    settings.get(
+                        "plate_confidence", manifest_thresh.get("plate", self.detector_confidence)
+                    )
+                ),
+                "car": float(settings.get("car_confidence", manifest_thresh.get("car", 0.45))),
+                "motorcycle": float(
+                    settings.get("motorcycle_confidence", manifest_thresh.get("motorcycle", 0.40))
+                ),
+                "bicycle": float(
+                    settings.get("bicycle_confidence", manifest_thresh.get("bicycle", 0.35))
+                ),
+            }
+            confirmation_thresh = float(
+                settings.get("confirmation_threshold", self.confirmation_threshold)
+            )
+            building_id = settings.get("building_id")
+
             with self._inference_lock:
                 detector_started = time.perf_counter()
                 try:
                     predictions = self._model.predict(
                         source=image,
-                        imgsz=int(self._manifest.get("detector", {}).get("imgsz", 640)),
-                        conf=self.detector_confidence,
+                        imgsz=int(self._manifest.get("detector", {}).get("imgsz", 640))
+                        if self._manifest
+                        else 640,
+                        conf=min(thresholds.values()),
                         device=self.device,
                         verbose=False,
                     )
                 except Exception as exc:
                     raise ALPRInferenceError(f"Detector inference failed: {exc}") from exc
 
-                prediction = predictions[0] if predictions else None
-                bbox, detector_confidence = self._find_plate(prediction)
                 detector_latency_ms = (time.perf_counter() - detector_started) * 1000
-                if bbox is None:
+                prediction = predictions[0] if predictions else None
+
+                plates, vehicles = self._extract_detections(prediction, thresholds)
+
+                # Special Case: BICYCLE detected and no license plate found (BR-20)
+                if not plates and vehicles:
+                    top_vbox, top_vconf, top_vtype = vehicles[0]
+                    if top_vtype == VehicleType.BICYCLE.value:
+                        x1, y1, x2, y2 = clamp_bbox(
+                            top_vbox.as_tuple, image.shape[1], image.shape[0]
+                        )
+                        clamped_vbox = BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2)
+                        return ALPRResult(
+                            plate_number=None,
+                            raw_plate=None,
+                            normalized_plate=None,
+                            bbox=None,
+                            confidence=top_vconf,
+                            processing_time_ms=int((time.perf_counter() - started) * 1000),
+                            requires_confirmation=requires_confirmation(
+                                top_vconf, confirmation_thresh
+                            ),
+                            model_version=self.model_version,
+                            detector_confidence=top_vconf,
+                            combined_confidence=top_vconf,
+                            provider="ultralytics-paddleocr",
+                            detector_latency_ms=detector_latency_ms,
+                            vehicle_type=VehicleType.BICYCLE.value,
+                            vehicle_confidence=top_vconf,
+                            bbox_vehicle=clamped_vbox,
+                            building_id=building_id,
+                        )
+
+                # No plate found and not a bicycle
+                if not plates:
+                    top_vbox, top_vconf, top_vtype = (None, None, VehicleType.UNKNOWN.value)
+                    if vehicles:
+                        vbox_raw, top_vconf, top_vtype = vehicles[0]
+                        vx1, vy1, vx2, vy2 = clamp_bbox(
+                            vbox_raw.as_tuple, image.shape[1], image.shape[0]
+                        )
+                        top_vbox = BoundingBox(x1=vx1, y1=vy1, x2=vx2, y2=vy2)
                     return ALPRResult(
                         plate_number=None,
                         bbox=None,
@@ -285,8 +441,19 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                         combined_confidence=0.0,
                         provider="ultralytics-paddleocr",
                         detector_latency_ms=detector_latency_ms,
+                        vehicle_type=top_vtype,
+                        vehicle_confidence=top_vconf,
+                        bbox_vehicle=top_vbox,
+                        building_id=building_id,
                     )
-                x1, y1, x2, y2 = clamp_bbox(bbox.as_tuple, image.shape[1], image.shape[0])
+
+                # Plate found: associate with vehicle
+                raw_bbox, detector_confidence = plates[0]
+                assoc_vbox, assoc_vconf, vehicle_type = self._associate_plate_with_vehicle(
+                    raw_bbox, vehicles
+                )
+
+                x1, y1, x2, y2 = clamp_bbox(raw_bbox.as_tuple, image.shape[1], image.shape[0])
                 if x2 <= x1 or y2 <= y1:
                     return ALPRResult(
                         plate_number=None,
@@ -299,8 +466,20 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                         combined_confidence=0.0,
                         provider="ultralytics-paddleocr",
                         detector_latency_ms=detector_latency_ms,
+                        vehicle_type=vehicle_type,
+                        vehicle_confidence=assoc_vconf,
+                        building_id=building_id,
                     )
+
                 bbox = BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2)
+                clamped_vbox = None
+                if assoc_vbox is not None:
+                    vx1, vy1, vx2, vy2 = clamp_bbox(
+                        assoc_vbox.as_tuple, image.shape[1], image.shape[0]
+                    )
+                    if vx2 > vx1 and vy2 > vy1:
+                        clamped_vbox = BoundingBox(x1=vx1, y1=vy1, x2=vx2, y2=vy2)
+
                 quality_flags: list[str] = []
                 ocr_latency_ms: float | None = None
                 if self.ocr_enabled:
@@ -338,6 +517,10 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                     provider="ultralytics-paddleocr",
                     detector_latency_ms=detector_latency_ms,
                     ocr_latency_ms=ocr_latency_ms,
+                    vehicle_type=vehicle_type,
+                    vehicle_confidence=assoc_vconf,
+                    bbox_vehicle=clamped_vbox,
+                    building_id=building_id,
                 )
 
             confidence = min(detector_confidence, ocr_confidence)
@@ -348,9 +531,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 bbox=bbox,
                 confidence=confidence,
                 processing_time_ms=int((time.perf_counter() - started) * 1000),
-                requires_confirmation=requires_confirmation(
-                    confidence, self.confirmation_threshold
-                ),
+                requires_confirmation=requires_confirmation(confidence, confirmation_thresh),
                 model_version=self.model_version,
                 detector_confidence=detector_confidence,
                 ocr_confidence=ocr_confidence,
@@ -359,6 +540,10 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 provider="ultralytics-paddleocr",
                 detector_latency_ms=detector_latency_ms,
                 ocr_latency_ms=ocr_latency_ms,
+                vehicle_type=vehicle_type,
+                vehicle_confidence=assoc_vconf,
+                bbox_vehicle=clamped_vbox,
+                building_id=building_id,
             )
         except (ALPRInvalidImageError, ALPRNotReadyError, ALPRProcessingError):
             raise

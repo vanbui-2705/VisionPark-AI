@@ -20,6 +20,9 @@ class LaneCreate(BaseModel):
     )
     camera: str | None = Field(default=None, max_length=255)
     barrier: str | None = Field(default=None, max_length=255)
+    allowed_vehicle_type: str | None = "ALL"
+    camera_id: str | None = None
+    barrier_id: str | None = None
 
 
 # 2. DTO cho trường hợp CẬP NHẬT
@@ -32,6 +35,9 @@ class LaneUpdate(BaseModel):
     allowed_vehicle_types: list[VehicleType] | None = Field(default=None, min_length=1)
     camera: str | None = Field(default=None, max_length=255)
     barrier: str | None = Field(default=None, max_length=255)
+    allowed_vehicle_type: str | None = None
+    camera_id: str | None = None
+    barrier_id: str | None = None
 
 
 # 3. DTO TRẢ VỀ
@@ -45,6 +51,9 @@ class LaneResponse(BaseModel):
     allowed_vehicle_types: list[VehicleType]
     camera: str | None
     barrier: str | None
+    allowed_vehicle_type: str | None = "ALL"
+    camera_id: str | None = None
+    barrier_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

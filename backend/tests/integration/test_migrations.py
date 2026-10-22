@@ -50,6 +50,7 @@ def test_upgrade_preserves_existing_detection(database_url: str) -> None:
                 is_active=True,
             )
         )
+        session.flush()
         detection_id = uuid4()
         old_detections = Table("detections", MetaData(), autoload_with=engine)
         old_detections.c.id.type = Uuid()

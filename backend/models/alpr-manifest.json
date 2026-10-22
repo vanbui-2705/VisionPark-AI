@@ -1,13 +1,25 @@
 {
-  "model_name": "visionpark-alpr",
-  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "model_name": "visionpark-alpr-dual",
+  "model_version": "ultralytics-onnx-plate-vehicle-v1",
   "provider": "ultralytics-paddleocr",
   "detector": {
-    "format": "pytorch",
+    "format": "onnx",
     "framework": "ultralytics",
-    "weights_path": "app/alpr/weights/best.pt",
-    "sha256": "C7DBC04262278ED3A422A891E8003DFEA7935C90B8A749DF29539C9FBBA2B999",
+    "weights_path": "app/alpr/weights/plate.onnx",
+    "sha256": "9AACD1436FB99C4E650C8EA90681D5B59292C70E019D4A43EF64FADFB2678A6A",
+    "classes": {
+      "0": "car",
+      "1": "motorcycle",
+      "2": "plate",
+      "3": "bicycle"
+    },
     "plate_class": "plate",
+    "confidence_thresholds": {
+      "plate": 0.30,
+      "car": 0.45,
+      "motorcycle": 0.40,
+      "bicycle": 0.35
+    },
     "imgsz": 640
   },
   "ocr": {
@@ -24,5 +36,5 @@
     }
   },
   "status": "bundled-asset",
-  "notes": "YOLO and pretrained PaddleOCR inference assets are versioned with the demo and bundled into the runtime image."
+  "notes": "YOLO ONNX detector finding vehicles (car, motorcycle, bicycle) & plate regions; PaddleOCR reads the cropped plate."
 }

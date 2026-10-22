@@ -1,7 +1,8 @@
 import { t as translate } from "../../lib/i18n"
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { healthApi } from '../../api/healthApi.ts'
+import { apiClient } from '../../api/client.ts'
 import { lanesApi } from '../../api/lanesApi.ts'
 import { detectionsApi, parkingTransactionsApi } from '../../api/services.ts'
 import type { Detection, ParkingTransaction } from '../../api/domain.ts'
@@ -11,6 +12,8 @@ import { can } from '../../lib/permissions.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
 import { Spinner } from '../../components/ui/Spinner.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
+
+interface DashboardBuilding { id: string; name: string; code: string }
 
 function MetricIcon({ name }: { name: 'lanes' | 'detections' | 'confirm' | 'parking' }) {
   if (name === 'lanes') {
@@ -35,6 +38,10 @@ export function DashboardPage() {
   const mayReadAudit = can(user, 'audit.read')
   const mayUpdateSettings = can(user, 'settings.update')
 
+  const [buildings, setBuildings] = useState<DashboardBuilding[] | null>(null)
+  const [buildingId, setBuildingId] = useState('ALL')
+  const fetching = useRef(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [lanes, setLanes] = useState<Lane[] | null>(null)
   const [detections, setDetections] = useState<Detection[] | null>(null)
   const [parking, setParking] = useState<ParkingTransaction[] | null>(null)
@@ -44,7 +51,7 @@ export function DashboardPage() {
   const [refresh, setRefresh] = useState(0)
   const [loading, setLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [autoPoll, setAutoPoll] = useState(false)
+  const [autoPoll, setAutoPoll] = useState(true)
   const [now, setNow] = useState(() => new Date())
   const [parkingFilter, setParkingFilter] = useState<'ALL' | 'PARKED' | 'MANUAL'>('ALL')
   const [detectionFilter, setDetectionFilter] = useState<'ALL' | 'OK' | 'CONFIRM'>('ALL')
@@ -57,15 +64,19 @@ export function DashboardPage() {
   useEffect(() => {
     if (!autoPoll) return
     const poll = window.setInterval(() => {
-      setIsRefreshing(true)
-      setRefresh((v) => v + 1)
+      if (!fetching.current) {
+        setIsRefreshing(true)
+        setRefresh((v) => v + 1)
+      }
     }, 15000)
     return () => window.clearInterval(poll)
   }, [autoPoll])
 
   useEffect(() => {
     let alive = true
+    fetching.current = true
     Promise.allSettled([
+      apiClient.get<DashboardBuilding[]>('/api/v1/buildings'),
       mayReadLanes ? lanesApi.getLanes() : Promise.resolve(null),
       mayReadDetections ? detectionsApi.list({ limit: 5 }) : Promise.resolve(null),
       parkingTransactionsApi.list({ limit: 5 }),
@@ -73,16 +84,27 @@ export function DashboardPage() {
       parkingTransactionsApi.summary(),
     ]).then((r) => {
       if (!alive) return
-      if (r[0].status === 'fulfilled') setLanes(r[0].value)
-      if (r[1].status === 'fulfilled') setDetections(r[1].value)
-      if (r[2].status === 'fulfilled') setParking(r[2].value)
-      if (r[3].status === 'fulfilled') setHealth(r[3].value)
-      if (r[4].status === 'fulfilled') setSummary(r[4].value)
-      if ([r[0], r[1], r[2], r[4]].some((x) => x.status === 'rejected')) {
+      if (r[0].status === 'fulfilled') {
+  setBuildings(Array.isArray(r[0].value) ? r[0].value : [])
+}
+      else setBuildings(null)
+      if (r[1].status === 'fulfilled') setLanes(r[1].value)
+      else setLanes(null)
+      if (r[2].status === 'fulfilled') setDetections(r[2].value)
+      else setDetections(null)
+      if (r[3].status === 'fulfilled') setParking(r[3].value)
+      else setParking(null)
+      if (r[4].status === 'fulfilled') setHealth(r[4].value)
+      else setHealth(null)
+      if (r[5].status === 'fulfilled') setSummary(r[5].value)
+      else setSummary(null)
+      if ([r[0], r[1], r[2], r[3], r[5]].some((x) => x.status === 'rejected')) {
         setErr(translate("Một số dữ liệu chưa tải được (backend pending)."))
       } else {
         setErr(null)
       }
+      setLastUpdated(new Date())
+      fetching.current = false
       setLoading(false)
       setIsRefreshing(false)
     })
@@ -91,24 +113,25 @@ export function DashboardPage() {
 
   if (loading) return <Spinner />
 
-  const totalLanes = lanes?.length ?? 0
-  const activeLanes = lanes?.filter((l) => l.active).length ?? 0
-  const entryLanes = lanes?.filter((l) => l.direction === 'IN').length ?? 0
-  const exitLanes = lanes?.filter((l) => l.direction === 'OUT').length ?? 0
+  const visibleLanes = buildingId === 'ALL' ? lanes : lanes?.filter((lane) => lane.building_id === buildingId)
+  const totalLanes = visibleLanes?.length ?? 0
+  const activeLanes = visibleLanes?.filter((l) => l.active).length ?? 0
+  const entryLanes = visibleLanes?.filter((l) => l.direction === 'IN').length ?? 0
+  const exitLanes = visibleLanes?.filter((l) => l.direction === 'OUT').length ?? 0
   const needConfirm = detections?.filter((d) => d.status === 'NEEDS_CONFIRMATION').length ?? 0
   const parked = summary?.parked
   const manual = summary?.manual
   const autoCheckedIn = parked != null && manual != null ? Math.max(0, parked - manual) : null
-  const alprReady = health ? (health.alpr?.ready === true || (health.alpr as { status?: string } | undefined)?.status === 'ready') : totalLanes > 0
-  const alprPending = health === null && totalLanes === 0
-  const alprProvider = health?.alpr?.provider ?? 'ONNX / Edge'
+  const alprReady = health?.alpr?.ready === true || health?.alpr?.status === 'ready'
+  const alprPending = health === null
+  const alprProvider = health?.alpr?.provider ?? 'Chưa xác định'
 
-  const laneOnlinePct = totalLanes > 0 ? Math.round((activeLanes / totalLanes) * 100) : (alprReady ? 100 : 0)
+  const laneOnlinePct = totalLanes > 0 ? Math.round((activeLanes / totalLanes) * 100) : 0
   const confList = (detections ?? []).map((d) => d.confidence).filter((c): c is number => typeof c === 'number')
   const avgConfPct = confList.length > 0 ? Math.round((confList.reduce((a, b) => a + b, 0) / confList.length) * 100) : null
   const autoRatePct = parked != null && parked > 0 && manual != null
     ? Math.max(0, Math.min(100, Math.round(((parked - manual) / parked) * 100)))
-    : 100
+    : null
 
   const ringRadius = 38
   const ringCircumference = 2 * Math.PI * ringRadius
@@ -190,6 +213,14 @@ export function DashboardPage() {
               <span className="poll-dot" aria-hidden="true" />
               {autoPoll ? 'Tự động đồng bộ: 15s' : 'Tự động đồng bộ'}
             </button>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Lọc làn theo tòa
+              <select aria-label="Lọc làn theo tòa nhà" value={buildingId} onChange={(event) => setBuildingId(event.target.value)}>
+                <option value="ALL">Tất cả tòa</option>
+                {(Array.isArray(buildings) ? buildings : []).map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}
+              </select>
+            </label>
+            <small>{lastUpdated ? `Cập nhật: ${lastUpdated.toLocaleTimeString('vi-VN')}` : 'Chưa đồng bộ'}</small>
           </div>
         </div>
 
@@ -209,23 +240,23 @@ export function DashboardPage() {
             <div className="hero-hud-metric">
               <div className="hero-hud-metric-row">
                 <span>Cổng làn trực tuyến</span>
-                <strong>{mayReadLanes ? `${activeLanes}/${totalLanes}` : 'ONLINE'}</strong>
+                <strong>{mayReadLanes && lanes ? `${activeLanes}/${totalLanes}` : '—'}</strong>
               </div>
               <div className="hero-hud-bar"><span style={{ width: `${laneOnlinePct}%` }} /></div>
             </div>
             <div className="hero-hud-metric">
               <div className="hero-hud-metric-row">
                 <span>Độ tin cậy nhận diện</span>
-                <strong>{avgConfPct != null ? `${avgConfPct}%` : '94%'}</strong>
+                <strong>{avgConfPct != null ? `${avgConfPct}%` : '—'}</strong>
               </div>
-              <div className="hero-hud-bar hero-hud-bar--mint"><span style={{ width: `${avgConfPct ?? 94}%` }} /></div>
+              <div className="hero-hud-bar hero-hud-bar--mint"><span style={{ width: `${avgConfPct ?? 0}%` }} /></div>
             </div>
             <div className="hero-hud-metric">
               <div className="hero-hud-metric-row">
                 <span>Tỷ lệ Check-in chuẩn</span>
-                <strong>{`${autoRatePct}%`}</strong>
+                <strong>{autoRatePct == null ? '—' : `${autoRatePct}%`}</strong>
               </div>
-              <div className="hero-hud-bar hero-hud-bar--gold"><span style={{ width: `${autoRatePct}%` }} /></div>
+              <div className="hero-hud-bar hero-hud-bar--gold"><span style={{ width: `${autoRatePct ?? 0}%` }} /></div>
             </div>
           </div>
         </div>
@@ -318,7 +349,7 @@ export function DashboardPage() {
               <span className="stat-pill stat-pill--slate">{entryLanes} IN · {exitLanes} OUT</span>
             </div>
             <div className="stat-card-body">
-              <div className="stat-value">{lanes ? activeLanes : '—'}</div>
+              <div className="stat-value">{visibleLanes ? activeLanes : '—'}</div>
               <div className="stat-label">{translate("Làn hoạt động")}</div>
             </div>
             <div className="stat-card-foot">
@@ -449,7 +480,7 @@ export function DashboardPage() {
             <div className="ai-node is-done">
               <span className="ai-node-step">04</span>
               <strong>Lưu Check-in</strong>
-              <small>{autoRatePct}% Tự động</small>
+              <small>{autoRatePct == null ? '—' : `${autoRatePct}%`} Tự động</small>
             </div>
           </div>
         </article>
@@ -465,17 +496,17 @@ export function DashboardPage() {
                 <span>Nhận diện tự động hoàn toàn</span>
                 <strong>{autoCheckedIn ?? 0} xe</strong>
               </div>
-              <span className="integrity-badge integrity-badge--emerald">{autoRatePct}%</span>
+              <span className="integrity-badge integrity-badge--emerald">{autoRatePct == null ? '—' : `${autoRatePct}%`}</span>
             </div>
             <div className="integrity-bar">
-              <span style={{ width: `${autoRatePct}%` }} />
+              <span style={{ width: `${autoRatePct ?? 0}%` }} />
             </div>
             <div className="integrity-row">
               <div>
                 <span>Ghi đè / sửa biển số tay</span>
                 <strong>{manual ?? 0} xe</strong>
               </div>
-              <span className="integrity-badge integrity-badge--amber">{100 - autoRatePct}%</span>
+              <span className="integrity-badge integrity-badge--amber">{autoRatePct == null ? '—' : `${100 - autoRatePct}%`}</span>
             </div>
           </div>
         </article>
@@ -585,13 +616,13 @@ export function DashboardPage() {
               </div>
               <Link to="/admin/lanes" className="card-head-link">Quản lý làn →</Link>
             </div>
-            {!lanes || lanes.length === 0 ? (
+            {!visibleLanes || visibleLanes.length === 0 ? (
               <div className="dashboard-empty-visual">
                 <div className="empty-title">{translate("Chưa có dữ liệu")}</div>
               </div>
             ) : (
               <ul className="list rich-list lane-tile-list">
-                {lanes.map((l) => (
+                {visibleLanes.map((l) => (
                   <li key={l.id} className="list-row rich-row lane-tile">
                     <div className="lane-tile-main">
                       <span className={`lane-dir-badge ${l.direction === 'IN' ? 'is-entry' : 'is-exit'}`}>
@@ -599,7 +630,7 @@ export function DashboardPage() {
                       </span>
                       <div>
                         <strong>{l.name}</strong>
-                        <small>{l.direction} · #{String(l.id).slice(0, 8)} · ĐANG KẾT NỐI</small>
+                        <small>{l.direction} · #{String(l.id).slice(0, 8)}</small>
                       </div>
                     </div>
                     <Badge variant={l.active ? 'success' : 'neutral'}>{l.active ? 'ACTIVE' : 'Inactive'}</Badge>

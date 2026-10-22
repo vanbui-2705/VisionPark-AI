@@ -10,6 +10,7 @@ from app.alpr.schema import ALPRResult, BoundingBox
 from app.alpr.utils import normalize_plate
 from app.core.errors import AppError
 from app.modules.alpr.models import Detection
+from app.modules.buildings.models import DEFAULT_BUILDING_ID
 from app.modules.lanes.models import Lane
 
 
@@ -35,6 +36,14 @@ class DatabaseDetectionRecorder(DetectionRecorder):
                 x2=detection.bbox_x2,
                 y2=detection.bbox_y2,
             )
+        bbox_vehicle = None
+        if detection.vehicle_bbox_x1 is not None:
+            bbox_vehicle = BoundingBox(
+                x1=detection.vehicle_bbox_x1,
+                y1=detection.vehicle_bbox_y1,
+                x2=detection.vehicle_bbox_x2,
+                y2=detection.vehicle_bbox_y2,
+            )
         return ALPRResult(
             detection_id=str(detection.id),
             plate_number=detection.raw_plate,
@@ -56,6 +65,10 @@ class DatabaseDetectionRecorder(DetectionRecorder):
             quality_flags=detection.quality_flags or [],
             detector_latency_ms=detection.detector_latency_ms,
             ocr_latency_ms=detection.ocr_latency_ms,
+            vehicle_type=detection.vehicle_type or "UNKNOWN",
+            vehicle_confidence=detection.vehicle_confidence,
+            bbox_vehicle=bbox_vehicle,
+            building_id=detection.building_id,
         )
 
     def record_detection(
@@ -68,10 +81,13 @@ class DatabaseDetectionRecorder(DetectionRecorder):
         capture_fingerprint: str | None = None,
     ) -> str:
         bbox = result.bbox.as_tuple if result.bbox else (None, None, None, None)
+        bbox_v = result.bbox_vehicle.as_tuple if result.bbox_vehicle else (None, None, None, None)
         lane = self.session.get(Lane, UUID(lane_id))
+        building_id = lane.building_id if (lane and lane.building_id) else DEFAULT_BUILDING_ID
         detection = Detection(
             **({"id": UUID(capture_id)} if capture_id else {}),
             lane_id=UUID(lane_id),
+            building_id=building_id,
             image_key=image_key,
             image_content_type="image/png" if image_key.endswith(".png") else "image/jpeg",
             image_size_bytes=result.image_size_bytes,
@@ -100,8 +116,15 @@ class DatabaseDetectionRecorder(DetectionRecorder):
             quality_flags=result.quality_flags,
             detector_latency_ms=result.detector_latency_ms,
             ocr_latency_ms=result.ocr_latency_ms,
-            lane_name_snapshot=lane.name,
-            direction_snapshot=lane.direction.value,
+            lane_name_snapshot=lane.name if lane else None,
+            direction_snapshot=lane.direction.value if lane else None,
+            vehicle_type=result.vehicle_type or "UNKNOWN",
+            vehicle_confidence=result.vehicle_confidence,
+            vehicle_bbox_x1=bbox_v[0],
+            vehicle_bbox_y1=bbox_v[1],
+            vehicle_bbox_x2=bbox_v[2],
+            vehicle_bbox_y2=bbox_v[3],
+            model_version_detector=result.model_version,
         )
         self.session.add(detection)
         try:

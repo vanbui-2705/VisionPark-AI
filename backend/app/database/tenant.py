@@ -80,7 +80,8 @@ def filter_building(execution):
             code="UNSCOPED_QUERY",
             message="Use the shared ORM repository for building-owned data.",
         )
-    # Preserve atomic token revocation; every other bulk mutation must use the unit of work.
+    # Preserve atomic token revocation and atomic counter mutations;
+    # every other bulk mutation must use the unit of work.
     mapper = execution.bind_arguments.get("mapper")
     values = getattr(execution.statement, "_values", None) or {}
     revocation = (
@@ -89,7 +90,12 @@ def filter_building(execution):
         and mapper.class_ is User
         and {getattr(key, "key", key) for key in values} == {"token_version"}
     )
-    if not execution.is_select and not revocation:
+    from app.modules.checkin.counter_models import ParkingCounter
+
+    counter_mutation = (
+        execution.is_update and mapper is not None and mapper.class_ is ParkingCounter
+    )
+    if not execution.is_select and not revocation and not counter_mutation:
         raise AppError(
             status_code=403,
             code="UNSCOPED_WRITE",

@@ -116,11 +116,13 @@ export function AppRoutes() {
         <Route path="/help" element={<HelpPage />} />
         <Route path="/dev/ui-kit" element={<UiKitPage />} />
 
-        {/* Docs Center — ADMIN only */}
+        {/* Docs & Explore Center — ADMIN only */}
         <Route path="/docs" element={<AdminGuard><DocsLayout /></AdminGuard>}>
           <Route index element={<DocsHomePage />} />
           <Route path=":slug" element={<DocsArticlePage />} />
         </Route>
+        <Route path="/explore" element={<Navigate to="/docs" replace />} />
+        <Route path="/admin/explore" element={<Navigate to="/docs" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/404" replace />} />
