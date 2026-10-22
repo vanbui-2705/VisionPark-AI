@@ -160,7 +160,7 @@ class FireSmokeDetectorRuntime:
             raise ALPRDependencyError("Ultralytics dependency missing.") from exc
 
         try:
-            self._model = YOLO(str(weights_path))
+            self._model = YOLO(str(weights_path), task="detect")
             self.version = str(manifest["model_version"])
         except Exception as exc:
             self._model = None
