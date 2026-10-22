@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.alpr import router as alpr_router
