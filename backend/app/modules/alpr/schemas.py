@@ -16,6 +16,16 @@ class DetectionResponse(BaseModel):
     normalized_plate: str | None = None
     confidence: float | None = None
 
+    # Phân loại phương tiện (SPEC-AI-01 / SPEC-AI-02)
+    vehicle_type: str | None = "UNKNOWN"
+    vehicle_confidence: float | None = None
+    vehicle_bbox_x1: int | None = None
+    vehicle_bbox_y1: int | None = None
+    vehicle_bbox_x2: int | None = None
+    vehicle_bbox_y2: int | None = None
+    model_version_detector: str | None = None
+    building_id: str | None = None
+
     # Các trường liên quan đến xác nhận (Confirmation)
     requires_confirmation: bool = False
     is_confirmed: bool = False
@@ -45,9 +55,10 @@ class DetectionResponse(BaseModel):
 
 
 class DetectionConfirmRequest(BaseModel):
-    """Schema nhận dữ liệu khi Operator bấm xác nhận sửa biển số"""
+    """Schema nhận dữ liệu khi Operator bấm xác nhận sửa biển số hoặc loại xe"""
 
     confirmed_plate: str = Field(min_length=3, max_length=50)
+    confirmed_vehicle_type: str | None = None
     check_in: bool = False
     source: CheckInSource | None = None
     override_reason: str | None = Field(None, max_length=500)

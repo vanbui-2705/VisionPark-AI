@@ -79,6 +79,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.alpr_readiness_probe = RuntimeALPRProbe(
         runtime, provider=app_settings.alpr_provider, version=runtime.version
     )
+    try:
+        from app.alpr.fire_provider import FireSmokeDetectorRuntime
+        app.state.fire_runtime = FireSmokeDetectorRuntime("models/fire-manifest.json", device=app_settings.alpr_device)
+    except Exception as exc:
+        logging.getLogger("visionpark.fire").warning("Fire runtime initialization deferred: %s", exc)
+        app.state.fire_runtime = None
 
     register_exception_handlers(app)
     app.include_router(health_router)

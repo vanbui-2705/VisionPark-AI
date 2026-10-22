@@ -1,4 +1,7 @@
+import json
+import shutil
 from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,6 +16,52 @@ from app.modules.checkin.repository import DatabaseCheckInRepository
 from app.modules.checkin.schemas import CheckInRequest
 from app.modules.checkin.service import CheckInService
 from app.modules.users.models import User
+
+
+def save_hard_sample(
+    detection: Detection,
+    confirmed_plate: str,
+    confirmed_vehicle_type: str | None,
+    operator: User,
+    reason: str | None,
+) -> None:
+    """SPEC-AI-06: Chu trình lưu mẫu khó (Hard Sample Mining Loop) để cải thiện model."""
+    try:
+        today_str = datetime.now(UTC).strftime("%Y-%m-%d")
+        hard_samples_dir = Path("var/hard_samples") / today_str / str(detection.id)
+        hard_samples_dir.mkdir(parents=True, exist_ok=True)
+
+        if detection.image_key and detection.lane_id:
+            src_image = Path("var/media") / str(detection.lane_id) / detection.image_key
+            if not src_image.exists():
+                src_image = Path("var/media") / detection.image_key
+            if src_image.exists():
+                shutil.copy2(src_image, hard_samples_dir / f"image{src_image.suffix}")
+
+        metadata = {
+            "detection_id": str(detection.id),
+            "lane_id": str(detection.lane_id),
+            "original_prediction": {
+                "raw_plate": detection.raw_plate,
+                "normalized_plate": detection.normalized_plate,
+                "confidence": detection.confidence,
+                "vehicle_type": detection.vehicle_type,
+                "vehicle_confidence": detection.vehicle_confidence,
+                "model_version": detection.model_version,
+            },
+            "operator_correction": {
+                "confirmed_plate": confirmed_plate,
+                "confirmed_vehicle_type": confirmed_vehicle_type or detection.vehicle_type,
+                "operator_id": str(operator.id),
+                "confirmed_at": datetime.now(UTC).isoformat(),
+                "override_reason": reason,
+            },
+        }
+        with open(hard_samples_dir / "metadata.json", "w", encoding="utf-8") as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+    except Exception:
+        # Hard sample mining is best-effort and must not fail the user transaction
+        pass
 
 
 def confirm_detection(
@@ -50,19 +99,35 @@ def confirm_detection(
             message="A checked-in detection cannot be changed independently of its transaction.",
         )
     old_plate = detection.confirmed_plate or detection.raw_plate
+    old_vtype = detection.vehicle_type
+    new_vtype = payload.confirmed_vehicle_type or old_vtype
+
     detection.is_confirmed = True
     detection.requires_confirmation = False
     detection.confirmed_plate = plate
+    if payload.confirmed_vehicle_type:
+        detection.vehicle_type = payload.confirmed_vehicle_type
     detection.confirmed_by_id = operator.id
     detection.confirmed_at = datetime.now(UTC)
+
+    # Trigger hard sample mining when human corrects prediction
+    if old_plate != plate or (payload.confirmed_vehicle_type and payload.confirmed_vehicle_type != old_vtype):
+        save_hard_sample(
+            detection,
+            plate,
+            payload.confirmed_vehicle_type,
+            operator,
+            payload.override_reason,
+        )
+
     log_action(
         db=db,
         user_id=operator.id,
         action="CONFIRM_PLATE",
         entity_type="Detection",
         entity_id=str(detection.id),
-        old_value={"plate": old_plate},
-        new_value={"plate": plate},
+        old_value={"plate": old_plate, "vehicle_type": old_vtype},
+        new_value={"plate": plate, "vehicle_type": new_vtype},
     )
     db.commit()
     db.refresh(detection)

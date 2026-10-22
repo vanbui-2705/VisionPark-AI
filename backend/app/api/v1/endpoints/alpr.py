@@ -15,7 +15,7 @@ from app.alpr.errors import ALPRInvalidImageError, ALPRNotReadyError, ALPRProces
 
 # Giữ nguyên import của Người 1
 # Import thêm HTTP DTO của Người 3
-from app.alpr.schema import ALPRHTTPResponse
+from app.alpr.schema import ALPRHTTPResponse, FireSignalEvent
 from app.alpr.service import ALPRApplicationService
 from app.alpr.utils import normalize_plate
 from app.core.config import Settings, get_settings
@@ -169,6 +169,10 @@ async def create_detection(
             input_kind=result.input_kind,
             video_time_ms=result.video_time_ms,
             actor_id=result.actor_id,
+            vehicle_type=result.vehicle_type,
+            vehicle_confidence=result.vehicle_confidence,
+            bbox_vehicle=list(result.bbox_vehicle.as_tuple) if result.bbox_vehicle else None,
+            building_id=result.building_id,
         )
 
     except AppError:
@@ -389,3 +393,30 @@ def confirm_detection(
         )
 
     return confirm_detection_service(db, detection, payload, current_user, idempotency_key)
+
+
+@router.post("/fire-detection", response_model=list[FireSignalEvent])
+async def detect_fire_smoke(
+    camera_id: str = Form(...),
+    image: UploadFile = File(...),
+    building_id: str | None = Form(None),
+    zone_code: str | None = Form(None),
+    request: Request = None,
+    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.ADMIN))] = None,
+):
+    """API phat hien Khoi va Lua tu camera an ninh giam sat bai xe (SPEC-AI-03)."""
+    fire_runtime = getattr(request.app.state, "fire_runtime", None) if request else None
+    if fire_runtime is None:
+        raise AppError(
+            status_code=503,
+            code="FIRE_RUNTIME_NOT_READY",
+            message="He thong phat hien hoa hoan chua san sang.",
+        )
+    image_bytes = await image.read()
+    return await run_in_threadpool(
+        fire_runtime.process_frame,
+        image_bytes,
+        camera_id,
+        building_id=building_id,
+        zone_code=zone_code,
+    )

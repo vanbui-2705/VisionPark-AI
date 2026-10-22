@@ -1,0 +1,27 @@
+{
+  "model_name": "visionpark-fire-smoke",
+  "model_version": "ultralytics-onnx-fire-smoke-v1",
+  "provider": "ultralytics-onnx",
+  "detector": {
+    "format": "onnx",
+    "framework": "ultralytics",
+    "weights_path": "app/alpr/weights/fire.onnx",
+    "sha256": "0D1DB3F7F3886051664E18A9D4A9A9BEC2A478E88312E924B33CD22621244FDB",
+    "classes": {
+      "0": "fire",
+      "1": "smoke"
+    },
+    "confidence_thresholds": {
+      "fire": 0.45,
+      "smoke": 0.40
+    },
+    "imgsz": 640
+  },
+  "rules": {
+    "temporal_debounce_frames": 5,
+    "temporal_window_seconds": 3.0,
+    "smoke_persistence_seconds": 4.0
+  },
+  "status": "bundled-asset",
+  "notes": "YOLO ONNX detector for fire and smoke events in parking areas."
+}

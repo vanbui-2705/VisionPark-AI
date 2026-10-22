@@ -117,6 +117,16 @@ class PaddleOCRTextRecognition:
         self.collect_candidates(raw_result, candidates)
         if not candidates:
             return OCRReadResult(None, None, 0.0)
+
+        # Support 2-line square motorbike plates (Vietnamese standard)
+        if len(candidates) > 1:
+            combined_raw = " ".join(item[0].strip() for item in candidates if item[0].strip())
+            combined_norm = normalize_plate(combined_raw)
+            if 6 <= len(combined_norm) <= 10:
+                avg_conf = sum(item[1] for item in candidates) / len(candidates)
+                bounded_conf = max(0.0, min(1.0, float(avg_conf)))
+                return OCRReadResult(combined_raw, combined_norm, bounded_conf)
+
         raw_text, confidence = max(candidates, key=lambda item: item[1])
         normalized = normalize_plate(raw_text) or None
         bounded_confidence = max(0.0, min(1.0, float(confidence)))

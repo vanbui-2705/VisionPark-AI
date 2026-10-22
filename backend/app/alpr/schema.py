@@ -1,4 +1,13 @@
+from datetime import datetime
+from enum import Enum
 from pydantic import BaseModel, Field
+
+
+class VehicleType(str, Enum):
+    CAR = "CAR"
+    MOTORBIKE = "MOTORBIKE"
+    BICYCLE = "BICYCLE"
+    UNKNOWN = "UNKNOWN"
 
 
 class BoundingBox(BaseModel):
@@ -37,6 +46,12 @@ class ALPRResult(BaseModel):
     detector_latency_ms: float | None = None
     ocr_latency_ms: float | None = None
 
+    # Vehicle classification fields (SPEC-AI-01 / SPEC-AI-04)
+    vehicle_type: str = VehicleType.UNKNOWN.value
+    vehicle_confidence: float | None = Field(None, ge=0.0, le=1.0)
+    bbox_vehicle: BoundingBox | None = None
+    building_id: str | None = None
+
 
 class ALPRHTTPResponse(BaseModel):
     raw_plate: str | None = None
@@ -63,3 +78,23 @@ class ALPRHTTPResponse(BaseModel):
     provider_status: str = "ready"
     detector_latency_ms: float | None = None
     ocr_latency_ms: float | None = None
+
+    # Vehicle classification fields (SPEC-AI-01 / SPEC-AI-04)
+    vehicle_type: str = VehicleType.UNKNOWN.value
+    vehicle_confidence: float | None = None
+    bbox_vehicle: list[int] | None = None
+    building_id: str | None = None
+
+
+class FireSignalEvent(BaseModel):
+    """Event schema representing a verified or candidate fire/smoke detection."""
+    building_id: str | None = None
+    camera_id: str
+    zone_code: str | None = None
+    event_type: str  # "FIRE" or "SMOKE"
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    confirmed_frame_count: int = 1
+    bbox: list[int]  # [x1, y1, x2, y2]
+    evidence_image_path: str | None = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: str = "DETECTED"  # "DETECTED", "VERIFYING", "CONFIRMED"
