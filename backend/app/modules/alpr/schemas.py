@@ -24,7 +24,7 @@ class DetectionResponse(BaseModel):
     vehicle_bbox_x2: int | None = None
     vehicle_bbox_y2: int | None = None
     model_version_detector: str | None = None
-    building_id: str | None = None
+    building_id: UUID | str | None = None
 
     # Các trường liên quan đến xác nhận (Confirmation)
     requires_confirmation: bool = False

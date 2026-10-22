@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timezone
+from uuid import UUID
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -50,7 +51,7 @@ class ALPRResult(BaseModel):
     vehicle_type: str = VehicleType.UNKNOWN.value
     vehicle_confidence: float | None = Field(None, ge=0.0, le=1.0)
     bbox_vehicle: BoundingBox | None = None
-    building_id: str | None = None
+    building_id: UUID | str | None = None
 
 
 class ALPRHTTPResponse(BaseModel):
@@ -83,12 +84,12 @@ class ALPRHTTPResponse(BaseModel):
     vehicle_type: str = VehicleType.UNKNOWN.value
     vehicle_confidence: float | None = None
     bbox_vehicle: list[int] | None = None
-    building_id: str | None = None
+    building_id: UUID | str | None = None
 
 
 class FireSignalEvent(BaseModel):
     """Event schema representing a verified or candidate fire/smoke detection."""
-    building_id: str | None = None
+    building_id: UUID | str | None = None
     camera_id: str
     zone_code: str | None = None
     event_type: str  # "FIRE" or "SMOKE"
