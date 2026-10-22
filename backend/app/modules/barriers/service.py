@@ -1,20 +1,24 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.modules.audit_logs.service import log_action
 from app.modules.checkin.lifecycle_models import ActorType, LifecycleEventType
 from app.modules.checkin.lifecycle_service import record_lifecycle_event
-from app.modules.checkin.models import ParkingTransaction
+from app.modules.checkin.models import ParkingTransaction, TransactionStatus
 from app.modules.lanes.models import Lane, LaneDirection
 from app.modules.users.models import User
 from app.modules.users.permissions import has_permission
 from app.modules.users.schemas import RoleName
 
 from .models import BarrierAction, BarrierEvent, BarrierStatus, BarrierTriggerReason
-from .schemas import BarrierCloseRequest, BarrierOpenRequest
+from .schemas import (
+    BarrierCloseRequest,
+    BarrierEmergencyOpenRequest,
+    BarrierOpenRequest,
+)
 
 VALID_OPEN_REASONS = {
     BarrierTriggerReason.NORMAL,
@@ -183,6 +187,111 @@ class BarrierService:
             session_id=request.session_id,
             status=BarrierStatus.OPEN,
             timeout_seconds=request.timeout_seconds,
+            details=details,
+        )
+        self.session.commit()
+        return event
+
+    def emergency_open_barrier(
+        self,
+        lane_id: UUID,
+        operator: User,
+        request: BarrierEmergencyOpenRequest | None = None,
+    ) -> BarrierEvent:
+        """Mở barrier khẩn cấp ngay lập tức (PCCC / Sơ tán) (BR-08, BR-23).
+
+        - Ghi sự kiện BarrierEvent với trigger_reason="EMERGENCY".
+        - Ghi LifecycleEvent (BARRIER_OPENED_IN/OUT) với trigger_reason="EMERGENCY".
+        - Chặn hoàn toàn vai trò không có quyền vận hành (ACCOUNTANT).
+        """
+        req = request or BarrierEmergencyOpenRequest()
+        lane = self.session.get(Lane, lane_id)
+        if not lane:
+            raise AppError(
+                status_code=404,
+                code="LANE_NOT_FOUND",
+                message=f"Lane {lane_id} not found.",
+            )
+
+        if not lane.is_active:
+            raise AppError(
+                status_code=400,
+                code="LANE_INACTIVE",
+                message=f"Lane {lane_id} is inactive.",
+            )
+
+        if operator.role.name == RoleName.ACCOUNTANT:
+            raise AppError(
+                status_code=403,
+                code="FORBIDDEN",
+                message="Accountant is not authorized to operate barriers.",
+            )
+
+        session_id_to_record = req.session_id
+        if not session_id_to_record:
+            active_tx = self.session.scalar(
+                select(ParkingTransaction)
+                .where(
+                    or_(
+                        ParkingTransaction.lane_id == lane.id,
+                        ParkingTransaction.exit_lane_id == lane.id,
+                    ),
+                    ParkingTransaction.status.in_(
+                        [
+                            TransactionStatus.ENTERED,
+                            TransactionStatus.PARKED,
+                            TransactionStatus.PAYMENT_PENDING,
+                        ]
+                    ),
+                )
+                .order_by(ParkingTransaction.check_in_time.desc())
+            )
+            if active_tx:
+                session_id_to_record = active_tx.id
+
+        if session_id_to_record:
+            tx = self.session.get(ParkingTransaction, session_id_to_record)
+            if tx:
+                event_type = (
+                    LifecycleEventType.BARRIER_OPENED_IN
+                    if lane.direction == LaneDirection.IN
+                    else LifecycleEventType.BARRIER_OPENED_OUT
+                )
+                record_lifecycle_event(
+                    session=self.session,
+                    session_id=tx.id,
+                    event_type=event_type,
+                    actor_type=ActorType.OPERATOR,
+                    actor_id=operator.id,
+                    lane_id=lane.id,
+                    building_id=lane.building_id or tx.building_id,
+                    details={
+                        "barrier_id": lane.barrier_id,
+                        "trigger_reason": BarrierTriggerReason.EMERGENCY,
+                        "reason": req.reason,
+                        "note": req.note,
+                        "timeout_seconds": req.timeout_seconds,
+                    },
+                )
+
+        details = {
+            "trigger_reason": BarrierTriggerReason.EMERGENCY,
+            "reason": req.reason,
+            "note": req.note,
+            "source": "EMERGENCY_OPEN_API",
+        }
+
+        event = record_barrier_event(
+            db=self.session,
+            lane_id=lane.id,
+            building_id=lane.building_id,
+            barrier_id=lane.barrier_id,
+            action=BarrierAction.OPEN,
+            trigger_reason=BarrierTriggerReason.EMERGENCY,
+            operator_id=operator.id,
+            session_id=session_id_to_record,
+            status=BarrierStatus.OPEN,
+            timeout_seconds=req.timeout_seconds,
             details=details,
         )
         self.session.commit()

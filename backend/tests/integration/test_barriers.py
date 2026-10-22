@@ -275,3 +275,67 @@ def test_barrier_events_recorded_during_checkin_and_checkout(client, db_session,
     assert out_event is not None
     assert out_event.action == BarrierAction.OPEN
     assert out_event.status == BarrierStatus.OPEN
+
+
+def test_emergency_open_endpoint_without_body(client, db_session, operator_headers):
+    """POST /api/v1/gates/{lane_id}/emergency-open mở barrier khẩn cấp (không cần body)."""
+    lane = get_lane(db_session, LaneDirection.OUT)
+
+    res = client.post(
+        f"/api/v1/gates/{lane.id}/emergency-open",
+        headers=operator_headers,
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["action"] == BarrierAction.OPEN
+    assert data["status"] == BarrierStatus.OPEN
+    assert data["trigger_reason"] == BarrierTriggerReason.EMERGENCY
+    assert data["lane_id"] == str(lane.id)
+
+
+def test_emergency_open_endpoint_with_session(client, db_session, operator_headers):
+    """POST /api/v1/gates/{lane_id}/emergency-open liên kết session và ghi LifecycleEvent."""
+    in_lane = get_lane(db_session, LaneDirection.IN)
+    plate = "30E-777.99"
+
+    checkin_res = client.post(
+        "/api/v1/parking/check-in",
+        json={"lane_id": str(in_lane.id), "license_plate": plate},
+        headers={**operator_headers, "Idempotency-Key": f"chk-emg-{uuid4()}"},
+    )
+    assert checkin_res.status_code == 201
+    tx_id = UUID(checkin_res.json()["transaction"]["id"])
+
+    res = client.post(
+        f"/api/v1/gates/{in_lane.id}/emergency-open",
+        json={"session_id": str(tx_id), "reason": "PCCC_DI_TAN"},
+        headers=operator_headers,
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["action"] == BarrierAction.OPEN
+    assert data["trigger_reason"] == BarrierTriggerReason.EMERGENCY
+    assert data["session_id"] == str(tx_id)
+
+    # Kiểm tra LifecycleEvent trong DB
+    lc_event = db_session.scalar(
+        select(LifecycleEvent).where(
+            LifecycleEvent.session_id == tx_id,
+            LifecycleEvent.details["trigger_reason"].as_string() == "EMERGENCY",
+        )
+    )
+    assert lc_event is not None
+    assert lc_event.event_type == "BARRIER_OPENED_IN"
+
+
+def test_emergency_open_endpoint_accountant_blocked(client, db_session):
+    """Accountant không được phép gọi API emergency-open (403 Forbidden)."""
+    lane = get_lane(db_session, LaneDirection.OUT)
+    headers = role_headers(client, db_session, RoleName.ACCOUNTANT)
+
+    res = client.post(
+        f"/api/v1/gates/{lane.id}/emergency-open",
+        headers=headers,
+    )
+    assert res.status_code == 403
+    assert res.json()["code"] == "FORBIDDEN"

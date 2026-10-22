@@ -356,3 +356,39 @@ def test_role_based_access_accountant(client, db_session, operator_headers):
     assert "Người vào" not in csv_headers
     assert "Ghi chú" not in csv_headers
     assert "Phí (VNĐ)" in csv_headers
+
+
+def test_role_based_access_building_admin(client, db_session, operator_headers):
+    """
+    BR-4.8: Phân quyền vai trò BUILDING_ADMIN có đầy đủ quyền xem danh sách và chi tiết vòng đời xe.
+    """
+    in_lane = get_lane_by_direction(db_session, LaneDirection.IN)
+    plate = "30A-999.88"
+
+    checkin_res = client.post(
+        "/api/v1/parking/check-in",
+        json={"lane_id": str(in_lane.id), "license_plate": plate},
+        headers={**operator_headers, "Idempotency-Key": f"chk-in-ba-{uuid4()}"},
+    )
+    assert checkin_res.status_code == 201
+    tx_id = checkin_res.json()["transaction"]["id"]
+
+    admin_headers = role_headers(client, db_session, RoleName.BUILDING_ADMIN)
+
+    # BUILDING_ADMIN gọi GET /api/v1/lifecycle/sessions
+    res_list = client.get(
+        f"/api/v1/lifecycle/sessions?license_plate={plate}",
+        headers=admin_headers,
+    )
+    assert res_list.status_code == 200
+    assert len(res_list.json()["items"]) == 1
+
+    # BUILDING_ADMIN gọi GET /api/v1/lifecycle/sessions/{id}
+    res_detail = client.get(
+        f"/api/v1/lifecycle/sessions/{tx_id}",
+        headers=admin_headers,
+    )
+    assert res_detail.status_code == 200
+    detail = res_detail.json()
+    assert detail["id"] == tx_id
+    assert len(detail["timeline"]) >= 1

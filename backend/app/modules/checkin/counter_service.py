@@ -59,7 +59,7 @@ class CounterService:
             counter.occupied = 0
 
         # Lấy giới hạn tối đa cho phép đối với hạng khách hiện tại
-        cfg = get_capacity_settings_stub(building_id, vtype)
+        cfg = get_capacity_settings_stub(building_id, vtype, db=db)
         limit = calculate_effective_capacity_limit(cfg, customer_class)
 
         # CẬP NHẬT CÓ ĐIỀU KIỆN TRONG 1 CÂU LỆNH DUY NHẤT:
@@ -83,6 +83,7 @@ class CounterService:
                 vehicle_type=vtype,
                 customer_class=customer_class,
                 building_id=building_id,
+                db=db,
             )
             raise AppError(
                 status_code=403,
@@ -217,7 +218,7 @@ class CounterService:
         results = []
         types = ["CAR", "MOTORBIKE", "BICYCLE"]
         for vtype in types:
-            cfg = get_capacity_settings_stub(building_id, vtype)
+            cfg = get_capacity_settings_stub(building_id, vtype, db=db)
             stmt = select(ParkingCounter).where(
                 ParkingCounter.building_id == building_id
                 if building_id is not None

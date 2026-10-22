@@ -40,6 +40,29 @@ class BarrierCloseRequest(BaseModel):
     )
 
 
+class BarrierEmergencyOpenRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    session_id: UUID | None = Field(
+        default=None,
+        description="ID phiên gửi xe liên quan (nếu có)",
+    )
+    reason: str = Field(
+        default="EMERGENCY",
+        description="Lý do mở khẩn cấp (PCCC, sơ tán, sự cố)",
+    )
+    note: str | None = Field(
+        default=None,
+        description="Ghi chú chi tiết sự cố",
+    )
+    timeout_seconds: int = Field(
+        default=60,
+        ge=1,
+        le=300,
+        description="Thời gian mở khẩn cấp (giây)",
+    )
+
+
 class BarrierEventResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
