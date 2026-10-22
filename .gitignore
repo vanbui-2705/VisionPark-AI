@@ -6,6 +6,8 @@
 # Python
 *.onnx
 *.pt
+!backend/app/alpr/weights/plate.onnx
+!backend/app/alpr/weights/fire.onnx
 __pycache__/
 *.pyc
 .venv/
@@ -21,6 +23,8 @@ var/
 backend/app/alpr/weights/*
 !backend/app/alpr/weights/.gitkeep
 !backend/app/alpr/weights/best.pt
+!backend/app/alpr/weights/plate.onnx
+!backend/app/alpr/weights/fire.onnx
 
 # Database
 *.db
