@@ -153,7 +153,10 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             ) from exc
 
         try:
-            self._model = YOLO(str(weights_path), task="detect")
+            try:
+                self._model = YOLO(str(weights_path), task="detect")
+            except TypeError:
+                self._model = YOLO(str(weights_path))
             self._ocr = self._create_ocr(manifest) if self.ocr_enabled else None
             if self._ocr is not None:
                 self._ocr.ensure_loaded()

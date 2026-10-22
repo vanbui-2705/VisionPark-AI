@@ -55,7 +55,7 @@ def test_fire_runtime_temporal_debounce(tmp_path, monkeypatch):
     class FakeYOLO:
         names = {0: "fire", 1: "smoke"}
 
-        def __init__(self, weights_path):
+        def __init__(self, weights_path, *args, **kwargs):
             pass
 
         def predict(self, **kwargs):
@@ -95,7 +95,7 @@ def test_fire_runtime_exclusion_mask(tmp_path, monkeypatch):
     class FakeYOLO:
         names = {0: "fire", 1: "smoke"}
 
-        def __init__(self, weights_path):
+        def __init__(self, weights_path, *args, **kwargs):
             pass
 
         def predict(self, **kwargs):
@@ -131,7 +131,7 @@ def test_smoke_persistence_filter(tmp_path, monkeypatch):
     class FakeYOLO:
         names = {0: "fire", 1: "smoke"}
 
-        def __init__(self, weights_path):
+        def __init__(self, weights_path, *args, **kwargs):
             pass
 
         def predict(self, **kwargs):

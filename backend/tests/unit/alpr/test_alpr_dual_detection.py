@@ -61,7 +61,7 @@ def test_dual_detection_associates_plate_inside_car(tmp_path, monkeypatch):
     class FakeYOLO:
         names = {0: "car", 1: "motorcycle", 2: "plate", 3: "bicycle"}
 
-        def __init__(self, weights_path):
+        def __init__(self, weights_path, *args, **kwargs):
             pass
 
         def predict(self, **kwargs):
@@ -100,7 +100,7 @@ def test_dual_detection_handles_bicycle_without_plate(tmp_path, monkeypatch):
     class FakeYOLO:
         names = {0: "car", 1: "motorcycle", 2: "plate", 3: "bicycle"}
 
-        def __init__(self, weights_path):
+        def __init__(self, weights_path, *args, **kwargs):
             pass
 
         def predict(self, **kwargs):
@@ -136,7 +136,7 @@ def test_dual_detection_with_dynamic_settings(tmp_path, monkeypatch):
     class FakeYOLO:
         names = {0: "car", 1: "motorcycle", 2: "plate", 3: "bicycle"}
 
-        def __init__(self, weights_path):
+        def __init__(self, weights_path, *args, **kwargs):
             pass
 
         def predict(self, **kwargs):
