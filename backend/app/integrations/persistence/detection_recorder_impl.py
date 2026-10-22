@@ -81,11 +81,7 @@ class DatabaseDetectionRecorder(DetectionRecorder):
         capture_fingerprint: str | None = None,
     ) -> str:
         bbox = result.bbox.as_tuple if result.bbox else (None, None, None, None)
-        bbox_v = (
-            result.bbox_vehicle.as_tuple
-            if result.bbox_vehicle
-            else (None, None, None, None)
-        )
+        bbox_v = result.bbox_vehicle.as_tuple if result.bbox_vehicle else (None, None, None, None)
         lane = self.session.get(Lane, UUID(lane_id))
         building_id = lane.building_id if (lane and lane.building_id) else DEFAULT_BUILDING_ID
         detection = Detection(

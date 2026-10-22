@@ -117,7 +117,9 @@ def confirm_detection(
     detection.confirmed_at = datetime.now(UTC)
 
     # Trigger hard sample mining when human corrects prediction
-    if old_plate != plate or (payload.confirmed_vehicle_type and payload.confirmed_vehicle_type != old_vtype):
+    if old_plate != plate or (
+        payload.confirmed_vehicle_type and payload.confirmed_vehicle_type != old_vtype
+    ):
         save_hard_sample(
             detection,
             plate,

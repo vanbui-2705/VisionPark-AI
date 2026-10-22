@@ -57,7 +57,6 @@ class Detection(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     vehicle_bbox_y2 = Column(Integer, nullable=True)
     model_version_detector = Column(String(120), nullable=True)
 
-
     @property
     def lane_name(self):
         return self.lane_name_snapshot or (self.lane.name if self.lane else None)
@@ -76,4 +75,7 @@ class Detection(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     lane = relationship("Lane", backref="detections")
 
     def __repr__(self):
-        return f"<Detection(id={self.id}, lane={self.lane_id}, plate={self.raw_plate}, vehicle={self.vehicle_type})>"
+        return (
+            f"<Detection(id={self.id}, lane={self.lane_id}, "
+            f"plate={self.raw_plate}, vehicle={self.vehicle_type})>"
+        )

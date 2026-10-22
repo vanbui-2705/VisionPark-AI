@@ -7,10 +7,9 @@ from types import SimpleNamespace
 
 import cv2
 import numpy as np
-import pytest
 
 from app.alpr.pt_provider import UltralyticsPaddleALPRRuntime
-from app.alpr.schema import BoundingBox, VehicleType
+from app.alpr.schema import VehicleType
 
 
 def write_dual_manifest(tmp_path) -> str:
@@ -97,6 +96,7 @@ def test_dual_detection_associates_plate_inside_car(tmp_path, monkeypatch):
 
 def test_dual_detection_handles_bicycle_without_plate(tmp_path, monkeypatch):
     """Test BR-20: Bicycles do not require license plates."""
+
     class FakeYOLO:
         names = {0: "car", 1: "motorcycle", 2: "plate", 3: "bicycle"}
 
@@ -132,6 +132,7 @@ def test_dual_detection_handles_bicycle_without_plate(tmp_path, monkeypatch):
 
 def test_dual_detection_with_dynamic_settings(tmp_path, monkeypatch):
     """Test dynamic override from Building Settings."""
+
     class FakeYOLO:
         names = {0: "car", 1: "motorcycle", 2: "plate", 3: "bicycle"}
 

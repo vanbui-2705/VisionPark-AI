@@ -7,7 +7,8 @@ from .schema import ALPRResult
 class ALPRRuntime(ABC):
     """
     Abstract Base Class định nghĩa giao diện (interface) cho runtime nhận diện ALPR.
-    Bất kỳ implementation nào (như OnnxALPRRuntime, UltralyticsPaddleALPRRuntime) cũng phải tuân theo các hàm này.
+    Bất kỳ implementation nào (như OnnxALPRRuntime, UltralyticsPaddleALPRRuntime)
+    cũng phải tuân theo các hàm này.
     """
 
     @abstractmethod
@@ -25,7 +26,9 @@ class ALPRRuntime(ABC):
         return getattr(self, "version", "unknown")
 
     @abstractmethod
-    def detect_and_read(self, image_bytes: bytes, settings: dict[str, Any] | None = None) -> ALPRResult:
+    def detect_and_read(
+        self, image_bytes: bytes, settings: dict[str, Any] | None = None
+    ) -> ALPRResult:
         """
         Xử lý ảnh đầu vào và trả về kết quả ALPR.
 

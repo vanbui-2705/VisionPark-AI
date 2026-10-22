@@ -244,11 +244,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
             confidence = self._scalar(boxes.conf[index])
 
             raw_coords = boxes.xyxy[index]
-            coords = (
-                raw_coords.tolist()
-                if hasattr(raw_coords, "tolist")
-                else list(raw_coords)
-            )
+            coords = raw_coords.tolist() if hasattr(raw_coords, "tolist") else list(raw_coords)
             if len(coords) != 4:
                 continue
 
@@ -355,10 +351,18 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 else {}
             )
             thresholds: dict[str, float] = {
-                "plate": float(settings.get("plate_confidence", manifest_thresh.get("plate", self.detector_confidence))),
+                "plate": float(
+                    settings.get(
+                        "plate_confidence", manifest_thresh.get("plate", self.detector_confidence)
+                    )
+                ),
                 "car": float(settings.get("car_confidence", manifest_thresh.get("car", 0.45))),
-                "motorcycle": float(settings.get("motorcycle_confidence", manifest_thresh.get("motorcycle", 0.40))),
-                "bicycle": float(settings.get("bicycle_confidence", manifest_thresh.get("bicycle", 0.35))),
+                "motorcycle": float(
+                    settings.get("motorcycle_confidence", manifest_thresh.get("motorcycle", 0.40))
+                ),
+                "bicycle": float(
+                    settings.get("bicycle_confidence", manifest_thresh.get("bicycle", 0.35))
+                ),
             }
             confirmation_thresh = float(
                 settings.get("confirmation_threshold", self.confirmation_threshold)
@@ -370,7 +374,9 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 try:
                     predictions = self._model.predict(
                         source=image,
-                        imgsz=int(self._manifest.get("detector", {}).get("imgsz", 640)) if self._manifest else 640,
+                        imgsz=int(self._manifest.get("detector", {}).get("imgsz", 640))
+                        if self._manifest
+                        else 640,
                         conf=min(thresholds.values()),
                         device=self.device,
                         verbose=False,
@@ -387,7 +393,9 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 if not plates and vehicles:
                     top_vbox, top_vconf, top_vtype = vehicles[0]
                     if top_vtype == VehicleType.BICYCLE.value:
-                        x1, y1, x2, y2 = clamp_bbox(top_vbox.as_tuple, image.shape[1], image.shape[0])
+                        x1, y1, x2, y2 = clamp_bbox(
+                            top_vbox.as_tuple, image.shape[1], image.shape[0]
+                        )
                         clamped_vbox = BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2)
                         return ALPRResult(
                             plate_number=None,
@@ -396,7 +404,9 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                             bbox=None,
                             confidence=top_vconf,
                             processing_time_ms=int((time.perf_counter() - started) * 1000),
-                            requires_confirmation=requires_confirmation(top_vconf, confirmation_thresh),
+                            requires_confirmation=requires_confirmation(
+                                top_vconf, confirmation_thresh
+                            ),
                             model_version=self.model_version,
                             detector_confidence=top_vconf,
                             combined_confidence=top_vconf,
@@ -413,7 +423,9 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                     top_vbox, top_vconf, top_vtype = (None, None, VehicleType.UNKNOWN.value)
                     if vehicles:
                         vbox_raw, top_vconf, top_vtype = vehicles[0]
-                        vx1, vy1, vx2, vy2 = clamp_bbox(vbox_raw.as_tuple, image.shape[1], image.shape[0])
+                        vx1, vy1, vx2, vy2 = clamp_bbox(
+                            vbox_raw.as_tuple, image.shape[1], image.shape[0]
+                        )
                         top_vbox = BoundingBox(x1=vx1, y1=vy1, x2=vx2, y2=vy2)
                     return ALPRResult(
                         plate_number=None,
@@ -459,7 +471,9 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 bbox = BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2)
                 clamped_vbox = None
                 if assoc_vbox is not None:
-                    vx1, vy1, vx2, vy2 = clamp_bbox(assoc_vbox.as_tuple, image.shape[1], image.shape[0])
+                    vx1, vy1, vx2, vy2 = clamp_bbox(
+                        assoc_vbox.as_tuple, image.shape[1], image.shape[0]
+                    )
                     if vx2 > vx1 and vy2 > vy1:
                         clamped_vbox = BoundingBox(x1=vx1, y1=vy1, x2=vx2, y2=vy2)
 
@@ -514,9 +528,7 @@ class UltralyticsPaddleALPRRuntime(ALPRRuntime):
                 bbox=bbox,
                 confidence=confidence,
                 processing_time_ms=int((time.perf_counter() - started) * 1000),
-                requires_confirmation=requires_confirmation(
-                    confidence, confirmation_thresh
-                ),
+                requires_confirmation=requires_confirmation(confidence, confirmation_thresh),
                 model_version=self.model_version,
                 detector_confidence=detector_confidence,
                 ocr_confidence=ocr_confidence,

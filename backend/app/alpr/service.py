@@ -85,7 +85,9 @@ class ALPRApplicationService:
                 "video_time_ms": video_time_ms,
                 "actor_id": actor_id,
                 "image_size_bytes": len(image_bytes),
-                "building_id": building_id or merged_settings.get("building_id") or getattr(raw_result, "building_id", None),
+                "building_id": building_id
+                or merged_settings.get("building_id")
+                or getattr(raw_result, "building_id", None),
             }
         )
 

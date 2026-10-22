@@ -454,7 +454,10 @@ async def detect_fire_smoke(
     building_id: str | None = Form(None),
     zone_code: str | None = Form(None),
     request: Request = None,
-    current_user: Annotated[User, Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN))] = None,
+    current_user: Annotated[
+        User,
+        Depends(require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)),
+    ] = None,
 ):
     """API phat hien Khoi va Lua tu camera an ninh giam sat bai xe (SPEC-AI-03)."""
     fire_runtime = getattr(request.app.state, "fire_runtime", None) if request else None

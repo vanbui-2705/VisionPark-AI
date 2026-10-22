@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from enum import StrEnum
 from uuid import UUID
-from enum import Enum
+
 from pydantic import BaseModel, Field
 
 
-class VehicleType(str, Enum):
+class VehicleType(StrEnum):
     CAR = "CAR"
     MOTORBIKE = "MOTORBIKE"
     BICYCLE = "BICYCLE"
@@ -89,6 +90,7 @@ class ALPRHTTPResponse(BaseModel):
 
 class FireSignalEvent(BaseModel):
     """Event schema representing a verified or candidate fire/smoke detection."""
+
     building_id: UUID | str | None = None
     camera_id: str
     zone_code: str | None = None
@@ -97,5 +99,5 @@ class FireSignalEvent(BaseModel):
     confirmed_frame_count: int = 1
     bbox: list[int]  # [x1, y1, x2, y2]
     evidence_image_path: str | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     status: str = "DETECTED"  # "DETECTED", "VERIFYING", "CONFIRMED"

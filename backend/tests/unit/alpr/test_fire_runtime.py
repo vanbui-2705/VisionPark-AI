@@ -6,7 +6,6 @@ import sys
 from types import SimpleNamespace
 
 import numpy as np
-import pytest
 
 from app.alpr.fire_provider import FireSmokeDetectorRuntime
 
@@ -52,6 +51,7 @@ class FakePrediction:
 
 def test_fire_runtime_temporal_debounce(tmp_path, monkeypatch):
     """Test Layer 2: requires at least 5 frames within window to trigger alarm."""
+
     class FakeYOLO:
         names = {0: "fire", 1: "smoke"}
 
@@ -91,6 +91,7 @@ def test_fire_runtime_temporal_debounce(tmp_path, monkeypatch):
 
 def test_fire_runtime_exclusion_mask(tmp_path, monkeypatch):
     """Test Layer 3: Static exclusion mask suppresses fixed lamp/reflection."""
+
     class FakeYOLO:
         names = {0: "fire", 1: "smoke"}
 
@@ -115,9 +116,7 @@ def test_fire_runtime_exclusion_mask(tmp_path, monkeypatch):
     cam_id = "cam-b1-ceiling"
 
     # Define exclusion mask matching the static light
-    settings = {
-        "exclusion_masks": [(40, 40, 90, 90)]
-    }
+    settings = {"exclusion_masks": [(40, 40, 90, 90)]}
 
     # Feed 10 frames: should be ignored because it is inside exclusion zone
     for i in range(10):
@@ -145,7 +144,14 @@ def test_smoke_persistence_filter(tmp_path, monkeypatch):
                     FakeBoxes(
                         classes=[[1]],
                         confidences=[[0.60]],
-                        coordinates=[[100 + area_offset, 100 + area_offset, 250 - area_offset, 250 - area_offset]],
+                        coordinates=[
+                            [
+                                100 + area_offset,
+                                100 + area_offset,
+                                250 - area_offset,
+                                250 - area_offset,
+                            ]
+                        ],
                     )
                 )
             ]

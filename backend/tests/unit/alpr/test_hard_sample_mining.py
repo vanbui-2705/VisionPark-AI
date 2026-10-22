@@ -1,15 +1,10 @@
 """Unit tests for SPEC-AI-06 Hard Sample Mining Loop and Confirmation."""
 
 from datetime import UTC, datetime
-from pathlib import Path
-from unittest.mock import MagicMock
 from uuid import uuid4
 
-import pytest
-
-from app.modules.alpr.confirmation import confirm_detection, save_hard_sample
+from app.modules.alpr.confirmation import save_hard_sample
 from app.modules.alpr.models import Detection
-from app.modules.alpr.schemas import DetectionConfirmRequest
 from app.modules.users.models import User
 
 

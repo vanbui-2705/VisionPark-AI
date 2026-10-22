@@ -27,7 +27,9 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class DetectionHistoryItem:
-    def __init__(self, timestamp: float, bbox: tuple[int, int, int, int], confidence: float, area: int):
+    def __init__(
+        self, timestamp: float, bbox: tuple[int, int, int, int], confidence: float, area: int
+    ):
         self.timestamp = timestamp
         self.bbox = bbox
         self.confidence = confidence
@@ -35,7 +37,7 @@ class DetectionHistoryItem:
 
 
 class FireSmokeDetectorRuntime:
-    """Runtime running ``fire.onnx`` to detect flame and smoke with 5-layer false alarm filtering."""
+    """Runtime running ``fire.onnx`` to detect flame and smoke with 5-layer filter."""
 
     def __init__(
         self,
@@ -63,17 +65,23 @@ class FireSmokeDetectorRuntime:
         self._inference_lock = threading.Lock()
 
         # Rolling history per (camera_id, event_type) -> deque of DetectionHistoryItem
-        self._history: dict[tuple[str, str], collections.deque[DetectionHistoryItem]] = collections.defaultdict(
-            lambda: collections.deque(maxlen=30)
+        self._history: dict[tuple[str, str], collections.deque[DetectionHistoryItem]] = (
+            collections.defaultdict(lambda: collections.deque(maxlen=30))
         )
 
         try:
             self._manifest = self._read_manifest()
             self.version = str(self._manifest.get("model_version", self.version))
             rules = self._manifest.get("rules", {})
-            self.temporal_debounce_frames = int(rules.get("temporal_debounce_frames", self.temporal_debounce_frames))
-            self.temporal_window_seconds = float(rules.get("temporal_window_seconds", self.temporal_window_seconds))
-            self.smoke_persistence_seconds = float(rules.get("smoke_persistence_seconds", self.smoke_persistence_seconds))
+            self.temporal_debounce_frames = int(
+                rules.get("temporal_debounce_frames", self.temporal_debounce_frames)
+            )
+            self.temporal_window_seconds = float(
+                rules.get("temporal_window_seconds", self.temporal_window_seconds)
+            )
+            self.smoke_persistence_seconds = float(
+                rules.get("smoke_persistence_seconds", self.smoke_persistence_seconds)
+            )
         except ALPRNotReadyError as exc:
             self._load_error = exc
         except Exception as exc:
@@ -174,7 +182,9 @@ class FireSmokeDetectorRuntime:
         return float(value)
 
     @staticmethod
-    def _is_in_exclusion_zone(bbox: tuple[int, int, int, int], exclusion_masks: list[tuple[int, int, int, int]]) -> bool:
+    def _is_in_exclusion_zone(
+        bbox: tuple[int, int, int, int], exclusion_masks: list[tuple[int, int, int, int]]
+    ) -> bool:
         """Layer 3: Check if bounding box significantly overlaps with static exclusion mask."""
         if not exclusion_masks:
             return False
@@ -222,7 +232,9 @@ class FireSmokeDetectorRuntime:
         smoke_threshold = float(settings.get("smoke_confidence", self.smoke_confidence))
         min_frames = int(settings.get("temporal_debounce_frames", self.temporal_debounce_frames))
         window_sec = float(settings.get("temporal_window_seconds", self.temporal_window_seconds))
-        smoke_persist_sec = float(settings.get("smoke_persistence_seconds", self.smoke_persistence_seconds))
+        smoke_persist_sec = float(
+            settings.get("smoke_persistence_seconds", self.smoke_persistence_seconds)
+        )
         exclusion_masks = settings.get("exclusion_masks", [])
 
         img_h, img_w = image.shape[:2]
@@ -304,7 +316,11 @@ class FireSmokeDetectorRuntime:
                 # Layer 5: Consensus & Verification status
                 confirmed_count = len(history)
                 latest = history[-1]
-                status = "CONFIRMED" if (confirmed_count >= 10 or latest.confidence >= 0.80) else "VERIFYING"
+                status = (
+                    "CONFIRMED"
+                    if (confirmed_count >= 10 or latest.confidence >= 0.80)
+                    else "VERIFYING"
+                )
 
                 events.append(
                     FireSignalEvent(
@@ -315,7 +331,7 @@ class FireSmokeDetectorRuntime:
                         confidence=round(latest.confidence, 4),
                         confirmed_frame_count=confirmed_count,
                         bbox=list(latest.bbox),
-                        timestamp=datetime.datetime.now(datetime.timezone.utc),
+                        timestamp=datetime.datetime.now(datetime.UTC),
                         status=status,
                     )
                 )
