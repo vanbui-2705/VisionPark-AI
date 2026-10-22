@@ -26,6 +26,7 @@ e2e = ["playwright>=1.50,<2"]
 onnx = ["onnxruntime>=1.20,<2"]
 real = [
     "ultralytics>=8.4,<9",
+    "onnxruntime>=1.20,<2",
 ]
 ocr = [
     "paddleocr==3.7.0",

@@ -48,6 +48,15 @@ class Detection(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     lane_name_snapshot = Column(String(120), nullable=True)
     direction_snapshot = Column(String(10), nullable=True)
 
+    # Phân loại phương tiện (SPEC-AI-01 / SPEC-AI-02)
+    vehicle_type = Column(String(20), nullable=True, default="UNKNOWN", index=True)
+    vehicle_confidence = Column(Float, nullable=True)
+    vehicle_bbox_x1 = Column(Integer, nullable=True)
+    vehicle_bbox_y1 = Column(Integer, nullable=True)
+    vehicle_bbox_x2 = Column(Integer, nullable=True)
+    vehicle_bbox_y2 = Column(Integer, nullable=True)
+    model_version_detector = Column(String(120), nullable=True)
+
     @property
     def lane_name(self):
         return self.lane_name_snapshot or (self.lane.name if self.lane else None)
@@ -66,4 +75,7 @@ class Detection(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     lane = relationship("Lane", backref="detections")
 
     def __repr__(self):
-        return f"<Detection(id={self.id}, lane={self.lane_id}, plate={self.raw_plate})>"
+        return (
+            f"<Detection(id={self.id}, lane={self.lane_id}, "
+            f"plate={self.raw_plate}, vehicle={self.vehicle_type})>"
+        )
