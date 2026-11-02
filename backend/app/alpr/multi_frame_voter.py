@@ -8,7 +8,6 @@ import time
 from collections import Counter, deque
 from typing import NamedTuple
 
-
 MIN_WINDOW_SIZE = 2
 MAX_WINDOW_SIZE = 30
 
