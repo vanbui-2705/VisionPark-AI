@@ -5,6 +5,7 @@ import pytest
 from app.alpr.errors import ALPRInvalidImageError
 from app.alpr.utils import (
     clamp_bbox,
+    correct_vietnamese_plate,
     crop_plate,
     crop_with_quality,
     decode_image,
@@ -83,7 +84,44 @@ def test_normalize_plate():
     assert normalize_plate(" 29A-123.45 ") == "29A12345"
     assert normalize_plate("29a12345") == "29A12345"
     assert normalize_plate("") == ""
-    assert normalize_plate("O1I0") == "O1I0"  # Đảm bảo chữ O, số 1, chữ I, số 0 không bị xóa
+    assert normalize_plate("O1I0") == "O1I0"  # Đảm bảo chuỗi ngắn không bị thay đổi
+    assert normalize_plate("29812345") == "29B12345"
+    assert normalize_plate("29A1234D") == "29A12340"
+    assert normalize_plate("2981234D") == "29B12340"
+    assert normalize_plate("2981234D", auto_correct=False) == "2981234D"
+
+
+def test_correct_vietnamese_plate_series_digit_to_letter():
+    assert correct_vietnamese_plate("29812345") == "29B12345"
+    assert correct_vietnamese_plate("30012345") == "30D12345"
+    assert correct_vietnamese_plate("51612345") == "51G12345"
+    assert correct_vietnamese_plate("43512345") == "43S12345"
+    assert correct_vietnamese_plate("14212345") == "14Z12345"
+    assert correct_vietnamese_plate("29412345") == "29A12345"
+
+
+def test_correct_vietnamese_plate_trailing_letters_to_digits():
+    assert correct_vietnamese_plate("29A1234D") == "29A12340"
+    assert correct_vietnamese_plate("30F1234B") == "30F12348"
+    assert correct_vietnamese_plate("51A1234O") == "51A12340"
+    assert correct_vietnamese_plate("29A1234S") == "29A12345"
+    assert correct_vietnamese_plate("29A1234G") == "29A12346"
+    assert correct_vietnamese_plate("29A1234A") == "29A12344"
+    assert correct_vietnamese_plate("29A1234Z") == "29A12342"
+    assert correct_vietnamese_plate("29A1234T") == "29A12347"
+
+
+def test_correct_vietnamese_plate_province_code():
+    assert correct_vietnamese_plate("B9A12345") == "89A12345"
+    assert correct_vietnamese_plate("O9A12345") == "09A12345"
+    assert correct_vietnamese_plate("S1A12345") == "51A12345"
+
+
+def test_correct_vietnamese_plate_special_lengths_and_series():
+    assert correct_vietnamese_plate("298123D") == "29B1230"
+    assert correct_vietnamese_plate("29LD123B") == "29LD1238"
+    assert correct_vietnamese_plate("29A11234S") == "29A112345"
+    assert correct_vietnamese_plate("O1I0") == "O1I0"
 
 
 def test_confidence_policy():
