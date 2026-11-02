@@ -38,9 +38,7 @@ class TestMultiFrameVoterInitialization:
             MultiFrameVoter(window_size)
 
     def test_repr_contains_window_and_buffer_size(self):
-        assert repr(MultiFrameVoter(5)) == (
-            "MultiFrameVoter(window_size=5, buffer_size=0)"
-        )
+        assert repr(MultiFrameVoter(5)) == ("MultiFrameVoter(window_size=5, buffer_size=0)")
 
 
 class TestPushAndBuffer:
@@ -159,9 +157,7 @@ class TestVoting:
         result = voter.vote()
 
         assert isinstance(result, VoteResult)
-        assert result._fields == (
-            "plate", "confidence", "frequency", "total_frames"
-        )
+        assert result._fields == ("plate", "confidence", "frequency", "total_frames")
 
 
 class TestSlidingWindow:
@@ -283,8 +279,7 @@ class TestThreadSafety:
                 voter.push(f"PLATE-{thread_id}-{index}", 0.8)
 
         threads = [
-            threading.Thread(target=worker, args=(thread_id,))
-            for thread_id in range(thread_count)
+            threading.Thread(target=worker, args=(thread_id,)) for thread_id in range(thread_count)
         ]
         for thread in threads:
             thread.start()

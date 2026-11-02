@@ -42,10 +42,7 @@ class MultiFrameVoter:
         if isinstance(window_size, bool) or not isinstance(window_size, int):
             raise TypeError("window_size must be an integer")
         if not MIN_WINDOW_SIZE <= window_size <= MAX_WINDOW_SIZE:
-            raise ValueError(
-                f"window_size must be between {MIN_WINDOW_SIZE} "
-                f"and {MAX_WINDOW_SIZE}"
-            )
+            raise ValueError(f"window_size must be between {MIN_WINDOW_SIZE} and {MAX_WINDOW_SIZE}")
 
         self.window_size = window_size
         self._buffer: deque[VotingEntry] = deque(maxlen=window_size)
@@ -105,9 +102,7 @@ class MultiFrameVoter:
             counts = Counter(entry.plate for entry in self._buffer)
             highest_frequency = max(counts.values())
             candidates = [
-                plate
-                for plate, frequency in counts.items()
-                if frequency == highest_frequency
+                plate for plate, frequency in counts.items() if frequency == highest_frequency
             ]
 
             # In a frequency tie, compare the highest confidence for each
@@ -115,15 +110,10 @@ class MultiFrameVoter:
             winning_plate = max(
                 candidates,
                 key=lambda candidate: max(
-                    entry.confidence
-                    for entry in self._buffer
-                    if entry.plate == candidate
+                    entry.confidence for entry in self._buffer if entry.plate == candidate
                 ),
             )
-            winning_entries = [
-                entry for entry in self._buffer
-                if entry.plate == winning_plate
-            ]
+            winning_entries = [entry for entry in self._buffer if entry.plate == winning_plate]
 
             return VoteResult(
                 plate=winning_plate,
