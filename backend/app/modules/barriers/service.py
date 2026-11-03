@@ -24,6 +24,7 @@ VALID_OPEN_REASONS = {
     BarrierTriggerReason.NORMAL,
     BarrierTriggerReason.OVERRIDE,
     BarrierTriggerReason.EMERGENCY,
+    BarrierTriggerReason.PAYMENT_RECEIVED,
 }
 
 

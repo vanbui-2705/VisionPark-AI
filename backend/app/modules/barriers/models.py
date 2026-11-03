@@ -20,6 +20,7 @@ class BarrierTriggerReason(enum.StrEnum):
     VEHICLE_PASSED = "VEHICLE_PASSED"
     TIMEOUT_AUTO_CLOSE = "TIMEOUT_AUTO_CLOSE"
     MANUAL_CLOSE = "MANUAL_CLOSE"
+    PAYMENT_RECEIVED = "PAYMENT_RECEIVED"
 
 
 class BarrierStatus(enum.StrEnum):
