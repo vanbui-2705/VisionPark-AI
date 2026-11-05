@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { apiClient } from '../../api/client.ts'
 import { PreferencesEditor } from './PreferencesEditor.tsx'
 import { PricingSettings } from './PricingSettings.tsx'
-import { MonthlyTickets } from './MonthlyTickets.tsx'
 
 export function SettingsPage() {
   const { user } = useAuth()
@@ -36,6 +35,5 @@ export function SettingsPage() {
       {notice && <p role="status" className="alert alert-info" style={{ marginTop: 12 }}>{notice}</p>}
     </section>}
     {(user?.role === 'BUILDING_ADMIN' || user?.role === 'SYSTEM_ADMIN' || (user?.role as string) === 'ADMIN') && <PricingSettings />}
-    {(user?.role === 'BUILDING_ADMIN' || user?.role === 'SYSTEM_ADMIN' || (user?.role as string) === 'ADMIN') && <MonthlyTickets />}
   </div>
 }

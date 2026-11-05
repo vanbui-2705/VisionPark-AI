@@ -39,8 +39,6 @@ a temporary object URL, and revokes it on cleanup. Local Station previews remain
 - Check-in thủ công cho xe đạp có thể gửi `ticket_code` thay cho `license_plate`; hệ thống tra đăng ký theo mã vé.
 - `POST /api/v1/pricing/preview`: tính phí từ quy tắc hiện hành; `GET /active` lấy snapshot đang áp dụng.
 - `/api/v1/tickets/vehicles`, `/quotas`, `/subscriptions`, `/guest-invites`, `/access`: quản lý vé và tra quyết định ALLOW/DENY/REVIEW. `POST /vehicles/import` nhận CSV tối đa 1 MB/1000 dòng.
-- `/api/v1/m5/cash-shifts`: tổng hợp lượt vào, lượt ra và tiền mặt đã thanh toán trong khoảng `start`/`end` có timezone; `/api/v1/lifecycle/sessions/export-csv` xuất danh sách lượt xe theo bộ lọc thời gian.
-- `/api/v1/settings/lot` GET/PUT: đọc và cập nhật sức chứa an toàn theo loại xe, với kiểm soát revision.
 - `POST/GET /api/v1/invoices`: tạo hóa đơn từ snapshot lúc check-in; phụ thu là dòng riêng.
 - `POST /api/v1/payments` cần `Idempotency-Key`; `GET /payments/{id}` để polling; `GET /payments/reconcile` cho BUILDING_ADMIN. Callback mock `POST /payments/callback` cần HMAC-SHA256 trên raw body trong header `X-Mock-Signature`, dùng `MOCK_VIETQR_CALLBACK_SECRET`.
 - Job đối soát chạy một lần: `python scripts/reconcile_m4_payments.py --building-id <UUID>` từ thư mục `backend`; mã thoát 1 khi có chênh lệch.
