@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.alpr.utils import normalize_plate
 from app.core.errors import AppError
 from app.database.idempotency import validate_idempotency_key
+from app.modules.alpr.models import Detection
 from app.modules.audit_logs.service import log_action
 from app.modules.barriers import (
     BarrierAction,
@@ -178,14 +179,21 @@ def calculate_parking_fee(
     )
     lines_dump = [line.model_dump() for line in fee_res.lines]
     duration_mins = max(0, int((t_out - t_in).total_seconds() // 60))
+    formula_parts = [
+        f"{line['code']}: {line['amount']:,.0f}đ"
+        + (f" (x{line['quantity']})" if line.get("quantity", 1) > 1 else "")
+        for line in lines_dump
+    ]
+    formula_str = " + ".join(formula_parts) if formula_parts else "Miễn phí (0đ)"
     breakdown = {
         "duration_minutes": duration_mins,
         "price_version_id": str(fee_res.price_version_id),
-        "total": fee_res.total,
+        "total": round(fee_res.total, 0),
         "currency": fee_res.currency,
         "lines": lines_dump,
+        "formula": formula_str,
     }
-    return float(fee_res.total), lines_dump, breakdown
+    return float(round(fee_res.total, 0)), lines_dump, breakdown
 
 
 class CheckOutService:
@@ -212,6 +220,36 @@ class CheckOutService:
         vtype_out = request.vehicle_type_out
         mismatch = bool(vtype_out and vtype_out.upper() != vtype_in.upper())
 
+        check_in_img = transaction.image_url
+        if not check_in_img and transaction.detection_id:
+            det = transaction.detection or self.session.get(Detection, transaction.detection_id)
+            if det and getattr(det, "image_key", None):
+                check_in_img = f"/api/v1/alpr/media/{det.image_key}"
+            else:
+                check_in_img = f"/api/v1/detections/{transaction.detection_id}/image"
+
+        if request.is_lost_ticket:
+            lost_fee_amount = next(
+                (
+                    float(line.get("amount", 0.0))
+                    for line in lines
+                    if line.get("code") == "LOST_TICKET"
+                ),
+                float(getattr(_build_price_snapshot_from_tx(transaction), "lost_ticket_fee", 0.0)),
+            )
+            log_action(
+                db=self.session,
+                user_id=operator.id,
+                action="LOST_TICKET_PREVIEW",
+                entity_type="ParkingTransaction",
+                entity_id=str(transaction.id),
+                new_value={
+                    "is_lost_ticket": True,
+                    "lost_ticket_fee": lost_fee_amount,
+                    "fee": fee,
+                },
+            )
+
         return CheckOutPreviewResponse(
             session_id=transaction.id,
             license_plate=transaction.license_plate,
@@ -220,10 +258,10 @@ class CheckOutService:
             vehicle_type_out=vtype_out,
             vehicle_type_mismatch=mismatch,
             check_in_time=transaction.check_in_time,
-            check_in_image_url=transaction.image_url,
+            check_in_image_url=check_in_img,
             exit_image_url=request.exit_image_url,
             duration_minutes=duration_minutes,
-            fee=fee,
+            fee=round(fee, 0),
             price_snapshot=getattr(transaction, "price_snapshot", None),
             fee_lines=lines,
             fee_breakdown=breakdown,
@@ -338,9 +376,12 @@ class CheckOutService:
         )
 
         try:
-            # Nếu miễn phí hoặc thanh toán trực tiếp tại cổng
-            if fee == 0.0 or request.payment_method:
-                if request.payment_method and fee > 0.0:
+            # Nếu miễn phí hoặc thanh toán trực tiếp tại cổng (CASH 1 chạm)
+            norm_method = (
+                str(request.payment_method).strip().upper() if request.payment_method else None
+            )
+            if fee == 0.0 or norm_method:
+                if norm_method and fee > 0.0:
                     record_lifecycle_event(
                         session=self.session,
                         session_id=transaction.id,
@@ -349,7 +390,19 @@ class CheckOutService:
                         actor_id=operator.id,
                         lane_id=request.exit_lane_id,
                         building_id=tx_building_id,
-                        details={"payment_method": request.payment_method, "amount": fee},
+                        details={"payment_method": norm_method, "amount": fee},
+                    )
+                    log_action(
+                        db=self.session,
+                        user_id=operator.id,
+                        action="PAYMENT_RECEIVED",
+                        entity_type="ParkingTransaction",
+                        entity_id=str(transaction.id),
+                        new_value={
+                            "payment_method": norm_method,
+                            "amount": fee,
+                            "source": "CHECK_OUT_DIRECT",
+                        },
                     )
                 return self._complete_session(
                     transaction,
@@ -477,11 +530,19 @@ class CheckOutService:
 
         exit_lane = self.session.get(Lane, request.exit_lane_id)
         barrier_id = getattr(exit_lane, "barrier_id", None) if exit_lane else None
-        trigger_reason = (
-            BarrierTriggerReason.OVERRIDE
-            if request.override_reason
-            else BarrierTriggerReason.NORMAL
+        norm_method = (
+            str(request.payment_method).strip().upper() if request.payment_method else None
         )
+        if request.override_reason:
+            trigger_reason = BarrierTriggerReason.OVERRIDE
+        elif (
+            norm_method == "CASH"
+            or transaction.status == TransactionStatus.PAID
+            or (norm_method and fee > 0)
+        ):
+            trigger_reason = BarrierTriggerReason.PAYMENT_RECEIVED
+        else:
+            trigger_reason = BarrierTriggerReason.NORMAL
         record_barrier_event(
             db=self.session,
             lane_id=request.exit_lane_id,
@@ -559,8 +620,33 @@ class CheckOutService:
                 "fee": fee,
                 "exit_lane_id": str(request.exit_lane_id),
                 "status": TransactionStatus.COMPLETED,
+                "is_lost_ticket": bool(request.is_lost_ticket),
             },
         )
+
+        if request.is_lost_ticket:
+            lost_fee_amount = next(
+                (
+                    float(line.get("amount", 0.0))
+                    for line in (fee_lines or [])
+                    if line.get("code") == "LOST_TICKET"
+                ),
+                float(getattr(_build_price_snapshot_from_tx(transaction), "lost_ticket_fee", 0.0)),
+            )
+            log_action(
+                db=self.session,
+                user_id=operator.id,
+                action="LOST_TICKET_PROCESSED",
+                entity_type="ParkingTransaction",
+                entity_id=str(transaction.id),
+                new_value={
+                    "is_lost_ticket": True,
+                    "lost_ticket_fee": lost_fee_amount,
+                    "total_fee": fee,
+                    "exit_lane_id": str(request.exit_lane_id),
+                    "operator_id": str(operator.id),
+                },
+            )
 
         self.session.flush()
         self.session.commit()
@@ -727,5 +813,6 @@ class CheckOutService:
             ticket_code=tx.ticket_code,
             exit_lane_id=tx.exit_lane_id,
             override_reason=override_reason,
+            payment_method=payment_method,
         )
         return self._complete_session(tx, dummy_request, operator, fee=float(tx.fee or 0.0))
