@@ -102,7 +102,7 @@ export function PricingSettings() {
         <h3>Hạn mức hạng khách</h3>
         <div className="form-grid">
           <label className="field"><span>Hạng khách</span><select value={classId} onChange={e => setClassId(e.target.value)}>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label className="field"><span>Loại xe</span><input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+          <label className="field"><span>Loại xe</span><select value={vehicleType} onChange={e => setVehicleType(e.target.value)}><option value="CAR">Ô tô</option><option value="MOTORBIKE">Xe máy</option><option value="BICYCLE">Xe đạp</option></select></label>
           <label className="field"><span>Số xe tối đa</span><input type="number" min="0" value={maxActive} onChange={e => setMaxActive(Number(e.target.value))} /></label>
         </div>
         <div><button className="btn btn-primary" disabled={busy || !classId}>Lưu hạn mức</button></div>
@@ -115,7 +115,7 @@ export function PricingSettings() {
           <label className="field"><span>Mã vé</span><input required maxLength={40} value={productCode} onChange={e => setProductCode(e.target.value)} /></label>
           <label className="field"><span>Tên vé</span><input required maxLength={120} value={productName} onChange={e => setProductName(e.target.value)} /></label>
           <label className="field"><span>Loại</span><select value={kind} onChange={e => setKind(e.target.value)}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
-          <label className="field"><span>Loại xe</span><input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+          <label className="field"><span>Loại xe</span><select value={vehicleType} onChange={e => setVehicleType(e.target.value)}><option value="CAR">Ô tô</option><option value="MOTORBIKE">Xe máy</option><option value="BICYCLE">Xe đạp</option></select></label>
         </div>
         <div><button className="btn btn-primary" disabled={busy}>Tạo loại vé</button></div>
       </form>
@@ -125,7 +125,7 @@ export function PricingSettings() {
       <p className="muted">Mỗi lần lưu tạo một phiên bản giá mới. Phiên bản đã có không bị sửa.</p>
       <form className="stack" onSubmit={e => { e.preventDefault(); saveVersion() }}>
         <div className="form-grid">
-          <label className="field"><span>Loại xe</span><input required value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+          <label className="field"><span>Loại xe</span><select value={vehicleType} onChange={e => setVehicleType(e.target.value)}><option value="CAR">Ô tô</option><option value="MOTORBIKE">Xe máy</option><option value="BICYCLE">Xe đạp</option></select></label>
           <label className="field"><span>Loại vé</span><select value={kind} onChange={e => setKind(e.target.value)}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
           <label className="field"><span>Hạng khách</span><select required value={classId} onChange={e => setClassId(e.target.value)}>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="field"><span>Miễn phí (phút)</span><input type="number" min="0" value={freeMinutes} onChange={e => setFreeMinutes(Number(e.target.value))} /></label>
