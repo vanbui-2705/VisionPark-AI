@@ -118,7 +118,8 @@ def test_paid_session_preview_keeps_amount_already_collected(client, db_session,
     assert preview.json()["status"] == "PAID"
     assert preview.json()["fee_breakdown"] is None
     result = client.post(
-        "/api/v1/parking/check-out", json={**payload, "expected_fee": 5000},
+        "/api/v1/parking/check-out",
+        json={**payload, "expected_fee": 5000},
         headers={**operator_headers, "Idempotency-Key": f"station-exit-{transaction.id}"},
     )
     assert result.status_code == 200, result.text
