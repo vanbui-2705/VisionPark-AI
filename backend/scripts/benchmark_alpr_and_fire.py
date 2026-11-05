@@ -6,8 +6,6 @@ Outputs criteria metrics matching Tiêu chí nghiệm thu 4 & 5 in VisionPark v2
 from __future__ import annotations
 
 import argparse
-import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -20,9 +18,9 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from app.alpr.fire_provider import FireSmokeDetectorRuntime
-from app.alpr.pt_provider import UltralyticsPaddleALPRRuntime
-from app.alpr.schema import VehicleType
+from app.alpr.fire_provider import FireSmokeDetectorRuntime  # noqa: E402
+from app.alpr.pt_provider import UltralyticsPaddleALPRRuntime  # noqa: E402
+from app.alpr.schema import VehicleType  # noqa: E402
 
 
 def run_alpr_benchmark(manifest_path: str, dataset_dir: Path | None) -> dict:
@@ -62,10 +60,15 @@ def run_alpr_benchmark(manifest_path: str, dataset_dir: Path | None) -> dict:
     detector_latencies = []
     ocr_latencies = []
     total_latencies = []
-    class_counts = {VehicleType.CAR.value: 0, VehicleType.MOTORBIKE.value: 0, VehicleType.BICYCLE.value: 0, VehicleType.UNKNOWN.value: 0}
+    class_counts = {
+        VehicleType.CAR.value: 0,
+        VehicleType.MOTORBIKE.value: 0,
+        VehicleType.BICYCLE.value: 0,
+        VehicleType.UNKNOWN.value: 0,
+    }
 
     print(f"-> Đang đánh giá {total_images} ảnh...")
-    for idx, img_path in enumerate(test_images):
+    for img_path in test_images:
         img_bytes = img_path.read_bytes()
         res = runtime.detect_and_read(img_bytes)
 
@@ -98,7 +101,9 @@ def run_alpr_benchmark(manifest_path: str, dataset_dir: Path | None) -> dict:
         "vehicle_recall": round(detected_vehicles / total_images, 4) if total_images else 0.0,
         "plate_recall": round(detected_plates / total_images, 4) if total_images else 0.0,
         "ocr_success_rate": round(read_plates / max(1, detected_plates), 4),
-        "requires_confirmation_rate": round(confirmation_count / total_images, 4) if total_images else 0.0,
+        "requires_confirmation_rate": round(confirmation_count / total_images, 4)
+        if total_images
+        else 0.0,
         "avg_detector_latency_ms": round(avg_det_lat, 2),
         "avg_ocr_latency_ms": round(avg_ocr_lat, 2),
         "avg_total_latency_ms": round(avg_tot_lat, 2),
@@ -117,7 +122,9 @@ def run_fire_benchmark(manifest_path: str) -> dict:
 
     # Simulate 30 background frames (clean underground parking)
     bg_frame = np.full((480, 640, 3), 40, dtype=np.uint8)
-    cv2.putText(bg_frame, "PARKING BASEMENT", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (200, 200, 200), 2)
+    cv2.putText(
+        bg_frame, "PARKING BASEMENT", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (200, 200, 200), 2
+    )
     # Add a fixed yellow lamp (Layer 3 exclusion check)
     cv2.circle(bg_frame, (320, 80), 25, (0, 240, 255), -1)
 
@@ -151,55 +158,141 @@ def run_fire_benchmark(manifest_path: str) -> dict:
 
 
 def generate_markdown_report(alpr_res: dict, fire_res: dict, out_file: Path) -> str:
-    report = f"""# Báo Cáo Nghiệm Thu & Benchmark Module AI (M2: VisionPark)
-*Ngày tạo:* {time.strftime('%Y-%m-%d %H:%M:%S')}  
-*Kiến trúc:* Dual ALPR (`plate.onnx` + PaddleOCR) & Fire Runtime (`fire.onnx`)
+    def table_row(
+        label: str,
+        value: str,
+        target: str,
+        status: str = "ĐẠT",
+    ) -> str:
+        """Tạo một dòng trong bảng Markdown."""
+        return f"| {label} | {value} | {target} | {status} |"
 
----
+    vehicle_breakdown = alpr_res.get("vehicle_breakdown", {})
 
-## 1. Nghiệm Thu Nhận Diện Phương Tiện & Biển Số (Tiêu Chí 4)
+    temporal_value = (
+        f"**{fire_res.get('temporal_debounce_frames', 5)} frames / "
+        f"{fire_res.get('temporal_window_seconds', 3.0)}s**"
+    )
 
-| Chỉ số nghiệm thu | Giá trị đo được | Mục tiêu tiêu chuẩn v2.0 | Đánh giá |
-| :--- | :--- | :--- | :--- |
-| **Model Version** | `{alpr_res.get('model_version', 'N/A')}` | `ultralytics-onnx-plate-vehicle-v1` | ĐẠT |
-| **Số lượng ảnh thử nghiệm** | **{alpr_res.get('total_images', 0)}** ảnh | $\ge 20$ ảnh thật | ĐẠT |
-| **Recall Phương tiện (`car`, `motorcycle`, `bicycle`)** | **{alpr_res.get('vehicle_recall', 0) * 100:.1f}%** | $\ge 90.0\%$ | ĐẠT |
-| **Tỷ lệ nhận dạng Biển số (Plate Recall)** | **{alpr_res.get('plate_recall', 0) * 100:.1f}%** | $\ge 85.0\%$ | ĐẠT |
-| **Tỷ lệ phải sửa tay (`requires_confirmation`)** | **{alpr_res.get('requires_confirmation_rate', 0) * 100:.1f}%** | $< 10.0\%$ | ĐẠT |
-| **Độ trễ Detector ONNX trung bình** | **{alpr_res.get('avg_detector_latency_ms', 0)} ms** | $< 150$ ms | ĐẠT |
-| **Độ trễ OCR trung bình** | **{alpr_res.get('avg_ocr_latency_ms', 0)} ms** | $< 250$ ms | ĐẠT |
-| **Tổng độ trễ P95 (End-to-End)** | **{alpr_res.get('p95_latency_ms', 0)} ms** | $< 500$ ms | ĐẠT |
+    report_lines = [
+        "# Báo Cáo Nghiệm Thu & Benchmark Module AI (M2: VisionPark)",
+        (f"*Ngày tạo:* {time.strftime('%Y-%m-%d %H:%M:%S')}  "),
+        ("*Kiến trúc:* Dual ALPR (`plate.onnx` + PaddleOCR) & Fire Runtime (`fire.onnx`)"),
+        "",
+        "---",
+        "",
+        "## 1. Nghiệm Thu Nhận Diện Phương Tiện & Biển Số (Tiêu Chí 4)",
+        "",
+        "| Chỉ số nghiệm thu | Giá trị đo được | Mục tiêu tiêu chuẩn v2.0 | Đánh giá |",
+        "| :--- | :--- | :--- | :--- |",
+        table_row(
+            "**Model Version**",
+            f"`{alpr_res.get('model_version', 'N/A')}`",
+            "`ultralytics-onnx-plate-vehicle-v1`",
+        ),
+        table_row(
+            "**Số lượng ảnh thử nghiệm**",
+            f"**{alpr_res.get('total_images', 0)}** ảnh",
+            r"$\ge 20$ ảnh thật",
+        ),
+        table_row(
+            "**Recall Phương tiện (`car`, `motorcycle`, `bicycle`)**",
+            f"**{alpr_res.get('vehicle_recall', 0) * 100:.1f}%**",
+            r"$\ge 90.0\%$",
+        ),
+        table_row(
+            "**Tỷ lệ nhận dạng Biển số (Plate Recall)**",
+            f"**{alpr_res.get('plate_recall', 0) * 100:.1f}%**",
+            r"$\ge 85.0\%$",
+        ),
+        table_row(
+            "**Tỷ lệ phải sửa tay (`requires_confirmation`)**",
+            f"**{alpr_res.get('requires_confirmation_rate', 0) * 100:.1f}%**",
+            r"$< 10.0\%$",
+        ),
+        table_row(
+            "**Độ trễ Detector ONNX trung bình**",
+            f"**{alpr_res.get('avg_detector_latency_ms', 0)} ms**",
+            "$< 150$ ms",
+        ),
+        table_row(
+            "**Độ trễ OCR trung bình**",
+            f"**{alpr_res.get('avg_ocr_latency_ms', 0)} ms**",
+            "$< 250$ ms",
+        ),
+        table_row(
+            "**Tổng độ trễ P95 (End-to-End)**",
+            f"**{alpr_res.get('p95_latency_ms', 0)} ms**",
+            "$< 500$ ms",
+        ),
+        "",
+        "### Phân Bổ Phương Tiện Nhận Diện Được:",
+        f"- **Ô tô (CAR):** {vehicle_breakdown.get('CAR', 0)}",
+        f"- **Xe máy (MOTORBIKE):** {vehicle_breakdown.get('MOTORBIKE', 0)}",
+        f"- **Xe đạp (BICYCLE):** {vehicle_breakdown.get('BICYCLE', 0)}",
+        f"- **Chưa rõ (UNKNOWN):** {vehicle_breakdown.get('UNKNOWN', 0)}",
+        "",
+        "---",
+        "",
+        "## 2. Nghiệm Thu Phát Hiện Hỏa Hoạn & Khói Lửa (Tiêu Chí 5)",
+        "",
+        "| Chỉ số nghiệm thu | Giá trị đo được | Mục tiêu tiêu chuẩn v2.0 | Đánh giá |",
+        "| :--- | :--- | :--- | :--- |",
+        table_row(
+            "**Model Version**",
+            f"`{fire_res.get('model_version', 'N/A')}`",
+            "`ultralytics-onnx-fire-smoke-v1`",
+        ),
+        table_row(
+            "**Số frame nền kiểm thử chống báo giả**",
+            f"**{fire_res.get('tested_frames', 0)}** frames",
+            r"$\ge 30$ frames",
+        ),
+        table_row(
+            "**Báo động giả trên video nền (False Alarms)**",
+            f"**{fire_res.get('false_alarm_count', 0)}** lần",
+            "0 lần",
+        ),
+        table_row(
+            "**Độ trễ suy luận trung bình mỗi frame**",
+            f"**{fire_res.get('avg_inference_latency_ms', 0)} ms**",
+            "$< 100$ ms",
+        ),
+        table_row(
+            "**Cửa sổ xác nhận Temporal Debounce**",
+            temporal_value,
+            r"$\ge 5$ frames trong $3$s",
+        ),
+        table_row(
+            "**Bộ lọc 5 lớp (Multi-layer False Alarm)**",
+            (
+                "**Kích hoạt đầy đủ** "
+                "(Confidence, Debounce, Exclusion Mask, "
+                "Smoke Persistence, Consensus)"
+            ),
+            "Bắt buộc",
+        ),
+        "",
+        "---",
+        "",
+        "## 3. Kết Luận Bàn Giao (Checklist Bàn Giao Role M2)",
+        (
+            "- [x] Đã cấu hình và kiểm chứng `plate.onnx` "
+            "(4 classes: `car`, `motorcycle`, `plate`, `bicycle`)."
+        ),
+        ("- [x] Đã cài đặt giải thuật ghép cặp Xe - Biển số (Vehicle-Plate Association)."),
+        ("- [x] Đã xử lý ngoại lệ xe đạp theo quy tắc BR-20 (không bắt buộc biển số)."),
+        "- [x] Đã xử lý biển số vuông 2 dòng của xe máy Việt Nam.",
+        ("- [x] Đã cấu hình và kiểm chứng `fire.onnx` với bộ lọc 5 lớp chống báo giả."),
+        (
+            "- [x] Đã cập nhật bảng cơ sở dữ liệu `detections` "
+            "(thêm `vehicle_type`, bbox, `building_id`)."
+        ),
+        ("- [x] Toàn bộ test tự động (Unit test & Integration migration) đạt 100%."),
+    ]
 
-### Phân Bổ Phương Tiện Nhận Diện Được:
-- **Ô tô (CAR):** {alpr_res.get('vehicle_breakdown', {}).get('CAR', 0)}
-- **Xe máy (MOTORBIKE):** {alpr_res.get('vehicle_breakdown', {}).get('MOTORBIKE', 0)}
-- **Xe đạp (BICYCLE):** {alpr_res.get('vehicle_breakdown', {}).get('BICYCLE', 0)}
-- **Chưa rõ (UNKNOWN):** {alpr_res.get('vehicle_breakdown', {}).get('UNKNOWN', 0)}
+    report = "\n".join(report_lines) + "\n"
 
----
-
-## 2. Nghiệm Thu Phát Hiện Hỏa Hoạn & Khói Lửa (Tiêu Chí 5)
-
-| Chỉ số nghiệm thu | Giá trị đo được | Mục tiêu tiêu chuẩn v2.0 | Đánh giá |
-| :--- | :--- | :--- | :--- |
-| **Model Version** | `{fire_res.get('model_version', 'N/A')}` | `ultralytics-onnx-fire-smoke-v1` | ĐẠT |
-| **Số frame nền kiểm thử chống báo giả** | **{fire_res.get('tested_frames', 0)}** frames | $\ge 30$ frames | ĐẠT |
-| **Báo động giả trên video nền (False Alarms)** | **{fire_res.get('false_alarm_count', 0)}** lần | 0 lần | ĐẠT |
-| **Độ trễ suy luận trung bình mỗi frame** | **{fire_res.get('avg_inference_latency_ms', 0)} ms** | $< 100$ ms | ĐẠT |
-| **Cửa sổ xác nhận Temporal Debounce** | **{fire_res.get('temporal_debounce_frames', 5)} frames / {fire_res.get('temporal_window_seconds', 3.0)}s** | $\ge 5$ frames trong $3$s | ĐẠT |
-| **Bộ lọc 5 lớp (Multi-layer False Alarm)** | **Kích hoạt đầy đủ** (Confidence, Debounce, Exclusion Mask, Smoke Persistence, Consensus) | Bắt buộc | ĐẠT |
-
----
-
-## 3. Kết Luận Bàn Giao (Checklist Bàn Giao Role M2)
-- [x] Đã cấu hình và kiểm chứng `plate.onnx` (4 classes: `car`, `motorcycle`, `plate`, `bicycle`).
-- [x] Đã cài đặt giải thuật ghép cặp Xe - Biển số (Vehicle-Plate Association).
-- [x] Đã xử lý ngoại lệ xe đạp theo quy tắc BR-20 (không bắt buộc biển số).
-- [x] Đã xử lý biển số vuông 2 dòng của xe máy Việt Nam.
-- [x] Đã cấu hình và kiểm chứng `fire.onnx` với bộ lọc 5 lớp chống báo giả.
-- [x] Đã cập nhật bảng cơ sở dữ liệu `detections` (thêm `vehicle_type`, bbox, `building_id`).
-- [x] Toàn bộ test tự động (Unit test & Integration migration) đạt 100%.
-"""
     out_file.write_text(report, encoding="utf-8")
     return report
 
@@ -212,7 +305,9 @@ def main():
     parser.add_argument("--report-out", default="BENCHMARK_REPORT.md")
     args = parser.parse_args()
 
-    alpr_res = run_alpr_benchmark(args.alpr_manifest, Path(args.dataset_dir) if args.dataset_dir else None)
+    alpr_res = run_alpr_benchmark(
+        args.alpr_manifest, Path(args.dataset_dir) if args.dataset_dir else None
+    )
     fire_res = run_fire_benchmark(args.fire_manifest)
 
     report_path = BACKEND_DIR / args.report_out

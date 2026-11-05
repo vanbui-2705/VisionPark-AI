@@ -276,7 +276,7 @@ def test_checkin_subscription_valid_allows_entry(
     db_session.add(prod)
     db_session.flush()
 
-    plate = f"30M{uuid4().hex[:5].upper()}"
+    plate = f"30M{uuid4().int % 100000:05d}"
     veh = Vehicle(
         building_id=b_id,
         normalized_plate=normalize_plate(plate),
@@ -337,7 +337,7 @@ def test_checkin_subscription_expired_allowed_as_visitor(
     db_session.add(prod)
     db_session.flush()
 
-    plate = f"30E{uuid4().hex[:5].upper()}"
+    plate = f"30E{uuid4().int % 100000:05d}"
     veh = Vehicle(
         building_id=b_id,
         normalized_plate=normalize_plate(plate),
@@ -398,7 +398,7 @@ def test_checkin_subscription_vehicle_type_mismatch_denied(
     db_session.add(prod)
     db_session.flush()
 
-    plate = f"30M{uuid4().hex[:5].upper()}"
+    plate = f"30M{uuid4().int % 100000:05d}"
     veh = Vehicle(
         building_id=b_id,
         normalized_plate=normalize_plate(plate),

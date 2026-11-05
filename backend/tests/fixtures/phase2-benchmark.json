@@ -1,6 +1,6 @@
 {
-  "version": "phase-2-smoke-1",
-  "description": "Deterministic non-sensitive smoke set; real assets stay outside Git.",
+  "version": "phase-4-m3-release-gate-1",
+  "description": "Standard 15-case ALPR benchmark suite for M3 Phase 4 Release Gate.",
   "splits": {
     "smoke": [
       {"id": "mock-success-01", "vehicle_id": "vehicle-01", "scenario": "success", "expected_plate": "29A12345"},
@@ -10,11 +10,23 @@
       {"id": "mock-processing-error-01", "vehicle_id": "vehicle-04", "scenario": "processing-error", "expected_plate": null}
     ],
     "validation": [
-      {"id": "validation-success-01", "vehicle_id": "validation-01", "scenario": "success", "expected_plate": "29A12345"},
-      {"id": "validation-no-plate-01", "vehicle_id": "validation-02", "scenario": "no-plate", "expected_plate": null}
+      {"id": "val-car-01", "vehicle_id": "car-01", "scenario": "success", "expected_plate": "29A12345"},
+      {"id": "val-car-02", "vehicle_id": "car-02", "scenario": "success", "expected_plate": "30F67890"},
+      {"id": "val-car-03", "vehicle_id": "car-03", "scenario": "success", "expected_plate": "51G11223"},
+      {"id": "val-car-04", "vehicle_id": "car-04", "scenario": "success", "expected_plate": "43A55555"},
+      {"id": "val-square-05", "vehicle_id": "moto-01", "scenario": "square-plate", "expected_plate": "29B19999", "raw_ocr": "29B1\n9999"},
+      {"id": "val-square-06", "vehicle_id": "moto-02", "scenario": "square-plate", "expected_plate": "59C18888", "raw_ocr": "59C1\n8888"},
+      {"id": "val-heuristics-07", "vehicle_id": "car-05", "scenario": "heuristic-series", "expected_plate": "29B12345", "raw_ocr": "29812345"},
+      {"id": "val-heuristics-08", "vehicle_id": "car-06", "scenario": "heuristic-trailing", "expected_plate": "30D12340", "raw_ocr": "30D1234D"},
+      {"id": "val-heuristics-09", "vehicle_id": "car-07", "scenario": "heuristic-trailing", "expected_plate": "51A12348", "raw_ocr": "51A1234B"},
+      {"id": "val-no-plate-10", "vehicle_id": "no-plate-01", "scenario": "no-plate", "expected_plate": null}
     ],
     "demo": [
-      {"id": "demo-success-01", "vehicle_id": "demo-01", "scenario": "success", "expected_plate": "29A12345"}
+      {"id": "demo-car-01", "vehicle_id": "demo-01", "scenario": "success", "expected_plate": "29A12345"},
+      {"id": "demo-car-02", "vehicle_id": "demo-02", "scenario": "success", "expected_plate": "30E54321"},
+      {"id": "demo-moto-03", "vehicle_id": "demo-03", "scenario": "square-plate", "expected_plate": "29P112345", "raw_ocr": "29P1\n12345"},
+      {"id": "demo-ld-04", "vehicle_id": "demo-04", "scenario": "special-series", "expected_plate": "29LD1234"},
+      {"id": "demo-moto-05", "vehicle_id": "demo-05", "scenario": "success", "expected_plate": "59A16789"}
     ],
     "edge_cases": [
       {"id": "edge-low-confidence-01", "vehicle_id": "edge-01", "scenario": "low-confidence", "expected_plate": "29A12345"},
