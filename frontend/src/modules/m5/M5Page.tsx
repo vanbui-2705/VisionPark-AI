@@ -140,7 +140,13 @@ export function M5Page() {
 
     <section className="card card-polished">
       <div className="card-head"><div><span className="card-kicker">OCCUPANCY</span><h2>Tổng quan bãi xe</h2></div></div>
-      {summary ? <><p>Làn hoạt động: {summary.lanes_active}/{summary.lanes_total} · Đang đỗ: {totalOccupied} · Sức chứa an toàn: {totalCapacity || 'Chưa cấu hình'} · Còn trống: {available ?? 'Chưa xác định'} · Tỷ lệ sử dụng: {occupancy === null ? 'Chưa xác định' : `${occupancy.toFixed(1)}%`}</p><div className="table-wrap"><table><thead><tr><th>Loại xe</th><th>Đang đỗ</th><th>Sức chứa an toàn</th><th>Còn chỗ</th><th>Trạng thái</th></tr></thead><tbody>{availability.map(item => { const cap = capacities?.[item.vehicle_type]; const remaining = cap && cap.safe_capacity > 0 ? Math.max(0, cap.safe_capacity - item.occupied) : null; const ratio = cap && cap.safe_capacity > 0 ? item.occupied / cap.safe_capacity * 100 : null; const status = ratio === null ? 'Chưa cấu hình' : ratio >= cap.full_threshold ? 'Đã đầy' : ratio >= cap.nearly_full_threshold ? 'Gần đầy' : 'Còn chỗ'; return <tr key={item.vehicle_type}><td>{item.vehicle_type}</td><td>{item.occupied}</td><td>{cap?.safe_capacity || 'Chưa cấu hình'}</td><td>{remaining ?? '—'}</td><td>{status}</td></tr> })}</tbody></table></div></> : <p>Chưa có dữ liệu.</p>}
+      {summary ? <><p>Làn hoạt động: {summary.lanes_active}/{summary.lanes_total} · Đang đỗ: {totalOccupied} · Sức chứa an toàn: {totalCapacity || 'Chưa cấu hình'} · Còn trống: {available ?? 'Chưa xác định'} · Tỷ lệ sử dụng: {occupancy === null ? 'Chưa xác định' : `${occupancy.toFixed(1)}%`}</p><div className="table-wrap"><table><thead><tr><th>Loại xe</th><th>Đang đỗ</th><th>Sức chứa an toàn</th><th>Còn chỗ</th><th>Trạng thái</th></tr></thead><tbody>{availability.map(item => { const cap = capacities?.[item.vehicle_type]; const remaining = cap && cap.safe_capacity > 0 ? Math.max(0, cap.safe_capacity - item.occupied) : null; const ratio = cap && cap.safe_capacity > 0 ? item.occupied / cap.safe_capacity * 100 : null; const status = !cap || ratio === null
+  ? 'Chưa cấu hình'
+  : ratio >= cap.full_threshold
+    ? 'Đã đầy'
+    : ratio >= cap.nearly_full_threshold
+      ? 'Gần đầy'
+      : 'Còn chỗ'; return <tr key={item.vehicle_type}><td>{item.vehicle_type}</td><td>{item.occupied}</td><td>{cap?.safe_capacity || 'Chưa cấu hình'}</td><td>{remaining ?? '—'}</td><td>{status}</td></tr> })}</tbody></table></div></> : <p>Chưa có dữ liệu.</p>}
     </section>
 
     {canConfigureCapacity && capacities && <section className="card card-polished stack">
