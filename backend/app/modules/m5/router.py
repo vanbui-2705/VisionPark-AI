@@ -296,29 +296,42 @@ def cash_shift_report(
             code="INVALID_RANGE",
             message="Timezone-aware start and end are required, with start before end.",
         )
-    entries = db.scalar(
-        select(func.count()).select_from(ParkingTransaction).where(
-            ParkingTransaction.building_id == building_id,
-            ParkingTransaction.check_in_time >= start,
-            ParkingTransaction.check_in_time < end,
+    entries = (
+        db.scalar(
+            select(func.count())
+            .select_from(ParkingTransaction)
+            .where(
+                ParkingTransaction.building_id == building_id,
+                ParkingTransaction.check_in_time >= start,
+                ParkingTransaction.check_in_time < end,
+            )
         )
-    ) or 0
-    exits = db.scalar(
-        select(func.count()).select_from(Invoice).where(
-            Invoice.building_id == building_id,
-            Invoice.check_out_time >= start,
-            Invoice.check_out_time < end,
+        or 0
+    )
+    exits = (
+        db.scalar(
+            select(func.count())
+            .select_from(Invoice)
+            .where(
+                Invoice.building_id == building_id,
+                Invoice.check_out_time >= start,
+                Invoice.check_out_time < end,
+            )
         )
-    ) or 0
-    cash = db.scalar(
-        select(func.coalesce(func.sum(Payment.amount_vnd), 0)).where(
-            Payment.building_id == building_id,
-            Payment.method == "CASH",
-            Payment.status == "PAID",
-            Payment.confirmed_at >= start,
-            Payment.confirmed_at < end,
+        or 0
+    )
+    cash = (
+        db.scalar(
+            select(func.coalesce(func.sum(Payment.amount_vnd), 0)).where(
+                Payment.building_id == building_id,
+                Payment.method == "CASH",
+                Payment.status == "PAID",
+                Payment.confirmed_at >= start,
+                Payment.confirmed_at < end,
+            )
         )
-    ) or 0
+        or 0
+    )
     return {
         "building_id": building_id,
         "start": start,
