@@ -1,7 +1,8 @@
 import { apiClient } from '../../api/client.ts'
 import { lanesApi } from '../../api/lanesApi.ts'
 import { parkingTransactionsApi } from '../../api/services.ts'
-import type { CheckInResponse } from '../../api/domain.ts'
+import type { CheckInResponse, ParkingTransaction } from '../../api/domain.ts'
+import type { DetectionResponse } from '../../api/services.ts'
 import type { ConfirmationPayload, DetectionResult, Lane, RecentHistoryItem } from './types.ts'
 
 export type InputContext = { inputKind: "IMAGE_UPLOAD" | "VIDEO_FRAME"; videoTimeMs?: number }
@@ -24,7 +25,47 @@ function upload(image: Blob, laneId: string, mode: 'preview' | 'final', captureI
 }
 
 export async function getActiveLanes(): Promise<Lane[]> {
-  return (await lanesApi.getActiveLanes()).filter(lane => lane.direction === 'IN')
+  return lanesApi.getActiveLanes()
+}
+
+export type ExitSession = {
+  session_id: string; license_plate: string | null; ticket_code: string | null
+  check_in_time: string; exit_time: string; duration_minutes: number; fee: number
+  check_in_image_url: string | null; exit_image_url: string | null
+  status: string; vehicle_type_mismatch: boolean; message: string; laneId: string
+}
+export type CheckOutResult = {
+  transaction: ParkingTransaction & { exit_lane_id: string; exit_time: string }
+  fee: number; status: string; barrier_opened: boolean; message: string
+}
+
+export async function confirmExitDetection(candidateId: string, laneId: string, plate: string): Promise<string> {
+  const candidate = candidates.get(candidateId)
+  if (!candidate || candidate.laneId !== laneId) {
+    throw { status: 409, code: 'STALE_CANDIDATE', message: 'Khung hình đã đổi. Vui lòng chụp lại.' }
+  }
+  candidate.final ??= await upload(candidate.image, laneId, 'final', candidateId, candidate.context)
+  if (!candidate.final.detection_id) throw new Error('Final detection was not persisted.')
+  const confirmed = await apiClient.post<DetectionResponse>(`/api/v1/alpr/detections/${candidate.final.detection_id}/confirm`, {
+    confirmed_plate: plate, check_in: false,
+  })
+  return `/api/v1/alpr/media/${encodeURIComponent(confirmed.image_key)}`
+}
+
+export async function prepareExit(laneId: string, plate: string, exitImageUrl?: string, sessionId?: string): Promise<ExitSession> {
+  const response = await apiClient.post<Omit<ExitSession, 'laneId'>>('/api/v1/parking/check-out/preview', {
+    exit_lane_id: laneId, ...(sessionId ? { session_id: sessionId } : { license_plate: plate }),
+    ...(exitImageUrl ? { exit_image_url: exitImageUrl } : {}),
+  })
+  return { ...response, laneId }
+}
+
+export function completeExit(session: ExitSession, cash = false): Promise<CheckOutResult> {
+  return apiClient.post<CheckOutResult>('/api/v1/parking/check-out', {
+    session_id: session.session_id, exit_lane_id: session.laneId, expected_fee: session.fee,
+    ...(session.exit_image_url ? { exit_image_url: session.exit_image_url } : {}),
+    ...(cash ? { payment_method: 'CASH' } : {}),
+  }, { headers: { 'Idempotency-Key': `station-exit-${session.session_id}` }, timeoutMs: 15000 })
 }
 
 export async function createDetection(image: Blob, laneId: string, context: InputContext = { inputKind: "VIDEO_FRAME" }): Promise<DetectionResult> {

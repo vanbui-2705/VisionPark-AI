@@ -212,9 +212,12 @@ class CheckOutService:
         exit_time = datetime.now(UTC)
         t_in = _normalize_tz(transaction.check_in_time)
         t_out = _normalize_tz(exit_time)
-        fee, lines, breakdown = calculate_parking_fee(
-            transaction, t_out, request.is_lost_ticket, session=self.session
-        )
+        if transaction.status == TransactionStatus.PAID:
+            fee, lines, breakdown = float(transaction.fee or 0.0), [], None
+        else:
+            fee, lines, breakdown = calculate_parking_fee(
+                transaction, t_out, request.is_lost_ticket, session=self.session
+            )
         duration_minutes = max(0, int((t_out - t_in).total_seconds() // 60))
         vtype_in = getattr(transaction, "vehicle_type", "CAR") or "CAR"
         vtype_out = request.vehicle_type_out
@@ -257,7 +260,8 @@ class CheckOutService:
             vehicle_type_in=vtype_in,
             vehicle_type_out=vtype_out,
             vehicle_type_mismatch=mismatch,
-            check_in_time=transaction.check_in_time,
+            check_in_time=t_in,
+            exit_time=t_out,
             check_in_image_url=check_in_img,
             exit_image_url=request.exit_image_url,
             duration_minutes=duration_minutes,
@@ -374,6 +378,14 @@ class CheckOutService:
         fee, lines, breakdown = calculate_parking_fee(
             transaction, exit_time, request.is_lost_ticket, session=self.session
         )
+
+        if request.expected_fee is not None and request.expected_fee != fee:
+            raise AppError(
+                status_code=409,
+                code="FEE_CHANGED",
+                message="Phí gửi xe đã thay đổi. Cập nhật phí và xác nhận lại trước khi thu tiền.",
+                details={"expected_fee": request.expected_fee, "fee": fee},
+            )
 
         try:
             # Nếu miễn phí hoặc thanh toán trực tiếp tại cổng (CASH 1 chạm)

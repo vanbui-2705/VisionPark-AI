@@ -7,6 +7,7 @@ export type Permission =
   | 'detections.read'
   | 'detections.confirm'
   | 'checkin.create'
+  | 'checkout.create'
   | 'transactions.read'
   | 'lanes.read'
   | 'lanes.create'
@@ -35,6 +36,7 @@ export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolea
   { perm: 'detections.read', label: 'Xem detection', admin: true, operator: true, accountant: false, technician: true },
   { perm: 'detections.confirm', label: 'Xác nhận / sửa biển số', admin: true, operator: true, accountant: false, technician: true },
   { perm: 'checkin.create', label: 'Check-in / đăng ký vào bãi', admin: true, operator: true, accountant: false, technician: true },
+  { perm: 'checkout.create', label: 'Thu tiền / cho xe ra', admin: true, operator: true, accountant: false, technician: false },
   { perm: 'transactions.read', label: 'Lịch sử đỗ xe', admin: true, operator: true, accountant: true, technician: false },
   { perm: 'lanes.read', label: 'Xem làn xe', admin: true, operator: true, accountant: false, technician: true },
   { perm: 'lanes.create', label: 'Tạo làn xe', admin: true, operator: false, accountant: false, technician: false },
@@ -67,7 +69,7 @@ const ROLE_COLUMN: Record<string, 'admin' | 'operator' | 'accountant' | 'technic
 
 const BUILDING_ADMIN_PERMISSIONS = new Set<Permission>([
   'dashboard.read', 'station.use', 'station.history.read', 'detections.read',
-  'detections.confirm', 'checkin.create', 'transactions.read', 'lanes.read',
+  'detections.confirm', 'checkin.create', 'checkout.create', 'transactions.read', 'lanes.read',
   'lanes.create', 'lanes.update', 'lanes.manage', 'users.read', 'users.manage',
   'audit.read', 'profile.read',
   'profile.update', 'settings.update', 'notifications.read', 'help.read',
