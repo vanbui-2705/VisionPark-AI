@@ -17,6 +17,40 @@ MIN_BLUR_VARIANCE = 20.0
 MIN_BRIGHTNESS = 25.0
 MIN_CONTRAST = 10.0
 
+DIGIT_TO_LETTER: dict[str, str] = {
+    "0": "D",
+    "1": "T",
+    "2": "Z",
+    "3": "B",
+    "4": "A",
+    "5": "S",
+    "6": "G",
+    "7": "T",
+    "8": "B",
+    "9": "G",
+}
+
+LETTER_TO_DIGIT: dict[str, str] = {
+    "A": "4",
+    "B": "8",
+    "C": "0",
+    "D": "0",
+    "E": "3",
+    "G": "6",
+    "I": "1",
+    "L": "1",
+    "O": "0",
+    "Q": "0",
+    "S": "5",
+    "T": "7",
+    "U": "0",
+    "Z": "2",
+}
+
+KNOWN_TWO_LETTER_SERIES: frozenset[str] = frozenset(
+    {"LD", "DA", "MK", "MD", "ME", "CD", "NG", "NN", "KT"}
+)
+
 
 def validate_image_input(
     image_bytes: bytes,
@@ -101,15 +135,69 @@ def crop_with_quality(
     return crop, clamped, flags
 
 
-def normalize_plate(plate: str) -> str:
+def correct_vietnamese_plate(cleaned_plate: str) -> str:
     """
-    Chuẩn hóa chuỗi biển số xe: chuyển thành chữ in hoa
-    và xóa bỏ các ký tự không phải là chữ cái hoặc số (khoảng trắng, dấu chấm, dấu gạch).
+    Áp dụng các quy tắc heuristics để sửa lỗi ký tự OCR thường gặp
+    dựa trên cấu trúc chuẩn của biển số xe Việt Nam.
+
+    Quy tắc:
+    1. Biển hợp lệ thường có độ dài từ 7 đến 9 ký tự.
+    2. Vị trí 0-1 (Mã tỉnh/thành): Bắt buộc là chữ số (ví dụ: B9 -> 89, O9 -> 09).
+    3. Vị trí 2 (Ký hiệu series): Bắt buộc là chữ cái (ví dụ: 8 -> B, 0 -> D).
+    4. Vị trí đuôi (Dãy số thứ tự): Bắt buộc là chữ số (ví dụ: D/O -> 0, B -> 8, S -> 5).
+    """
+    n = len(cleaned_plate)
+    if n not in (7, 8, 9):
+        return cleaned_plate
+
+    chars = list(cleaned_plate)
+
+    # 1. Hai ký tự đầu (Mã tỉnh): Phải là số
+    for i in (0, 1):
+        if not chars[i].isdigit() and chars[i] in LETTER_TO_DIGIT:
+            chars[i] = LETTER_TO_DIGIT[chars[i]]
+
+    # 2. Ký tự thứ 3 (Series): Phải là chữ cái
+    if chars[2].isdigit() and chars[2] in DIGIT_TO_LETTER:
+        chars[2] = DIGIT_TO_LETTER[chars[2]]
+
+    # 3. Dãy số thứ tự ở cuối: Phải là số
+    if n == 7:
+        # Biển 4 số ô tô (29A-1234): chars[3:7] là số
+        num_start = 3
+    elif n == 8:
+        series_two = f"{chars[2]}{chars[3]}"
+        # Kiểm tra series 2 chữ cái (ô tô liên doanh/ngoại giao hoặc xe máy 50cc)
+        if series_two in KNOWN_TWO_LETTER_SERIES or (
+            chars[2].isalpha() and chars[3].isalpha() and not chars[3].isdigit()
+        ):
+            num_start = 4
+        else:
+            # Biển 5 số ô tô (29A-12345) hoặc 4 số xe máy (29P1-1234): chars[3:8] là số
+            num_start = 3
+    else:  # n == 9
+        # Biển 5 số xe máy (29P1-12345) hoặc 5 số 2 chữ cái (29LD-12345)
+        num_start = 4
+
+    for i in range(num_start, n):
+        if not chars[i].isdigit() and chars[i] in LETTER_TO_DIGIT:
+            chars[i] = LETTER_TO_DIGIT[chars[i]]
+
+    return "".join(chars)
+
+
+def normalize_plate(plate: str, *, auto_correct: bool = True) -> str:
+    """
+    Chuẩn hóa chuỗi biển số xe: chuyển thành chữ in hoa,
+    xóa bỏ các ký tự không phải là chữ cái hoặc số (khoảng trắng, dấu chấm, dấu gạch),
+    và tự động sửa lỗi ký tự OCR theo quy luật biển số xe Việt Nam.
     """
     if not plate:
         return ""
-    # Chỉ giữ lại chữ cái A-Z và số 0-9
-    return re.sub(r"[^A-Z0-9]", "", plate.upper())
+    cleaned = re.sub(r"[^A-Z0-9]", "", plate.upper())
+    if auto_correct:
+        return correct_vietnamese_plate(cleaned)
+    return cleaned
 
 
 def requires_confirmation(confidence: float, threshold: float) -> bool:

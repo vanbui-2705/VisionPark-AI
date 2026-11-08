@@ -23,9 +23,7 @@ def upgrade():
         "detections", sa.Column("model_version_detector", sa.String(length=120), nullable=True)
     )
 
-    op.create_index(
-        "ix_detections_vehicle_type", "detections", ["vehicle_type"], unique=False
-    )
+    op.create_index("ix_detections_vehicle_type", "detections", ["vehicle_type"], unique=False)
 
 
 def downgrade():
@@ -37,4 +35,3 @@ def downgrade():
     op.drop_column("detections", "vehicle_bbox_x1")
     op.drop_column("detections", "vehicle_confidence")
     op.drop_column("detections", "vehicle_type")
-

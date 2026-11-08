@@ -100,7 +100,10 @@ class PaddleOCRTextRecognition:
             for item in value:
                 cls.collect_candidates(item, output)
 
-    def _recognize_crop(self, crop: np.ndarray) -> OCRReadResult:
+    def _predict_single_crop(self, crop: np.ndarray) -> list[tuple[str, float]]:
+        """Predict text and scores for a single image crop."""
+        if crop is None or getattr(crop, "size", 0) == 0:
+            return []
         try:
             try:
                 raw_result = list(self._model.predict(input=crop, batch_size=1))
@@ -112,10 +115,39 @@ class PaddleOCRTextRecognition:
             raise ALPRInferenceError(f"OCR inference failed: {exc}") from exc
         candidates: list[tuple[str, float]] = []
         self.collect_candidates(raw_result, candidates)
+        return candidates
+
+    def recognize(self, crop: np.ndarray) -> OCRReadResult:
+        if crop is None or getattr(crop, "size", 0) == 0:
+            return OCRReadResult(None, None, 0.0)
+        self.ensure_loaded()
+
+        # Check for two-line square/short plates (e.g., motorbikes, square car plates).
+        # Standard VN square plates have aspect ratio (width / height) ~ 1.2 - 1.5,
+        # whereas long single-line plates have aspect ratio ~ 3.5 - 4.7.
+        h, w = crop.shape[:2]
+        if h >= 20 and w > 0 and (w / h) <= 2.0:
+            line1_crop = crop[0 : int(h * 0.52), :]
+            line2_crop = crop[int(h * 0.46) : h, :]
+
+            cand1 = self._predict_single_crop(line1_crop)
+            cand2 = self._predict_single_crop(line2_crop)
+
+            if cand1 and cand2:
+                top_text1, conf1 = max(cand1, key=lambda item: item[1])
+                top_text2, conf2 = max(cand2, key=lambda item: item[1])
+                combined_raw = f"{top_text1.strip()} {top_text2.strip()}".strip()
+                combined_norm = normalize_plate(combined_raw)
+                if combined_norm and 6 <= len(combined_norm) <= 10:
+                    avg_conf = (conf1 + conf2) / 2.0
+                    bounded_conf = max(0.0, min(1.0, float(avg_conf)))
+                    return OCRReadResult(combined_raw, combined_norm, bounded_conf)
+
+        candidates = self._predict_single_crop(crop)
         if not candidates:
             return OCRReadResult(None, None, 0.0)
 
-        # Support 2-line square motorbike plates (Vietnamese standard)
+        # Support 2-line square motorbike plates (Vietnamese standard) fallback
         if len(candidates) > 1:
             combined_raw = " ".join(item[0].strip() for item in candidates if item[0].strip())
             combined_norm = normalize_plate(combined_raw)
@@ -129,28 +161,3 @@ class PaddleOCRTextRecognition:
         bounded_confidence = max(0.0, min(1.0, float(confidence)))
         return OCRReadResult(raw_text, normalized, bounded_confidence)
 
-    def recognize(self, crop: np.ndarray) -> OCRReadResult:
-        if crop is None or getattr(crop, "size", 0) == 0:
-            return OCRReadResult(None, None, 0.0)
-        self.ensure_loaded()
-        full_result = self._recognize_crop(crop)
-        height, width = crop.shape[:2]
-        if height < 16 or width / height >= 1.8:
-            return full_result
-
-        # The recognition-only model expects one text row. For a near-square Vietnamese
-        # plate, recognize both physical rows and preserve their top-to-bottom order.
-        overlap = max(1, int(height * 0.04))
-        midpoint = height // 2
-        top_result = self._recognize_crop(crop[: midpoint + overlap])
-        bottom_result = self._recognize_crop(crop[midpoint - overlap :])
-        if not top_result.normalized_text or not bottom_result.normalized_text:
-            return full_result
-        combined = top_result.normalized_text + bottom_result.normalized_text
-        if not 6 <= len(combined) <= 10:
-            return full_result
-        return OCRReadResult(
-            raw_text=f"{top_result.raw_text}\n{bottom_result.raw_text}",
-            normalized_text=combined,
-            confidence=min(top_result.confidence, bottom_result.confidence),
-        )

@@ -17,3 +17,7 @@ M1 thêm `BUILDING_ADMIN` với membership tòa nhà được xác thực ở ba
 dữ liệu tòa nhà và ghi cấu hình giá/vé, hóa đơn và thanh toán trong tòa nhà đó.
 SYSTEM_ADMIN tạo tòa nhà và gán membership cho tài khoản. Thay đổi membership làm mất
 hiệu lực token cũ. Callback thanh toán xác thực bằng chữ ký thay vì bearer token.
+
+Phase 4 thêm checkout.create cho OPERATOR, SYSTEM_ADMIN và BUILDING_ADMIN, khớp
+require_roles ở API checkout. ACCOUNTANT và TECHNICIAN không được thu tiền/cho xe ra.
+Luồng OUT không tự gọi payment API riêng; CASH đi qua endpoint checkout.

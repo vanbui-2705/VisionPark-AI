@@ -93,7 +93,7 @@ export default function VideoPlayer({
         setEnded(false);
         void v.play();
       }}>Replay</button>
-      <button type="button" className="btn btn-primary btn-small" disabled={processing || suspended || mediaError} onClick={() => void captureFrame()}>Capture Frame</button>
+      <button type="button" className="btn btn-primary btn-small" data-station-shortcut="capture" aria-keyshortcuts="F2" disabled={processing || suspended || mediaError} onClick={() => void captureFrame()}>Capture Frame</button>
     </div>
     <div className="scan-controls" style={{ alignItems: "center", borderTop: 0, paddingTop: 4, marginTop: 8 }}>
       <label className="field" style={{ display: "inline-flex", flexDirection: "row", alignItems: "center", gap: 8, margin: 0 }}>

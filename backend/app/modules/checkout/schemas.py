@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.modules.checkin.schemas import ParkingTransactionResponse
 
@@ -33,6 +33,7 @@ class CheckOutRequest(BaseModel):
     payment_method: str | None = Field(
         None, description="Phương thức thanh toán trực tiếp tại cổng ra nếu có phí"
     )
+    expected_fee: int | None = Field(None, ge=0, description="Phí đã hiển thị và xác nhận tại trạm")
 
     # Override: bảo vệ ghi lý do cho các trường hợp ngoại lệ
     override_reason: str | None = Field(None, max_length=500)
@@ -69,6 +70,7 @@ class CheckOutPreviewResponse(BaseModel):
     vehicle_type_out: str | None = None
     vehicle_type_mismatch: bool = False
     check_in_time: datetime
+    exit_time: datetime | None = None
     check_in_image_url: str | None = None
     exit_image_url: str | None = None
     duration_minutes: int
@@ -91,3 +93,10 @@ class CheckOutResponse(BaseModel):
     barrier_opened: bool
     vehicle_type_mismatch: bool = False
     message: str
+
+    @field_validator("transaction")
+    @classmethod
+    def normalize_exit_time(cls, value: ParkingTransactionResponse) -> ParkingTransactionResponse:
+        if value.exit_time is not None and value.exit_time.tzinfo is None:
+            value.exit_time = value.exit_time.replace(tzinfo=UTC)
+        return value
