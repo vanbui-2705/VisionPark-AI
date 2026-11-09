@@ -160,4 +160,3 @@ class PaddleOCRTextRecognition:
         normalized = normalize_plate(raw_text) or None
         bounded_confidence = max(0.0, min(1.0, float(confidence)))
         return OCRReadResult(raw_text, normalized, bounded_confidence)
-

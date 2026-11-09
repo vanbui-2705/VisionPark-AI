@@ -571,18 +571,12 @@ class StressTestRunner:
         successful_cycles = sum(1 for c in cycles if c.success)
         failed_cycles = len(cycles) - successful_cycles
 
-        req_throughput = (
-            total_requests / wall_clock_duration if wall_clock_duration > 0 else 0.0
-        )
-        cycle_throughput = (
-            len(cycles) / wall_clock_duration if wall_clock_duration > 0 else 0.0
-        )
+        req_throughput = total_requests / wall_clock_duration if wall_clock_duration > 0 else 0.0
+        cycle_throughput = len(cycles) / wall_clock_duration if wall_clock_duration > 0 else 0.0
 
         # All request latencies
         all_latencies = sorted(r.duration_ms for r in all_requests)
-        mean_latency = (
-            sum(all_latencies) / len(all_latencies) if all_latencies else 0.0
-        )
+        mean_latency = sum(all_latencies) / len(all_latencies) if all_latencies else 0.0
         min_latency = all_latencies[0] if all_latencies else 0.0
         max_latency = all_latencies[-1] if all_latencies else 0.0
 
@@ -639,9 +633,7 @@ class StressTestRunner:
                 "successful": successful_cycles,
                 "failed": failed_cycles,
                 "success_rate_pct": (
-                    round((successful_cycles / len(cycles)) * 100, 2)
-                    if cycles
-                    else 0.0
+                    round((successful_cycles / len(cycles)) * 100, 2) if cycles else 0.0
                 ),
                 "throughput_cycle_per_sec": round(cycle_throughput, 2),
             },
@@ -684,8 +676,7 @@ def print_step_breakdown_table(steps: dict[str, dict[str, Any]]) -> None:
     header_row = (
         "| "
         + " | ".join(
-            f"{h:<{widths[i]}}" if i == 0 else f"{h:>{widths[i]}}"
-            for i, h in enumerate(headers)
+            f"{h:<{widths[i]}}" if i == 0 else f"{h:>{widths[i]}}" for i, h in enumerate(headers)
         )
         + " |"
     )

@@ -122,9 +122,7 @@ def validate_dataset_manifest(dataset: Path, *, release: bool = False) -> dict[s
         (errors if release else warnings).append(message)
 
     canonical_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    fingerprint_input = canonical_payload + json.dumps(
-        file_hashes, sort_keys=True
-    ).encode("utf-8")
+    fingerprint_input = canonical_payload + json.dumps(file_hashes, sort_keys=True).encode("utf-8")
     fingerprint = hashlib.sha256(fingerprint_input).hexdigest()
     return {
         "valid": not errors,

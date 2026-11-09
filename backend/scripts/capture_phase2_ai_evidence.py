@@ -58,8 +58,9 @@ def main() -> None:
         low_confidence_input = ROOT / "backend/var/completion-video/case-toyota-44.5.jpg"
         page.locator("input[type=file]").set_input_files(str(low_confidence_input))
         with page.expect_response(
-            lambda response: "/alpr/detections" in response.url
-            and response.request.method == "POST"
+            lambda response: (
+                "/alpr/detections" in response.url and response.request.method == "POST"
+            )
         ) as preview_response:
             page.locator("input[type=file]").locator("xpath=following::button[1]").click()
         preview = preview_response.value.json()
@@ -74,8 +75,7 @@ def main() -> None:
         page.locator("button").filter(has_text=re.compile("Sai|No plate")).click()
         page.locator("#corrected-plate").fill("29A90101")
         with page.expect_response(
-            lambda response: response.url.endswith("/confirm")
-            and response.request.method == "POST"
+            lambda response: response.url.endswith("/confirm") and response.request.method == "POST"
         ) as confirm_response:
             page.locator("#corrected-plate").locator("xpath=following::button[1]").click()
         assert confirm_response.value.status == 200, confirm_response.value.text()
@@ -110,8 +110,9 @@ def main() -> None:
         no_plate_input = ROOT / "backend/var/completion-video/case-title-5.jpg"
         page.locator("input[type=file]").set_input_files(str(no_plate_input))
         with page.expect_response(
-            lambda response: "/alpr/detections" in response.url
-            and response.request.method == "POST"
+            lambda response: (
+                "/alpr/detections" in response.url and response.request.method == "POST"
+            )
         ) as no_plate_response:
             page.locator("input[type=file]").locator("xpath=following::button[1]").click()
         no_plate = no_plate_response.value.json()
@@ -128,8 +129,9 @@ def main() -> None:
         page.screenshot(path=str(EVIDENCE / "real-no-plate-before-manual.png"), full_page=True)
         page.locator("#manual-plate").fill("99N00009")
         with page.expect_response(
-            lambda response: response.url.endswith("/parking/check-in")
-            and response.request.method == "POST"
+            lambda response: (
+                response.url.endswith("/parking/check-in") and response.request.method == "POST"
+            )
         ) as manual_response:
             page.locator("#manual-plate").locator("xpath=following::button[1]").click()
         assert manual_response.value.status == 201, manual_response.value.text()
