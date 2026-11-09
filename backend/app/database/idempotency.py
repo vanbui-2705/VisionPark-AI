@@ -37,3 +37,30 @@ def require_matching_fingerprint(stored: str, requested: str) -> None:
             code="IDEMPOTENCY_KEY_REUSED",
             message="Idempotency-Key was already used with a different payload.",
         )
+
+
+def encode_checkout_idempotency_tag(key: str, fingerprint: str) -> str:
+    """Format checkout idempotency marker with request fingerprint (BUILD-01)."""
+    return f"[CHECKOUT_KEY:{key}][CHECKOUT_FP:{key}:{fingerprint}]"
+
+
+def extract_checkout_fingerprint(notes: str | None, key: str) -> str | None:
+    """Extract stored request fingerprint for a checkout idempotency key if present."""
+    if not notes:
+        return None
+    prefix = f"[CHECKOUT_FP:{key}:"
+    start = notes.find(prefix)
+    if start == -1:
+        return None
+    fp_start = start + len(prefix)
+    fp_end = notes.find("]", fp_start)
+    if fp_end == -1:
+        return None
+    return notes[fp_start:fp_end]
+
+
+def verify_checkout_idempotency(notes: str | None, key: str, requested_fingerprint: str) -> None:
+    """Verify that a replayed checkout idempotency key matches its original request payload."""
+    stored = extract_checkout_fingerprint(notes, key)
+    if stored is not None:
+        require_matching_fingerprint(stored, requested_fingerprint)

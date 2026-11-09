@@ -1,4 +1,12 @@
-"""Run the Phase 4 M3 Release Gate and ALPR benchmark suite."""
+"""Run the Phase 4 M3 ALPR Release Gate & Heuristic Pipeline Verification Suite.
+
+Per IMPROVE-05 / DEMO-06 (docs/demo-readiness-improvement-plan-2026-11-08.md):
+- Functional demo gate is separated into `scripts/demo_gate.py`.
+- This script evaluates the ALPR normalization & two-line heuristic pipeline (M3-01, M3-02, M3-03)
+  and only marks `quality_gate_status = "PASS"` when evaluated on a real image/video dataset
+  with independent ground-truth media files (never claiming commercial accuracy from synthetic
+  or `expected_plate` fallback inputs, which remain `quality_gate_status = "HOLD"`).
+"""
 
 from __future__ import annotations
 
@@ -30,7 +38,7 @@ def run(command: list[str], cwd: Path) -> None:
 
 
 def synthetic_frame(plate_text: str | None = "29A12345") -> bytes:
-    """Generate a synthetic vehicle frame with plate bounding box and text."""
+    """Generate a synthetic vehicle frame for deterministic pipeline latency/smoke probing."""
     frame = np.full((480, 640, 3), 180, dtype=np.uint8)
     if plate_text:
         cv2.rectangle(frame, (100, 150, 540, 400), (40, 40, 40), -1)
@@ -76,7 +84,7 @@ def percentile(values: list[float], fraction: float) -> float:
 
 
 class BenchmarkRunner:
-    """Executes benchmark cases adapting real provider if available or synthetic pipeline."""
+    """Executes ALPR benchmark cases on real media files or raw OCR fixture strings."""
 
     def __init__(self, real_runtime: UltralyticsPaddleALPRRuntime | None = None) -> None:
         self.real_runtime = real_runtime
@@ -85,29 +93,41 @@ class BenchmarkRunner:
     def run_case(self, case: dict[str, Any]) -> dict[str, Any]:
         expected = case.get("expected_plate")
         raw_ocr = case.get("raw_ocr")
+        image_path = case.get("image_path")
         scenario = case.get("scenario", "success")
 
         started = time.perf_counter()
+        used_real_media = False
         if scenario == "no-plate":
             actual = None
             conf = 0.0
-        elif self.is_real_ready and self.real_runtime is not None:
-            raw_input = raw_ocr or expected or "29A12345"
-            frame_bytes = synthetic_frame(raw_input)
+        elif (
+            image_path
+            and (BACKEND_DIR / str(image_path)).is_file()
+            and self.is_real_ready
+            and self.real_runtime is not None
+        ):
+            frame_bytes = (BACKEND_DIR / str(image_path)).read_bytes()
             res = self.real_runtime.detect_and_read(frame_bytes)
             actual = res.normalized_plate or res.plate_number
             conf = res.confidence
+            used_real_media = True
         else:
-            raw_input = raw_ocr or expected or "29A12345"
-            _ = synthetic_frame(raw_input)
-            # Evaluate through actual normalization and heuristic correction (M3-01 / M3-02)
-            if "\n" in raw_input:
+            # Evaluate raw_ocr fixture through normalization & heuristic correction (M3-01 / M3-02).
+            # Never fall back to expected_plate as model input (IMPROVE-05).
+            raw_input = raw_ocr or ""
+            _ = synthetic_frame(raw_input or "29A12345")
+            if not raw_input:
+                actual = None
+                conf = 0.0
+            elif "\n" in raw_input:
                 lines = raw_input.strip().split("\n")
                 combined = "".join(lines)
                 actual = normalize_plate(combined)
+                conf = 0.95
             else:
                 actual = normalize_plate(raw_input)
-            conf = 0.95
+                conf = 0.95
 
         latency_ms = (time.perf_counter() - started) * 1000
 
@@ -126,6 +146,7 @@ class BenchmarkRunner:
         return {
             "id": case.get("id"),
             "scenario": scenario,
+            "input_source": "real_media" if used_real_media else "raw_ocr_fixture",
             "expected": normalized_expected,
             "actual": normalized_actual,
             "exact_match": exact,
@@ -211,6 +232,7 @@ def main() -> None:
     all_latencies = [r["latency_ms"] for r in all_rows]
     p50_latency = percentile(all_latencies, 0.5)
     p95_latency = percentile(all_latencies, 0.95)
+    all_real_media = bool(all_rows) and all(r["input_source"] == "real_media" for r in all_rows)
 
     print("\n--- CHI TIET KET QUA 15 TEST CASES ---")
     print(
@@ -230,10 +252,12 @@ def main() -> None:
     print("-" * 84)
 
     # 3. Check DoD Criteria
-    # DoD: Chi so Exact Match tren Validation va Demo dat >= 80%, do tre p95 <= 1000ms
     val_pass = val_exact_rate >= 0.80
     demo_pass = demo_exact_rate >= 0.80
     latency_pass = p95_latency <= 1000.0
+    pipeline_dod_pass = bool(val_pass and demo_pass and latency_pass)
+    # Per IMPROVE-05: Commercial/Field ALPR Quality Gate remains HOLD unless evaluated on real media
+    quality_gate_status = "PASS" if (pipeline_dod_pass and all_real_media) else "HOLD"
 
     print("\n--- TONG HOP CHI SO RELEASE GATE (DoD CHECK) ---")
     val_len = len(val_cases)
@@ -254,6 +278,11 @@ def main() -> None:
         f"- Do tre P95:              {p95_latency:.2f} ms "
         f"(Target: <= 1000.0 ms) -> [{'PASS' if latency_pass else 'FAIL'}]"
     )
+    print(f"- Pipeline Heuristic DoD:  [{'PASS' if pipeline_dod_pass else 'FAIL'}]")
+    print(
+        f"- Field Quality Gate:      [{quality_gate_status}] "
+        "(HOLD until evaluated on independent real field media dataset per IMPROVE-05)"
+    )
 
     out_dir = BACKEND_DIR / "var" / "benchmarks"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -262,6 +291,9 @@ def main() -> None:
         json.dumps(
             {
                 "timestamp": time.time(),
+                "evaluation_mode": "real_media" if all_real_media else "raw_ocr_fixture_pipeline",
+                "quality_gate_status": quality_gate_status,
+                "dod_pass": pipeline_dod_pass,
                 "total_cases": total_cases,
                 "validation": {
                     "count": len(val_cases),
@@ -277,7 +309,6 @@ def main() -> None:
                     "p50": p50_latency,
                     "p95": p95_latency,
                 },
-                "dod_pass": bool(val_pass and demo_pass and latency_pass),
                 "rows": all_rows,
             },
             indent=2,
@@ -286,7 +317,7 @@ def main() -> None:
     )
     print(f"\nDa xuat bao cao benchmark: {report_file.relative_to(BACKEND_DIR)}")
 
-    if not (val_pass and demo_pass and latency_pass):
+    if not pipeline_dod_pass:
         raise SystemExit("Release gate failed DoD acceptance criteria!")
 
     # 4. Regression tests & Linting
