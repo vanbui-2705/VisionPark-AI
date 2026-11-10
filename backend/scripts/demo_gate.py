@@ -271,7 +271,16 @@ def run_functional_demo_gate() -> dict[str, Any]:
                         ParkingCounter.vehicle_type == "CAR",
                     )
                 )
-                today_str = datetime.now(UTC).date().isoformat()
+                building = session.get(Building, DEFAULT_BUILDING_ID)
+                if building is not None:
+                    building.timezone = "UTC"
+                db_tx = session.get(ParkingTransaction, tx_id)
+                checkout_utc = (db_tx.exit_time or datetime.now(UTC)).replace(tzinfo=UTC)
+                if db_tx is not None:
+                    db_tx.check_in_time = checkout_utc
+                session.commit()
+
+                today_str = checkout_utc.date().isoformat()
                 rebuild_res = client.post(
                     f"/api/v1/m5/daily-stats/rebuild?building_id={DEFAULT_BUILDING_ID}&day={today_str}",
                     headers=headers,

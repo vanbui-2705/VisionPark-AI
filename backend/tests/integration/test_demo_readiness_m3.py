@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import func, select
 
 from app.modules.audit_logs.models import AuditLog
-from app.modules.buildings.models import DEFAULT_BUILDING_ID
+from app.modules.buildings.models import DEFAULT_BUILDING_ID, Building
 from app.modules.checkin.counter_models import CounterEvent, ParkingCounter
 from app.modules.checkin.models import ParkingTransaction, TransactionStatus
 from app.modules.lanes.models import Lane, LaneDirection
@@ -318,7 +318,14 @@ def test_build_02_and_build_07_e2e_cash_checkout_ledger_counter_m5_and_audit(
     assert occupied_out == 0
 
     # 5. Kiểm tra M5 Daily Stats & Cash Shift Report khớp 100% với phí vừa thu
-    today_str = datetime.now(UTC).date().isoformat()
+    building = db_session.get(Building, DEFAULT_BUILDING_ID)
+    building.timezone = "UTC"
+    db_tx = db_session.get(ParkingTransaction, tx_id)
+    checkout_utc = (db_tx.exit_time or datetime.now(UTC)).replace(tzinfo=UTC)
+    db_tx.check_in_time = checkout_utc
+    db_session.commit()
+
+    today_str = checkout_utc.date().isoformat()
     rebuild_res = client.post(
         f"/api/v1/m5/daily-stats/rebuild?building_id={DEFAULT_BUILDING_ID}&day={today_str}",
         headers=admin_headers,
