@@ -48,6 +48,14 @@ jobs:
       - name: Run backend checks in Docker
         run: docker compose --profile ci run --rm backend-ci
 
+      - name: Reject a false ALPR quality PASS without acceptance media
+        run: |
+          set +e
+          docker compose --profile ci run --rm backend-ci python scripts/release_gate.py
+          gate_status=$?
+          set -e
+          test "$gate_status" -eq 2
+
       - name: Run frontend checks in Docker
         run: docker compose --profile ci run --rm frontend-ci
 

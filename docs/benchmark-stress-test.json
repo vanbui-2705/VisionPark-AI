@@ -1,0 +1,68 @@
+{
+  "host": "http://127.0.0.1:8000",
+  "concurrency": 20,
+  "total_cycles": 100,
+  "wall_clock_duration_seconds": 0.151,
+  "requests": {
+    "total": 300,
+    "successful": 300,
+    "failed": 0,
+    "success_rate_pct": 100.0,
+    "throughput_req_per_sec": 1991.92
+  },
+  "cycles": {
+    "total": 100,
+    "successful": 100,
+    "failed": 0,
+    "success_rate_pct": 100.0,
+    "throughput_cycle_per_sec": 663.97
+  },
+  "latency_ms": {
+    "avg": 8.6,
+    "min": 3.47,
+    "max": 17.88,
+    "p50": 8.61,
+    "p90": 12.3,
+    "p95": 12.87,
+    "p99": 15.7
+  },
+  "step_breakdown": {
+    "1. Check-In": {
+      "total": 100,
+      "success": 100,
+      "failed": 0,
+      "avg_ms": 8.759684999859019,
+      "min_ms": 3.5610000013548415,
+      "max_ms": 17.880300001706928,
+      "p50_ms": 9.118949998082826,
+      "p90_ms": 12.371720000010102,
+      "p95_ms": 12.83700000058161,
+      "p99_ms": 17.527266000324747
+    },
+    "2. Cash Preview": {
+      "total": 100,
+      "success": 100,
+      "failed": 0,
+      "avg_ms": 8.910748999733187,
+      "min_ms": 3.470699997706106,
+      "max_ms": 15.833599998586578,
+      "p50_ms": 9.173750000627479,
+      "p90_ms": 12.272089998077718,
+      "p95_ms": 12.73577000174555,
+      "p99_ms": 15.086347999167632
+    },
+    "3. Cash Check-Out": {
+      "total": 100,
+      "success": 100,
+      "failed": 0,
+      "avg_ms": 8.12043200021435,
+      "min_ms": 3.472299998975359,
+      "max_ms": 14.971199998399243,
+      "p50_ms": 7.669000002351822,
+      "p90_ms": 12.190340000597644,
+      "p95_ms": 13.409864998902775,
+      "p99_ms": 14.554311000611053
+    }
+  },
+  "errors": {}
+}

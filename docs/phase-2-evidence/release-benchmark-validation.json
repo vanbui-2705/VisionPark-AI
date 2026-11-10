@@ -1,0 +1,140 @@
+{
+  "provider": "real",
+  "split": "validation",
+  "sample_count": 4,
+  "exact_match_rate": 0.25,
+  "character_accuracy": 0.8393,
+  "no_result_rate": 0.0,
+  "false_positive_rate": 0.0,
+  "latency_ms": {
+    "full_p50": 324.789,
+    "full_p95": 326.419,
+    "detector_p50": 131.114,
+    "ocr_p50": 181.565
+  },
+  "station": {
+    "time_to_stable_ms": null,
+    "ocr_calls_per_vehicle": 1.0,
+    "candidate_flip_rate": 0.0,
+    "provider_error_rate": 0.0
+  },
+  "errors": 0,
+  "rows": [
+    {
+      "id": "commons-captiva-30M6238",
+      "vehicle_id": "commons-captiva-30M6238",
+      "scenario": "success",
+      "expected_plate": "30M6238",
+      "actual_plate": "3016238",
+      "exact_match": false,
+      "character_accuracy": 0.8571,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 157.616,
+      "detector_latency_ms": 101.24610000639223,
+      "ocr_latency_ms": 47.39459999836981,
+      "processing_time_ms": 157,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-nissan-30A02282",
+      "vehicle_id": "commons-nissan-30A02282",
+      "scenario": "success",
+      "expected_plate": "30A02282",
+      "actual_plate": "0A02282",
+      "exact_match": false,
+      "character_accuracy": 0.875,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 326.419,
+      "detector_latency_ms": 123.79269998928066,
+      "ocr_latency_ms": 190.82030000572558,
+      "processing_time_ms": 326,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-kia-51A45640",
+      "vehicle_id": "commons-kia-51A45640",
+      "scenario": "success",
+      "expected_plate": "51A45640",
+      "actual_plate": "51A45640",
+      "exact_match": true,
+      "character_accuracy": 1.0,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 208.234,
+      "detector_latency_ms": 145.6400000024587,
+      "ocr_latency_ms": 49.44909999903757,
+      "processing_time_ms": 207,
+      "requires_confirmation": false,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-bus-51B04392",
+      "vehicle_id": "commons-bus-51B04392",
+      "scenario": "success",
+      "expected_plate": "51B04392",
+      "actual_plate": "51044692",
+      "exact_match": false,
+      "character_accuracy": 0.625,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 324.789,
+      "detector_latency_ms": 131.11430000572,
+      "ocr_latency_ms": 181.56469998939428,
+      "processing_time_ms": 324,
+      "requires_confirmation": true,
+      "quality_flags": []
+    }
+  ],
+  "dataset": "datasets\\phase2-release.json",
+  "dataset_fingerprint": "437bb9dd3e7fb7db0acaff414d151117ac5b14067c3511c9298b02c6db266be6",
+  "dataset_validation": {
+    "release_ready": true,
+    "warnings": [],
+    "counts": {
+      "smoke": 3,
+      "validation": 4,
+      "demo": 4,
+      "edge_cases": 4
+    },
+    "scenarios": [
+      "blur",
+      "dark",
+      "low-confidence",
+      "negative",
+      "no-plate",
+      "oblique",
+      "small-or-partial",
+      "success"
+    ]
+  },
+  "input_kind": "provisioned-images",
+  "warmup": {
+    "cold_ms": 7824.88,
+    "warm_p50_ms": 164.03
+  },
+  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "hardware": {
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.22631-SP0",
+    "device": "cpu"
+  },
+  "versions": {
+    "ultralytics": "8.4.47",
+    "paddleocr": "3.7.0",
+    "paddlepaddle": "3.3.1"
+  },
+  "provenance": {
+    "source": "User-provided miLPR demo recording plus individually attributed Wikimedia Commons photographs listed per case.",
+    "usage_rights": "User media: internal evaluation only. Commons media: CC BY/CC BY-SA as recorded per case; local media copies are not committed.",
+    "annotation_policy": "Ground truth was manually transcribed from the physical plate. Null means no complete readable plate is present. Overlays and model output were not used as labels.",
+    "dataset_version": "phase2-release-candidate-2026-10-09"
+  }
+}

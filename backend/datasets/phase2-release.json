@@ -1,0 +1,178 @@
+{
+  "provenance": {
+    "source": "User-provided miLPR demo recording plus individually attributed Wikimedia Commons photographs listed per case.",
+    "usage_rights": "User media: internal evaluation only. Commons media: CC BY/CC BY-SA as recorded per case; local media copies are not committed.",
+    "annotation_policy": "Ground truth was manually transcribed from the physical plate. Null means no complete readable plate is present. Overlays and model output were not used as labels.",
+    "dataset_version": "phase2-release-candidate-2026-10-09"
+  },
+  "annotation": "One frame per user-video vehicle avoids adjacent-frame inflation. All other cases are distinct Commons photographs. Edge cases are natural captures, not generated transformations.",
+  "splits": {
+    "smoke": [
+      {
+        "id": "user-toyota-44500",
+        "vehicle_id": "user-toyota-29A90101",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-toyota-44.5.jpg",
+        "expected_plate": "29A90101",
+        "scenario": "low-confidence",
+        "sha256": "4f9dbd874a4d3b41c46a4ed3dfef3b843901a4e9e448535e0ea3c436dec0d2b3"
+      },
+      {
+        "id": "user-hyundai-90000",
+        "vehicle_id": "user-hyundai-30V4495",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-hyundai-90.0.jpg",
+        "expected_plate": "30V4495",
+        "scenario": "success",
+        "sha256": "cf5eb103cdc7c2d8d95e1a4ed7fdce927156665de6fe1b3cb3c576bda0f6c957"
+      },
+      {
+        "id": "user-title-no-plate",
+        "vehicle_id": "user-title",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-title-5.jpg",
+        "expected_plate": null,
+        "scenario": "no-plate",
+        "sha256": "5537df91c9c9cc2d65b7e22ef4fd1a4294fbf7feb3478dc5f77b9cd716f6b550"
+      }
+    ],
+    "validation": [
+      {
+        "id": "commons-captiva-30M6238",
+        "vehicle_id": "commons-captiva-30M6238",
+        "image": "../var/phase2-release-dataset/captiva-01.jpg",
+        "expected_plate": "30M6238",
+        "scenario": "success",
+        "sha256": "cdf3b3108eec92cfddd0c12fa8276274d4a644f14b11648e0612a55eb57771a3",
+        "source_url": "https://commons.wikimedia.org/wiki/File:2006-2011_Chevrolet_Captiva_LS_wagon_(2015-12-28)_01.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "EurovisionNim"
+      },
+      {
+        "id": "commons-nissan-30A02282",
+        "vehicle_id": "commons-nissan-30A02282",
+        "image": "../var/phase2-release-dataset/nissan-rear.jpg",
+        "expected_plate": "30A02282",
+        "scenario": "success",
+        "sha256": "525b6ea2d09d4e0c86e4b92beb6633cd7376738e33c5e23df1624a4b296a79a1",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Nissan_Sunny_XL_sedan,_rear_view.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "EurovisionNim"
+      },
+      {
+        "id": "commons-kia-51A45640",
+        "vehicle_id": "commons-kia-51A45640",
+        "image": "../var/phase2-release-dataset/kia-morning.jpg",
+        "expected_plate": "51A45640",
+        "scenario": "success",
+        "sha256": "2adcf1c9f089ef12d8cb34a07492f40921a9cfdbf0426e26177316000beb6f37",
+        "source_url": "https://commons.wikimedia.org/wiki/File:White_Kia_Morning_second_generation.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "EurovisionNim"
+      },
+      {
+        "id": "commons-bus-51B04392",
+        "vehicle_id": "commons-bus-51B04392",
+        "image": "../var/phase2-release-dataset/bus-51b04392.jpg",
+        "expected_plate": "51B04392",
+        "scenario": "success",
+        "sha256": "7353f90130384058e0134a9211ebf720222fbb6df749bcd0193c767aaa24c4ed",
+        "source_url": "https://commons.wikimedia.org/wiki/File:51B_04392_(23747124141).jpg",
+        "license": "CC BY-SA 2.0",
+        "attribution": "KK70088"
+      }
+    ],
+    "demo": [
+      {
+        "id": "commons-daewoo-29A74952",
+        "vehicle_id": "commons-daewoo-29A74952",
+        "image": "../var/phase2-release-dataset/daewoo-rear.jpg",
+        "expected_plate": "29A74952",
+        "scenario": ["success", "oblique"],
+        "sha256": "4433b30603cd3a84df80f60bd53f3e5d1dd4006170f20d4d7fe88af99f727137",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Daewoo_Super_Salon_rear.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "EurovisionNim"
+      },
+      {
+        "id": "commons-ecobus-29B00312",
+        "vehicle_id": "commons-ecobus-29B00312",
+        "image": "../var/phase2-release-dataset/ecobus-01.jpg",
+        "expected_plate": "29B00312",
+        "scenario": ["success", "small-or-partial"],
+        "sha256": "79c0b6a9fc969d793242a43650c344431b1b06af5468b7fe914a96f4d6b5e024",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Parked_Ecobuses,_Ecopark_(2018)_01.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "Donald Trung"
+      },
+      {
+        "id": "commons-82B167176",
+        "vehicle_id": "commons-82B167176",
+        "image": "../var/phase2-release-dataset/kon-tum.jpg",
+        "expected_plate": "82B167176",
+        "scenario": "oblique",
+        "sha256": "e34a32a5a96d4165465a57e919e884de5085a82b074e51398053daea1b553ef6",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Biển_số_xe_Kon_Tum.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "Lê Huỳnh Bộ"
+      },
+      {
+        "id": "commons-61K42494",
+        "vehicle_id": "commons-61K42494",
+        "image": "../var/phase2-release-dataset/binh-duong.jpg",
+        "expected_plate": "61K42494",
+        "scenario": "success",
+        "sha256": "b11fa87283bb83dad2944ae7b7723e36132aa0569cba0e87051777bdae4e5afa",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Biển_số_xe_bình_dương.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "Lê Huỳnh Bộ"
+      }
+    ],
+    "edge_cases": [
+      {
+        "id": "commons-evening-dark",
+        "vehicle_id": "commons-evening-dark",
+        "image": "../var/phase2-release-dataset/evening-street.jpg",
+        "expected_plate": null,
+        "scenario": "dark",
+        "sha256": "6334486cc23ae1f878c7cbd884bc8d7cd523d6245372fbba3e728765ee19958f",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Evening_streetscene_(14424306687).jpg",
+        "license": "CC BY-SA 2.0",
+        "attribution": "Erwin Verbruggen"
+      },
+      {
+        "id": "commons-kim-ma-motion-blur",
+        "vehicle_id": "commons-kim-ma-motion-blur",
+        "image": "../var/phase2-release-dataset/kim-ma-traffic.jpg",
+        "expected_plate": null,
+        "scenario": "blur",
+        "sha256": "1a1547dfe45c28f27eda6e5826dc6fd2c4996fa3a1577f1889fcb9f66be63642",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Kim_Ma_motorbike_traffic_HN.jpg",
+        "license": "CC BY-SA 3.0",
+        "attribution": "Dragfyre"
+      },
+      {
+        "id": "commons-honda-small-partial",
+        "vehicle_id": "commons-honda-small-partial",
+        "image": "../var/phase2-release-dataset/honda-hanoi.jpg",
+        "expected_plate": null,
+        "scenario": "small-or-partial",
+        "sha256": "c02bae776b42478abdfacd348c45a20c6f61e9fd31fb3f5452a6fb39ba30853a",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Honda_motorcycle_in_Hanoi,_17-03-2026_E1.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "HaCong4439u"
+      },
+      {
+        "id": "commons-vinfast-side-negative",
+        "vehicle_id": "commons-vinfast-side-negative",
+        "image": "../var/phase2-release-dataset/vinfast-vf6.jpg",
+        "expected_plate": null,
+        "scenario": "negative",
+        "sha256": "658b74b07e53412881f5a1116a3a7552dba366166b480fc248d051929186ff10",
+        "source_url": "https://commons.wikimedia.org/wiki/File:NewOne_-_red_electric_Suv_VinFast_VF_6.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "Newone"
+      }
+    ]
+  }
+}

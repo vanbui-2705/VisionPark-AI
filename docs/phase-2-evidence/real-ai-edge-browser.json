@@ -1,0 +1,168 @@
+{
+  "environment": "isolated Phase 2 real-provider evidence environment",
+  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "checks": {
+    "real_low_confidence_operator_correction": "pass",
+    "real_no_plate_manual_fallback": "pass"
+  },
+  "scenarios": {
+    "low_confidence": {
+      "input": "backend\\var\\completion-video\\case-toyota-44.5.jpg",
+      "preview": {
+        "raw_plate": "29A-90.01",
+        "normalized_plate": "29A9001",
+        "bbox": [
+          824,
+          332,
+          999,
+          406
+        ],
+        "confidence": 0.7548000812530518,
+        "latency_ms": 462.0,
+        "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+        "requires_confirmation": true,
+        "detection_id": null,
+        "input_kind": "IMAGE_UPLOAD",
+        "video_time_ms": null,
+        "actor_id": "5e6cb1cc-6d50-4069-9203-b33f8aa64bd5",
+        "raw_plate_number": "29A-90.01",
+        "normalized_plate_number": "29A9001",
+        "processing_time_ms": 462,
+        "detector_confidence": 0.7548000812530518,
+        "ocr_confidence": 0.8745739459991455,
+        "combined_confidence": 0.7548000812530518,
+        "quality_flags": [],
+        "provider": "ultralytics-paddleocr",
+        "provider_status": "ready",
+        "detector_latency_ms": 281.1745979997795,
+        "ocr_latency_ms": 167.5604129995918
+      },
+      "transaction": {
+        "id": "c883702a-471a-41ca-809a-2cc0e60e2293",
+        "license_plate": "29A90101",
+        "original_ai_plate": "29A9001",
+        "normalized_plate": "29A90101",
+        "status": "PARKED",
+        "lane_id": "1b54144c-5c14-4036-b011-9ba6663b1f69",
+        "lane_name": "AI_EVIDENCE_IN",
+        "detection_id": "3c53600e-3bbc-456e-8130-efef9b974842",
+        "image_url": "/api/v1/alpr/media/1b54144c-5c14-4036-b011-9ba6663b1f69_e2c15e6e30f44af6b7438ba7c34f8891.jpg",
+        "confidence": 0.7548000812530518,
+        "check_in_time": "2026-10-09T08:18:20.763682Z",
+        "check_in_operator_id": "5e6cb1cc-6d50-4069-9203-b33f8aa64bd5",
+        "check_in_operator_name": "VisionPark Administrator",
+        "source": "OPERATOR_CORRECTED",
+        "is_manual_override": true,
+        "notes": null,
+        "created_at": "2026-10-09T08:18:20.763682Z"
+      },
+      "audit": [
+        {
+          "id": "739d21b2-ddf1-4f97-8530-9535cad11ae5",
+          "time": "2026-10-09T08:18:20.763682Z",
+          "actor": "VisionPark Administrator",
+          "action": "CREATE_CHECKIN",
+          "resource": "ParkingTransaction",
+          "resource_id": "c883702a-471a-41ca-809a-2cc0e60e2293",
+          "source": "OPERATOR_CORRECTED",
+          "before": null,
+          "after": {
+            "lane_id": "1b54144c-5c14-4036-b011-9ba6663b1f69",
+            "ai_plate": "29A9001",
+            "final_plate": "29A90101",
+            "source": "OPERATOR_CORRECTED",
+            "actor_id": "5e6cb1cc-6d50-4069-9203-b33f8aa64bd5",
+            "detection_id": "3c53600e-3bbc-456e-8130-efef9b974842"
+          },
+          "correlation_id": null
+        }
+      ],
+      "screenshots": [
+        "real-low-confidence-before-correction.png",
+        "real-low-confidence-corrected.png"
+      ]
+    },
+    "no_plate": {
+      "input": "backend\\var\\completion-video\\case-title-5.jpg",
+      "preview": {
+        "raw_plate": null,
+        "normalized_plate": null,
+        "bbox": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "confidence": 0.0,
+        "latency_ms": 364.0,
+        "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+        "requires_confirmation": true,
+        "detection_id": null,
+        "input_kind": "IMAGE_UPLOAD",
+        "video_time_ms": null,
+        "actor_id": "5e6cb1cc-6d50-4069-9203-b33f8aa64bd5",
+        "raw_plate_number": null,
+        "normalized_plate_number": null,
+        "processing_time_ms": 364,
+        "detector_confidence": 0.0,
+        "ocr_confidence": null,
+        "combined_confidence": 0.0,
+        "quality_flags": [],
+        "provider": "ultralytics-paddleocr",
+        "provider_status": "ready",
+        "detector_latency_ms": 357.8543640032876,
+        "ocr_latency_ms": null
+      },
+      "preview_transaction_ids_before": [
+        "c883702a-471a-41ca-809a-2cc0e60e2293"
+      ],
+      "preview_transaction_ids_after": [
+        "c883702a-471a-41ca-809a-2cc0e60e2293"
+      ],
+      "transaction": {
+        "id": "4c832112-60c5-4797-97ed-83b2011d8c99",
+        "license_plate": "99N00009",
+        "original_ai_plate": null,
+        "normalized_plate": "99N00009",
+        "status": "PARKED",
+        "lane_id": "1b54144c-5c14-4036-b011-9ba6663b1f69",
+        "lane_name": "AI_EVIDENCE_IN",
+        "detection_id": null,
+        "image_url": null,
+        "confidence": null,
+        "check_in_time": "2026-10-09T08:18:23.515838Z",
+        "check_in_operator_id": "5e6cb1cc-6d50-4069-9203-b33f8aa64bd5",
+        "check_in_operator_name": "VisionPark Administrator",
+        "source": "MANUAL_ENTRY",
+        "is_manual_override": true,
+        "notes": null,
+        "created_at": "2026-10-09T08:18:23.515838Z"
+      },
+      "audit": [
+        {
+          "id": "29c3db24-6e62-4810-a7cc-c222776b643a",
+          "time": "2026-10-09T08:18:23.515838Z",
+          "actor": "VisionPark Administrator",
+          "action": "CREATE_CHECKIN",
+          "resource": "ParkingTransaction",
+          "resource_id": "4c832112-60c5-4797-97ed-83b2011d8c99",
+          "source": "MANUAL_ENTRY",
+          "before": null,
+          "after": {
+            "lane_id": "1b54144c-5c14-4036-b011-9ba6663b1f69",
+            "ai_plate": null,
+            "final_plate": "99N00009",
+            "source": "MANUAL_ENTRY",
+            "actor_id": "5e6cb1cc-6d50-4069-9203-b33f8aa64bd5",
+            "detection_id": null
+          },
+          "correlation_id": null
+        }
+      ],
+      "screenshots": [
+        "real-no-plate-before-manual.png",
+        "real-no-plate-manual-success.png"
+      ]
+    }
+  }
+}
