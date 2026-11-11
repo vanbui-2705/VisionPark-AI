@@ -1,12 +1,24 @@
 from datetime import UTC, datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.modules.checkin.schemas import ParkingTransactionResponse
 
-ALLOWED_CHECKOUT_PAYMENT_METHODS = {"CASH"}
-ALLOWED_SESSION_PAYMENT_METHODS = {"CASH", "VIETQR_MOCK", "OVERRIDE"}
+
+class CheckoutPaymentMethod(StrEnum):
+    CASH = "CASH"
+
+
+class SessionPaymentMethod(StrEnum):
+    CASH = "CASH"
+    VIETQR_MOCK = "VIETQR_MOCK"
+    OVERRIDE = "OVERRIDE"
+
+
+ALLOWED_CHECKOUT_PAYMENT_METHODS = {item.value for item in CheckoutPaymentMethod}
+ALLOWED_SESSION_PAYMENT_METHODS = {item.value for item in SessionPaymentMethod}
 
 
 class CheckOutRequest(BaseModel):
@@ -61,6 +73,7 @@ class PaymentRecordRequest(BaseModel):
     override_reason: str | None = Field(
         None, max_length=500, description="Lý do nếu override miễn phí hoặc khác số tiền"
     )
+    idempotency_key: str | None = Field(None, min_length=1, max_length=255)
 
 
 class CheckOutPreviewResponse(BaseModel):

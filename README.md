@@ -83,3 +83,15 @@ PostgreSQL race tests require `TEST_POSTGRES_URL` pointing to a disposable serve
 ## Functional acceptance and E2E
 
 See [operational runbook](docs/System-Functional-Runbook.md) for GATE_* credentials, nonzero CASH acceptance pricing, preflight, dry-run and troubleshooting. `system_gate.py` writes real acceptance sessions; use a dedicated quiet acceptance building. Its JSON explicitly does not evaluate ALPR accuracy. `scripts/dry_run.py` runs functional and quality gates independently.
+
+## Main: functional acceptance (FILE_UPLOAD)
+
+CI áp dụng cho `main` (push/PR), chạy test/lint/format trong Docker theo `.github/workflows/ci.yml`.
+Sau khi khởi động stack và cấu hình `SEED_OPERATOR_PASSWORD` qua biến môi trường:
+
+```bash
+cd backend
+python scripts/system_gate.py --image /path/to/acceptance.jpg --video /path/to/acceptance.mp4 --report var/reports/system-functional-gate.json
+```
+
+Exit code 0=PASS, 1=FAIL, 2=HOLD; chỉ PASS khi mọi check đạt. Gate chức năng **không đo ALPR accuracy**; xem `docs/UAT-Demo-Script.md` và `docs/Handover-Runbook.md`. `LIVE_CAMERA/RTSP` chưa tích hợp.

@@ -88,7 +88,7 @@ def _runtime_health(client: httpx.Client) -> dict[str, Any]:
     try:
         response = client.get("/health/ready")
     except httpx.RequestError as exc:
-        return _hold("runtime_readiness", f"Backend is not reachable: {exc}")
+        return _fail("runtime_readiness", f"Backend is not reachable: {exc}")
 
     try:
         payload = response.json()
@@ -123,7 +123,7 @@ def _frontend_health(frontend_url: str) -> dict[str, Any]:
     try:
         response = httpx.get(frontend_url.rstrip("/") + "/health/live", timeout=10)
     except httpx.RequestError as exc:
-        return _hold("frontend_health", f"Frontend is not reachable: {exc}")
+        return _fail("frontend_health", f"Frontend is not reachable: {exc}")
     if response.status_code != 200:
         return _fail("frontend_health", f"Frontend health returned HTTP {response.status_code}")
     return _pass("frontend_health", url=str(response.url))
@@ -161,10 +161,10 @@ def _probe_file_uploads(
     username = os.getenv("SEED_OPERATOR_USERNAME", "operator")
     password = os.getenv("SEED_OPERATOR_PASSWORD")
     if not password:
-        return [_hold("file_upload_inference", "SEED_OPERATOR_PASSWORD is not configured")]
+        return [_fail("file_upload_inference", "SEED_OPERATOR_PASSWORD is not configured")]
     if image_path is None or video_path is None:
         return [
-            _hold(
+            _fail(
                 "file_upload_inference",
                 "Both --image and --video acceptance media are required",
             )
@@ -189,7 +189,7 @@ def _probe_file_uploads(
         try:
             body, input_kind, media_type = _media_bytes(path, video_time_ms=video_time_ms)
         except (OSError, ValueError) as exc:
-            checks.append(_hold(f"{path.name}_inference", str(exc)))
+            checks.append(_fail(f"{path.name}_inference", str(exc)))
             continue
         form_data = {
             "lane_id": lane["id"],
@@ -262,6 +262,7 @@ def run_system_gate(
                 )
             )
     checks.append(_frontend_health(frontend_url))
+    checks.append(_pass("operating_mode", mode="FILE_UPLOAD", live_camera_rtsp="NOT_INTEGRATED"))
 
     status = aggregate_status(checks)
     report = {
@@ -277,6 +278,7 @@ def run_system_gate(
             "frontend_url": frontend_url,
         },
         "status": status,
+        "alpr_quality_status": "NOT_EVALUATED",
         "checks": checks,
     }
     return status, report

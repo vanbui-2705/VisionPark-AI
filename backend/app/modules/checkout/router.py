@@ -58,6 +58,7 @@ def create_check_out(
 def record_session_payment(
     session_id: UUID,
     request: PaymentRecordRequest,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     service: CheckOutService = Depends(get_checkout_service),
     current_user: User = Depends(
         require_roles(RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN)
@@ -71,4 +72,5 @@ def record_session_payment(
         amount=request.amount,
         provider_ref=request.provider_ref,
         override_reason=request.override_reason,
+        idempotency_key=idempotency_key or request.idempotency_key,
     )

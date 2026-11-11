@@ -30,3 +30,15 @@ backend/app/alpr/weights/*
 *.db
 #
 docs/nghiepvu.md
+
+# Root junk (stray empty lockfile, vite cache, local images)
+node_modules/
+package-lock.json
+tuan2.jpg
+design.md
+tailieu/
+docs/_images/
+docs/BAO-CAO-KIEN-TRUC-VA-CONG-NGHE.docx
+docs/BAO-CAO-KIEN-TRUC-VA-CONG-NGHE.md
+docs/_gen_arch_report.py
+AGENTS.md
