@@ -285,9 +285,15 @@ def test_e2e_cash_workflow_casual_vehicle_in_and_out(
     assert payments[0].method == "CASH"
     assert payments[0].status == "PAID"
     assert payments[0].amount_vnd == expected_fee
-    assert sum(event.delta for event in db_session.scalars(
-        select(CounterEvent).where(CounterEvent.session_id == tx_id)
-    )) == 0
+    assert (
+        sum(
+            event.delta
+            for event in db_session.scalars(
+                select(CounterEvent).where(CounterEvent.session_id == tx_id)
+            )
+        )
+        == 0
+    )
 
     # Dashboard must reflect the completed session, not count it as parked.
     dashboard_response = client.get(
