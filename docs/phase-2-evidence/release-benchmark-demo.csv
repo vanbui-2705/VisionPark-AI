@@ -1,0 +1,5 @@
+id,vehicle_id,scenario,expected_plate,actual_plate,exact_match,character_accuracy,no_result,false_positive,error,full_latency_ms,detector_latency_ms,ocr_latency_ms,processing_time_ms,requires_confirmation,quality_flags
+commons-daewoo-29A74952,commons-daewoo-29A74952,"['success', 'oblique']",29A74952,29A7952,False,0.875,False,False,,272.976,80.88530000532046,182.90820000402164,272,True,[]
+commons-ecobus-29B00312,commons-ecobus-29B00312,"['success', 'small-or-partial']",29B00312,,False,0.0,True,False,,137.93,126.44329998875037,,137,True,[]
+commons-82B167176,commons-82B167176,oblique,82B167176,82B11766,False,0.6667,False,False,,337.212,140.69210000161547,183.53219999698922,336,True,[]
+commons-61K42494,commons-61K42494,success,61K42494,,False,0.0,True,False,,130.222,119.95209999440704,,129,True,[]

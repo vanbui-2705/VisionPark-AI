@@ -358,27 +358,6 @@ class CheckOutService:
 
         checkout_fp = _compute_checkout_fingerprint(request, norm_method)
 
-        # Serialize checkout decisions before reading replay/ledger state. The row
-        # lock is held until the existing completion transaction commits. Selecting
-        # only the ID avoids FOR UPDATE on nullable joined relationships.
-        lock_query = select(ParkingTransaction.id)
-        if request.session_id:
-            lock_query = lock_query.where(ParkingTransaction.id == request.session_id)
-        elif request.ticket_code:
-            lock_query = lock_query.where(
-                ParkingTransaction.ticket_code == request.ticket_code.strip().upper(),
-                ParkingTransaction.status.in_(_CHECKOUT_ELIGIBLE),
-            )
-        else:
-            lock_query = lock_query.where(
-                ParkingTransaction.normalized_plate == normalize_plate(request.license_plate),
-                ParkingTransaction.status.in_(_CHECKOUT_ELIGIBLE),
-            )
-        building_id = getattr(operator, "building_id", None)
-        if isinstance(building_id, UUID):
-            lock_query = lock_query.where(ParkingTransaction.building_id == building_id)
-        self.session.execute(lock_query.order_by(ParkingTransaction.id).with_for_update()).all()
-
         # 1. Kiểm tra idempotent + xác thực fingerprint (BUILD-01)
         existing_done = self.repo.get_by_idempotency_key_checkout(key)
         if existing_done and existing_done.status in {

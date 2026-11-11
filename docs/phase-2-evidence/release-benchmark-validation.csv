@@ -1,0 +1,5 @@
+id,vehicle_id,scenario,expected_plate,actual_plate,exact_match,character_accuracy,no_result,false_positive,error,full_latency_ms,detector_latency_ms,ocr_latency_ms,processing_time_ms,requires_confirmation,quality_flags
+commons-captiva-30M6238,commons-captiva-30M6238,success,30M6238,3016238,False,0.8571,False,False,,157.616,101.24610000639223,47.39459999836981,157,True,[]
+commons-nissan-30A02282,commons-nissan-30A02282,success,30A02282,0A02282,False,0.875,False,False,,326.419,123.79269998928066,190.82030000572558,326,True,[]
+commons-kia-51A45640,commons-kia-51A45640,success,51A45640,51A45640,True,1.0,False,False,,208.234,145.6400000024587,49.44909999903757,207,False,[]
+commons-bus-51B04392,commons-bus-51B04392,success,51B04392,51044692,False,0.625,False,False,,324.789,131.11430000572,181.56469998939428,324,True,[]

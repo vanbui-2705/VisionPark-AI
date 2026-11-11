@@ -1,8 +1,17 @@
-# Phase 2 evidence (2026-10-07)
+# Phase 2 evidence (updated 2026-10-09)
+
+The machine-readable [evidence index](evidence-index.json) records traceable release scenarios,
+the 15-case multi-scene dataset and the current recognition-quality failure. Dataset structure,
+coverage and provenance pass; validation/demo accuracy blocks release.
+The current gate decision and rerun commands are in the
+[2026-10-09 release report](../phase-2-release-report-2026-10-09.md).
 
 Current evidence: [completion report](../real-data-completion-report-2026-10-07.md),
 [real vehicle benchmark](completion-user-video-benchmark.json),
-[Chrome image/video](completion-browser.json), [Docker lifecycle](completion-lifecycle-final.json).
+[Chrome image/video](completion-browser.json), [real low-confidence/no-plate trace](real-ai-edge-browser.json),
+[Docker lifecycle](completion-lifecycle-final.json), and the release-candidate
+[smoke](release-benchmark-smoke.json), [validation](release-benchmark-validation.json),
+[demo](release-benchmark-demo.json), and [edge-case](release-benchmark-edge-cases.json) reports.
 
 ## Historical mock/synthetic contract checks
 
@@ -18,8 +27,8 @@ are removed after verification; screenshots contain only synthetic QA plates.
 - [x] Manual entry succeeds through parking API after an injected ALPR 503.
 - [x] Admin users/roles và Operator RBAC; detection detail tải ảnh thật từ media endpoint.
 - [x] No browser page errors; disposable QA records removed.
-- [ ] Low-confidence and no-plate screenshot/video coverage.
-- [ ] Real vehicle demo/benchmark on labelled images and CPU cold/warm measurements.
+- [x] Low-confidence and no-plate screenshot/video coverage (current real-provider evidence).
+- [x] Real vehicle demo/benchmark on labelled images and CPU cold/warm measurements.
 
 [Sanitized browser report](browser-smoke.json), [preview](mock-preview.png),
 [corrected check-in](mock-corrected-checkin.png), [duplicate](mock-duplicate.png),

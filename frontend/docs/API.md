@@ -44,3 +44,21 @@ a temporary object URL, and revokes it on cleanup. Local Station previews remain
 - `POST/GET /api/v1/invoices`: tạo hóa đơn từ snapshot lúc check-in; phụ thu là dòng riêng.
 - `POST /api/v1/payments` cần `Idempotency-Key`; `GET /payments/{id}` để polling; `GET /payments/reconcile` cho BUILDING_ADMIN. Callback mock `POST /payments/callback` cần HMAC-SHA256 trên raw body trong header `X-Mock-Signature`, dùng `MOCK_VIETQR_CALLBACK_SECRET`.
 - Job đối soát chạy một lần: `python scripts/reconcile_m4_payments.py --building-id <UUID>` từ thư mục `backend`; mã thoát 1 khi có chênh lệch.
+
+## Phase 4 Station OUT
+
+- POST /api/v1/parking/check-out/preview nhận license_plate (hoặc session_id), exit_lane_id,
+  exit_image_url optional. Trả biển số, ảnh vào/ra, check_in_time và exit_time có múi giờ,
+  duration_minutes, fee, fee_breakdown, status. Preview không đóng phiên.
+- OUT final detection dùng confirm với check_in=false. URL ảnh đã lưu được truyền vào
+  preview và checkout; không tạo check-in trên làn OUT.
+- POST /api/v1/parking/check-out nhận session_id, exit_lane_id, exit_image_url optional,
+  payment_method=CASH và expected_fee. Khóa ổn định: station-exit-<session_id>.
+  CASH một chạm ghi nhận thanh toán, hoàn tất phiên và mở barrier mô phỏng. Xe phí 0
+  hoặc trạng thái PAID không gửi CASH. Không gọi thêm /payments để tránh ghi nhận hai lần.
+- expected_fee optional không ảnh hưởng caller cũ. Phí khác số đã hiển thị trả 409
+  FEE_CHANGED trước khi thu tiền; phải cập nhật preview và xác nhận lại phí mới.
+- Thành công trả transaction, fee, status, barrier_opened, message. Frontend chỉ báo
+  hoàn tất khi đúng phiên/làn/phí, trạng thái COMPLETED/EXITED và barrier_opened=true.
+- Quyền backend: OPERATOR/SYSTEM_ADMIN/BUILDING_ADMIN; frontend dùng checkout.create.
+  Barrier chỉ ghi sự kiện mô phỏng, chưa điều khiển thiết bị vật lý.

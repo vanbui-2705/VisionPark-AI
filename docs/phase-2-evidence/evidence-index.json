@@ -1,0 +1,102 @@
+{
+  "phase": "phase-2-alpr-checkin",
+  "updated_at": "2026-10-09",
+  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "release_report": "../phase-2-release-report-2026-10-09.md",
+  "functional_acceptance": {
+    "status": "pass",
+    "command": "py -3 scripts/release_gate.py --functional-only --skip-tests",
+    "scope": [
+      "real-provider readiness",
+      "image and video preview",
+      "operator correction and manual fallback",
+      "persistence, duplicate protection, idempotency and audit",
+      "dataset and evidence traceability",
+      "latency, provider-error and edge-case safety checks"
+    ]
+  },
+  "recognition_quality_release": {
+    "status": "hold",
+    "command": "py -3 scripts/release_gate.py --skip-tests",
+    "reason": "Validation exact match is 25% and demo exact match is 0%; the release floor is 80% for both splits."
+  },
+  "dataset": {
+    "manifest": "../../backend/datasets/phase2-release.json",
+    "fingerprint": "437bb9dd3e7fb7db0acaff414d151117ac5b14067c3511c9298b02c6db266be6",
+    "structure_and_coverage_ready": true,
+    "quality_gate_ready": false,
+    "counts": {"smoke": 3, "validation": 4, "demo": 4, "edge_cases": 4},
+    "coverage": [
+      "success",
+      "no-plate",
+      "low-confidence",
+      "blur",
+      "dark",
+      "negative",
+      "oblique",
+      "small-or-partial"
+    ],
+    "missing_coverage": [],
+    "public_asset_provisioner": "../../backend/scripts/provision_phase2_release_dataset.py"
+  },
+  "benchmarks": {
+    "status": "fail",
+    "release_exact_match_floor": 0.8,
+    "smoke": {"report": "release-benchmark-smoke.json", "exact_match_rate": 0.5, "full_p95_ms": 198.778},
+    "validation": {"report": "release-benchmark-validation.json", "exact_match_rate": 0.25, "character_accuracy": 0.8393, "full_p95_ms": 326.419},
+    "demo": {"report": "release-benchmark-demo.json", "exact_match_rate": 0.0, "character_accuracy": 0.3854, "full_p95_ms": 337.212},
+    "edge_cases": {"report": "release-benchmark-edge-cases.json", "false_positive_rate": 0.0, "full_p95_ms": 306.022}
+  },
+  "scenarios": {
+    "real_success_image": {
+      "status": "pass",
+      "browser": "completion-image-station.png",
+      "api_and_transaction": "completion-browser.json",
+      "input_sha256": "1ce9f95a6e90bf16f40ef484b23a8a8573626c70856abbc1518abe7a5243eaa7"
+    },
+    "real_success_video": {
+      "status": "pass",
+      "browser": "completion-video-station.png",
+      "api_and_transaction": "completion-browser.json",
+      "benchmark": "completion-user-video-benchmark.json"
+    },
+    "real_low_confidence_operator_correction": {
+      "status": "pass",
+      "browser_and_trace": "real-ai-edge-browser.json",
+      "screenshots": [
+        "real-low-confidence-before-correction.png",
+        "real-low-confidence-corrected.png"
+      ]
+    },
+    "real_no_plate_manual_fallback": {
+      "status": "pass",
+      "browser_and_trace": "real-ai-edge-browser.json",
+      "screenshots": [
+        "real-no-plate-before-manual.png",
+        "real-no-plate-manual-success.png"
+      ]
+    },
+    "corrected_plate_audit": {
+      "status": "pass",
+      "api_database_and_audit": "real-ai-edge-browser.json",
+      "check": "original_ai_plate=29A9001, final_plate=29A90101, source=OPERATOR_CORRECTED"
+    },
+    "duplicate": {
+      "status": "pass",
+      "browser_and_api_assertion": "completion-browser.json",
+      "check": "repeat_image_checkin_duplicate_rejected"
+    },
+    "retry_idempotency": {
+      "status": "pass",
+      "api_database_and_lifecycle": "completion-persistence.json",
+      "check": "correction_transaction_idempotency"
+    }
+  },
+  "limitations": [
+    "The 15-case release candidate covers one user video and twelve separately licensed Commons photographs; it is still a small evaluation set.",
+    "Validation exact match is 25% and demo exact match is 0%, so the current model does not generalize to the independent vehicle scenes.",
+    "All four natural negative/edge cases returned no result and produced zero false positives.",
+    "The local benchmark used Ultralytics 8.4.47; the Docker image contains 8.4.174 while the weight artifact version label is ultralytics-8.4.165-yolo26n-plate-v1.",
+    "Mock and synthetic evidence proves contracts only and is not recognition-quality evidence."
+  ]
+}

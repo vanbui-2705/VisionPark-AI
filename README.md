@@ -28,7 +28,7 @@ independently labelled media. Exit codes are `0=PASS`, `1=FAIL`, and `2=HOLD`.
 
 ```powershell
 cd backend
-# Set GATE_* as documented in docs/System-Functional-Runbook.md first.
+$env:SEED_OPERATOR_PASSWORD = '<local operator password>'
 py -3 scripts/system_gate.py --image <path-to-image> --video <path-to-mp4>
 py -3 scripts/release_gate.py --dataset datasets/phase2-release.json
 ```

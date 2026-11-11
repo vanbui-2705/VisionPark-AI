@@ -64,6 +64,8 @@ class CounterService:
 
         # CẬP NHẬT CÓ ĐIỀU KIỆN TRONG 1 CÂU LỆNH DUY NHẤT:
         # UPDATE parking_counters SET occupied = occupied + 1 WHERE id = :id AND occupied < :limit
+        prev_occupied = counter.occupied if isinstance(counter.occupied, int) else 0
+        now = datetime.now(UTC)
         where_cond = [
             ParkingCounter.id == counter.id,
             ParkingCounter.occupied < limit,
@@ -71,7 +73,7 @@ class CounterService:
         stmt = (
             update(ParkingCounter)
             .where(*where_cond)
-            .values(occupied=ParkingCounter.occupied + 1, updated_at=datetime.now(UTC))
+            .values(occupied=ParkingCounter.occupied + 1, updated_at=now)
         )
         result = db.execute(stmt)
 
@@ -91,10 +93,11 @@ class CounterService:
                 message=msg or f"Bãi xe đã hết chỗ cho loại xe {vtype} (ngưỡng tối đa: {limit}).",
             )
 
-        # Cập nhật đối tượng ORM trong phiên làm việc
-        if isinstance(counter.occupied, int):
-            counter.occupied += 1
-        counter.updated_at = datetime.now(UTC)
+        # Chỉ cập nhật thủ công nếu db.execute là mock (trong SQLAlchemy thật,
+        # synchronize_session='evaluate' đã tự động cộng +1 vào counter.occupied)
+        if isinstance(counter.occupied, int) and counter.occupied == prev_occupied:
+            counter.occupied = prev_occupied + 1
+            counter.updated_at = now
 
         counter_id = getattr(counter, "id", None)
         if type(counter_id).__name__ == "MagicMock":
@@ -132,16 +135,22 @@ class CounterService:
         vtype = vehicle_type.upper()
         counter = cls.get_or_create_counter(db, building_id, vtype)
 
+        prev_occupied = counter.occupied if isinstance(counter.occupied, int) else 0
+        now = datetime.now(UTC)
         stmt = (
             update(ParkingCounter)
             .where(ParkingCounter.id == counter.id, ParkingCounter.occupied > 0)
-            .values(occupied=ParkingCounter.occupied - 1, updated_at=datetime.now(UTC))
+            .values(occupied=ParkingCounter.occupied - 1, updated_at=now)
         )
         db.execute(stmt)
 
-        if isinstance(counter.occupied, int) and counter.occupied > 0:
-            counter.occupied -= 1
-        counter.updated_at = datetime.now(UTC)
+        if (
+            isinstance(counter.occupied, int)
+            and prev_occupied > 0
+            and counter.occupied == prev_occupied
+        ):
+            counter.occupied = prev_occupied - 1
+            counter.updated_at = now
 
         counter_id = getattr(counter, "id", None)
         if type(counter_id).__name__ == "MagicMock":

@@ -37,18 +37,33 @@ Ghi lại trước khi chạy:
 | Camera live/RTSP | `NOT_INTEGRATED` |
 | Barrier controller | `CONNECTED` / `NOT_INTEGRATED` / `UNVERIFIED` |
 
-Thực hiện preflight, credentials qua biến môi trường, warmup và kiểm thử theo
-[System Functional Runbook](System-Functional-Runbook.md). Gate dùng tài khoản
-`GATE_USERNAME`/`GATE_PASSWORD` và building acceptance riêng; không tự seed operator.
+Chạy:
 
 ```powershell
 cd backend
-python scripts/dry_run.py --image C:/acceptance/car.jpg --video C:/acceptance/drive.mp4 --dataset datasets/phase2-release.json
+py -3 -m pytest tests
+py -3 -m ruff check app scripts tests
+py -3 -m ruff format --check app scripts tests
+py -3 scripts/verify_model_bundle.py
+
+$env:SEED_OPERATOR_PASSWORD = '<local operator password>'
+py -3 scripts/system_gate.py --image <path-to-image> --video <path-to-mp4>
+py -3 scripts/release_gate.py --dataset datasets/phase2-release.json
+
+cd ../frontend
+npm test -- --run
+npm run lint
+npm run build
 ```
 
-Lưu hai JSON độc lập và `dry-run.json`. Gate tự động kiểm tra luồng CASH/duplicate/
-manual và vận chuyển ảnh/video; người nghiệm thu vẫn phải thao tác trình duyệt theo
-A–E bên dưới, đặc biệt sửa OCR và vé tháng. Không ghi PASS cho bước chưa chạy.
+Kiểm tra thêm:
+
+```powershell
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+```
+
 Không chạy `docker compose down -v` trên môi trường cần giữ dữ liệu.
 
 ## 3. Acceptance media
@@ -88,11 +103,6 @@ Mỗi file phải có manifest gồm source, usage rights, SHA-256 và expected 
 Kết quả: `PASS / FAIL / HOLD`
 
 Evidence:
-
-Sau CASH, replay **cùng payload và Idempotency-Key**: invoice_id/payment_id giữ
-nguyên, chỉ một payment PAID, một counter CHECK_OUT và một audit CHECKOUT_COMPLETED.
-Đối chiếu cash-shift report trước/sau: entries +1, exits +1, revenue + đúng phí;
-counter về mức ban đầu. Lưu barrier_mode từ response, không suy ra ACK vật lý.
 
 ## 5. Kịch bản B — Confidence thấp và operator correction
 

@@ -49,7 +49,7 @@ export default function ConfirmationPanel({
     <span className="card-kicker">OPERATOR CONFIRMATION</span>
     <p style={{ margin: "6px 0 12px" }}>AI: <strong>{result.normalized_plate_number ?? result.raw_plate_number ?? translate("Không có biển số")}</strong></p>
     <div className="scan-result-actions">
-      <button type="button" className="btn btn-primary btn-small" disabled={locked || !canAccept} onClick={() => void run(() => onConfirmCorrect(candidateId!), translate("Đã xác nhận biển số."))}>{translate("✓ Biển số đúng")}</button>
+      <button type="button" className="btn btn-primary btn-small" data-station-shortcut={editing ? undefined : "confirm"} aria-keyshortcuts="F4" disabled={locked || !canAccept} onClick={() => void run(() => onConfirmCorrect(candidateId!), translate("Đã xác nhận biển số."))}>{translate("✓ Biển số đúng")}</button>
       <button type="button" className="btn btn-small" disabled={locked} onClick={() => { setEditing(true); onEditingChange?.(true); }}>{translate("✎ Sai / Không có biển")}</button>
     </div>
     {editing && <div className="stack" style={{ marginTop: 12, gap: 10 }}>
@@ -58,7 +58,7 @@ export default function ConfirmationPanel({
         <input id="corrected-plate" value={plate} onChange={e => setPlate(e.target.value)} placeholder="29A12345" />
       </div>
       <div className="scan-result-actions" style={{ marginTop: 0 }}>
-        <button type="button" className="btn btn-primary btn-small" disabled={locked || normalized.length < 3} onClick={() => void run(() => onConfirmCorrection(candidateId!, normalized), `Đã sửa thành ${normalized}.`)}>{translate("Xác nhận sửa")}</button>
+        <button type="button" className="btn btn-primary btn-small" data-station-shortcut="confirm" aria-keyshortcuts="F4" disabled={locked || normalized.length < 3} onClick={() => void run(() => onConfirmCorrection(candidateId!, normalized), `Đã sửa thành ${normalized}.`)}>{translate("Xác nhận sửa")}</button>
         <button type="button" className="btn btn-small" disabled={submitting || disabled} onClick={() => { setEditing(false); onEditingChange?.(false); }}>{translate("Hủy sửa")}</button>
       </div>
     </div>}

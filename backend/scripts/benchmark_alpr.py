@@ -19,6 +19,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+from app.alpr.dataset_manifest import validate_dataset_manifest
 from app.alpr.errors import ALPRNotReadyError, ALPRProcessingError
 from app.alpr.runtime_adapter import create_runtime
 from app.core.config import get_settings
@@ -189,11 +190,27 @@ def main() -> None:
     parser.add_argument("--provider", default="real", choices=("real",))
     parser.add_argument("--split", default="smoke")
     parser.add_argument(
+        "--release-dataset",
+        action="store_true",
+        help="Require all Phase 2 release splits, scenarios and provenance metadata.",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate the dataset and print its fingerprint without running inference.",
+    )
+    parser.add_argument(
         "--dataset", type=Path, default=Path("tests/fixtures/phase2-benchmark.json")
     )
     parser.add_argument("--json-out", type=Path, default=Path("var/benchmarks/alpr-report.json"))
     parser.add_argument("--csv-out", type=Path, default=Path("var/benchmarks/alpr-results.csv"))
     args = parser.parse_args()
+    validation = validate_dataset_manifest(args.dataset, release=args.release_dataset)
+    if args.validate_only:
+        print(json.dumps(validation, indent=2, ensure_ascii=False))
+        raise SystemExit(0 if validation["valid"] else 1)
+    if not validation["valid"]:
+        parser.error("Dataset validation failed: " + "; ".join(validation["errors"]))
     cases = load_cases(args.dataset, args.split)
     if args.provider == "real":
         for case in cases:
@@ -221,6 +238,13 @@ def main() -> None:
         rows.append(run_case(runtime, case, args.dataset))
     report = build_report(rows, args.provider, args.split)
     report["dataset"] = str(args.dataset)
+    report["dataset_fingerprint"] = validation["dataset_fingerprint"]
+    report["dataset_validation"] = {
+        "release_ready": validation["release_ready"],
+        "warnings": validation["warnings"],
+        "counts": validation["counts"],
+        "scenarios": validation["scenarios"],
+    }
     report["input_kind"] = "provisioned-images"
     report["warmup"] = warmup
     report["model_version"] = warm_runtime.version

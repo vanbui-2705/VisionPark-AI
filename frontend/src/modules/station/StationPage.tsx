@@ -1,6 +1,6 @@
 import { t as translate } from "../../lib/i18n"
 import { useCallback, useEffect, useRef, useState } from "react";
-import { clearCandidates, confirmDetection, getActiveLanes, getRecentHistory, manualCheckIn, type PriceContext } from "./api";
+import { clearCandidates, confirmDetection, confirmExitDetection, getActiveLanes, getRecentHistory, manualCheckIn, prepareExit, type ExitSession, type PriceContext } from "./api";
 import { apiClient } from '../../api/client.ts';
 import LaneSelector from "./components/LaneSelector";
 import VideoSelector from "./components/VideoSelector";
@@ -9,6 +9,9 @@ import ResultPanel from "./components/ResultPanel";
 import ConfirmationPanel from "./components/ConfirmationPanel";
 import RecentHistory from "./components/RecentHistory";
 import ErrorPanel from "./components/ErrorPanel";
+import ImageComparison from "./components/ImageComparison";
+import ExitSummary from "./components/ExitSummary";
+import { useStationShortcuts } from "./hooks/useStationShortcuts";
 import { useAlprDetection } from "./hooks/useAlprDetection";
 import type { ApiError, Lane, RecentHistoryItem } from "./types";
 import { DetectionImage } from "../../components/DetectionImage";
@@ -17,6 +20,9 @@ import { can } from "../../lib/permissions";
 export default function StationPage() {
   const { user } = useAuth();
   const mayReadTransactions = can(user, 'transactions.read');
+  const mayCheckOut = can(user, 'checkout.create');
+  const stationRoot = useRef<HTMLElement>(null);
+  useStationShortcuts(stationRoot);
   const [inputMode, setInputMode] = useState<'image' | 'video'>('video');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -27,6 +33,8 @@ export default function StationPage() {
   const [history, setHistory] = useState<RecentHistoryItem[]>([]);
   const [actionError, setActionError] = useState<ApiError | null>(null);
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [exitSession, setExitSession] = useState<ExitSession | null>(null);
+  const [exitBusy, setExitBusy] = useState(false);
   const [manualPlate, setManualPlate] = useState('');
   const [useTicketCode, setUseTicketCode] = useState(false);
   const [customerClasses, setCustomerClasses] = useState<{ id: string; name: string }[]>([]);
@@ -35,6 +43,7 @@ export default function StationPage() {
   const [ticketKind, setTicketKind] = useState<PriceContext['ticket_kind']>('HOURLY');
   const [zoneId, setZoneId] = useState('');
   const scopedLane = lanes.find(lane => lane.id === selectedLaneId && lane.building_id);
+  const isOut = lanes.find(lane => lane.id === selectedLaneId)?.direction === 'OUT';
   const priceContext: PriceContext | undefined = scopedLane && classId ? { vehicle_type: vehicleType, ticket_kind: ticketKind, customer_class_id: classId, ...(zoneId ? { zone_id: zoneId } : {}) } : undefined;
   const [editingPlate, setEditingPlate] = useState(false);
   const manualKey = useRef(crypto.randomUUID());
@@ -68,11 +77,13 @@ export default function StationPage() {
   }, [refreshHistory]);
   useEffect(() => {
     const buildingId = scopedLane?.building_id;
-    if (!buildingId) { setCustomerClasses([]); setClassId(''); return; }
-    apiClient.get<{ id: string; name: string }[]>('/api/v1/pricing/customer-classes', { params: { building_id: buildingId } })
-      .then(items => { setCustomerClasses(items); if (items.length) setClassId(items[0].id); })
-      .catch(e => setActionError(e as ApiError));
-  }, [scopedLane?.building_id]);
+    if (!buildingId || isOut) return;
+    const controller = new AbortController();
+    apiClient.get<{ id: string; name: string }[]>('/api/v1/pricing/customer-classes', { params: { building_id: buildingId }, signal: controller.signal })
+      .then(items => { if (!controller.signal.aborted) { setCustomerClasses(items); if (items.length) setClassId(items[0].id); } })
+      .catch(e => { if (!controller.signal.aborted) setActionError(e as ApiError); });
+    return () => controller.abort();
+  }, [scopedLane?.building_id, isOut]);
   useEffect(() => () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
   }, [videoUrl]);
@@ -82,9 +93,12 @@ export default function StationPage() {
     if (confirming.current) return;
     setInputMode(mode); setImageFile(null); setImageUrl(''); setVideoUrl(''); setVideoName('');
     setTransactionId(null); setEditingPlate(false); setActionError(null);
+    setExitSession(null);
     clearCandidates(); reset();
   };
   const chooseImage = (file: File | null) => {
+    if (confirming.current) return;
+    setExitSession(null);
     clearCandidates(); reset(); setTransactionId(null); setEditingPlate(false);
     setImageFile(null); setImageUrl(''); setActionError(null);
     if (!file) return;
@@ -99,6 +113,7 @@ export default function StationPage() {
     setVideoUrl(url);
     setVideoName(file.name);
     setTransactionId(null);
+    setExitSession(null);
     setEditingPlate(false);
     clearCandidates();
     reset();
@@ -118,7 +133,13 @@ export default function StationPage() {
   }, [detect, selectedLaneId, transactionId, inputMode]);
   const changeLane = (laneId: string) => {
     if (confirming.current) return;
+    const nextLane = lanes.find(lane => lane.id === laneId);
+    if (nextLane?.building_id !== scopedLane?.building_id || nextLane?.direction === 'OUT') {
+      setCustomerClasses([]); setClassId('');
+    }
     setSelectedLaneId(laneId);
+    setExitSession(null);
+    setManualPlate('');
     setEditingPlate(false);
     setTransactionId(null);
     setActionError(null);
@@ -128,12 +149,21 @@ export default function StationPage() {
   };
   const confirm = async (detectionId: string, plate?: string) => {
     if (confirming.current) return;
-    if (scopedLane && !priceContext) { setActionError({ status: 422, code: 'PRICE_CONTEXT_REQUIRED', message: 'Chọn hạng khách và loại vé trước khi check-in.' }); return; }
+    if (isOut && !mayCheckOut) throw { status: 403, code: 'FORBIDDEN', message: 'Bạn không có quyền thu tiền và cho xe ra.' };
+    if (!isOut && scopedLane && !priceContext) { setActionError({ status: 422, code: 'PRICE_CONTEXT_REQUIRED', message: 'Chọn hạng khách và loại vé trước khi check-in.' }); return; }
     confirming.current = true;
 
     setActionError(null);
     beginConfirm();
     try {
+      if (isOut) {
+        const confirmedPlate = plate ?? result?.normalized_plate_number ?? result?.raw_plate_number ?? '';
+        const exitImageUrl = await confirmExitDetection(detectionId, selectedLaneId, confirmedPlate);
+        const session = await prepareExit(selectedLaneId, confirmedPlate, exitImageUrl);
+        setExitSession(session); setTransactionId(session.session_id);
+        completeConfirm();
+        return;
+      }
       const outcome = await confirmDetection(detectionId, selectedLaneId, plate ? {
         accepted: false,
         confirmed_plate_number: plate
@@ -155,11 +185,18 @@ export default function StationPage() {
   };
   const confirmManual = async () => {
     if (confirming.current || !selectedLaneId || state === 'detecting' || state === 'reading') return;
-    if (scopedLane && !priceContext) { setActionError({ status: 422, code: 'PRICE_CONTEXT_REQUIRED', message: 'Chọn hạng khách và loại vé trước khi check-in.' }); return; }
+    if (isOut && !mayCheckOut) { setActionError({ status: 403, code: 'FORBIDDEN', message: 'Bạn không có quyền thu tiền và cho xe ra.' }); return; }
+    if (!isOut && scopedLane && !priceContext) { setActionError({ status: 422, code: 'PRICE_CONTEXT_REQUIRED', message: 'Chọn hạng khách và loại vé trước khi check-in.' }); return; }
     confirming.current = true;
     beginConfirm();
     setActionError(null);
     try {
+      if (isOut) {
+        const session = await prepareExit(selectedLaneId, manualPlate);
+        setExitSession(session); setTransactionId(session.session_id);
+        completeConfirm();
+        return;
+      }
       const outcome = await manualCheckIn(selectedLaneId, manualPlate, `manual-${manualKey.current}`, priceContext, useTicketCode);
       setTransactionId(outcome.transactionId);
       completeConfirm();
@@ -175,12 +212,18 @@ export default function StationPage() {
     reading: translate("Đang đọc biển số..."),
     stable: translate("Kết quả ổn định."),
     needs_confirmation: translate("Cần Operator xác nhận."),
-    confirming: translate("Đang tạo check-in..."),
-    success: translate("Check-in thành công."),
+    confirming: isOut ? 'Đang tra xe và tính phí…' : translate("Đang tạo check-in..."),
+    success: isOut ? 'Đã tìm thấy giao dịch xe ra.' : translate("Check-in thành công."),
     error: translate("Xử lý thất bại.")
   };
   const error = actionError ?? detectionError;
-  return <section className="stack scan-page">
+  const locked = state === 'confirming' || exitBusy;
+  const nextVehicle = () => {
+    if (confirming.current) return;
+    setExitSession(null); setTransactionId(null); setEditingPlate(false); setManualPlate('');
+    setActionError(null); manualKey.current = crypto.randomUUID(); clearCandidates(); reset();
+  };
+  return <section ref={stationRoot} className="stack scan-page">
     <header className="scan-hero">
       <div className="scan-hero-copy">
         <span className="scan-kicker">TRẠM KIỂM SOÁT CỔNG</span>
@@ -188,7 +231,7 @@ export default function StationPage() {
         <p>{statusLabel[state]}</p>
       </div>
       <div className="scan-hero-actions">
-        <span className="scan-state">Status: {state.toUpperCase()}</span>
+        <span className="scan-state">{isOut ? 'LÀN RA OUT' : 'LÀN VÀO IN'} · {state.toUpperCase()}</span>
       </div>
     </header>
 
@@ -196,25 +239,27 @@ export default function StationPage() {
       <label className="field scan-control-group">
         <span>{translate("Chế độ nhận diện")}</span>
         <span className="scan-select-wrap">
-          <select className="scan-select" aria-label={translate("Chế độ nhận diện")} value={inputMode} disabled={state === 'confirming'} onChange={event => changeInput(event.target.value as 'image' | 'video')}>
+          <select className="scan-select" aria-label={translate("Chế độ nhận diện")} value={inputMode} disabled={locked} onChange={event => changeInput(event.target.value as 'image' | 'video')}>
             <option value="image">{translate("Ảnh JPEG/PNG")}</option>
             <option value="video">Video MP4</option>
           </select>
         </span>
       </label>
-      <LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={changeLane} disabled={state === "detecting" || state === "reading" || state === "confirming"} />
+      <LaneSelector lanes={lanes} selectedLaneId={selectedLaneId} onChange={changeLane} disabled={state === "detecting" || state === "reading" || locked} />
       {inputMode === 'video' ? (
-        <VideoSelector onVideoSelected={onVideo} disabled={state === 'confirming'} />
+        <VideoSelector onVideoSelected={onVideo} disabled={locked} />
       ) : (
         <label className="field scan-control-group">
           <span>{translate("Ảnh đầu vào")}</span>
-          <input aria-label={translate("Ảnh đầu vào")} type="file" accept="image/jpeg,image/png" disabled={state === 'confirming'} onChange={event => chooseImage(event.target.files?.[0] ?? null)} />
+          <input aria-label={translate("Ảnh đầu vào")} type="file" accept="image/jpeg,image/png" disabled={locked} onChange={event => chooseImage(event.target.files?.[0] ?? null)} />
         </label>
       )}
       {videoName && <div className="scan-file-name">Video: <strong>{videoName}</strong></div>}
     </div>
 
-    {scopedLane && <div className="card card-polished">
+    <p className="muted">Phím tắt: F2 chụp / nhận diện · F4 xác nhận biển số · F8 thu tiền và mở cổng · F10 mở cổng xe miễn phí / đã trả · F9 xe tiếp theo.</p>
+    {isOut && !mayCheckOut && <p role="alert" className="alert alert-danger">Bạn không có quyền thu tiền và cho xe ra tại trạm.</p>}
+    {!isOut && scopedLane && <div className="card card-polished">
       <div className="scan-card-head" style={{ marginBottom: 12 }}>
         <div>
           <span className="card-kicker">BIỂU PHÍ ÁP DỤNG</span>
@@ -229,7 +274,10 @@ export default function StationPage() {
       </div>
     </div>}
 
-    <div className="grid-2 scan-grid">
+    {exitSession ? <div className="grid-2 scan-grid">
+      <ImageComparison entryImage={exitSession.check_in_image_url} exitImage={exitSession.exit_image_url} plate={exitSession.license_plate ?? exitSession.ticket_code ?? 'Không có biển số'} />
+      <ExitSummary key={exitSession.session_id} session={exitSession} onBusyChange={busy => { confirming.current = busy; setExitBusy(busy); }} onCompleted={() => { void refreshHistory(); }} onNext={nextVehicle} />
+    </div> : <div className="grid-2 scan-grid">
       <div className="card scan-video">
         <div className="scan-card-head">
           <div>
@@ -251,7 +299,7 @@ export default function StationPage() {
               </div>
             )}
             <div className="scan-controls">
-              <button type="button" className="btn btn-primary" disabled={!imageFile || !selectedLaneId || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)} onClick={() => { if (imageFile) void onFrame(imageFile).catch(() => undefined); }}>{translate("Nhận diện ảnh")}</button>
+              <button type="button" className="btn btn-primary" data-station-shortcut="capture" aria-keyshortcuts="F2" disabled={!imageFile || !selectedLaneId || state === 'detecting' || state === 'reading' || locked || Boolean(transactionId)} onClick={() => { if (imageFile) void onFrame(imageFile).catch(() => undefined); }}>{translate("Nhận diện ảnh")}</button>
             </div>
           </div>
         )}
@@ -268,18 +316,18 @@ export default function StationPage() {
         </div>
         {transactionId && <p role="status" className="alert alert-success">Transaction: <strong>{transactionId}</strong></p>}
         <ResultPanel result={result} />
-        <ConfirmationPanel key={result?.candidate_id ?? result?.detection_id ?? "none"} onEditingChange={setEditingPlate} disabled={state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)} result={result} onConfirmCorrect={id => confirm(id)} onConfirmCorrection={(id, plate) => confirm(id, plate)} />
+        <ConfirmationPanel key={result?.candidate_id ?? result?.detection_id ?? "none"} onEditingChange={setEditingPlate} disabled={state === 'detecting' || state === 'reading' || locked || Boolean(transactionId) || (isOut && !mayCheckOut)} result={result} onConfirmCorrect={id => confirm(id)} onConfirmCorrection={(id, plate) => confirm(id, plate)} />
         <form className="stack" style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #ead9bb", gap: 10 }} onSubmit={event => { event.preventDefault(); void confirmManual(); }}>
           <span className="card-kicker">MANUAL OVERRIDE</span>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 400 }}>{translate("Check-in thủ công")}</h3>
-          {scopedLane && <label className="checkbox-row"><input type="checkbox" checked={useTicketCode} onChange={e => { setUseTicketCode(e.target.checked); manualKey.current = crypto.randomUUID(); }} /><span>Dùng mã vé thay biển số (xe đạp)</span></label>}
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 400 }}>{isOut ? 'Tra xe ra bằng biển số' : translate("Check-in thủ công")}</h3>
+          {!isOut && scopedLane && <label className="checkbox-row"><input type="checkbox" checked={useTicketCode} onChange={e => { setUseTicketCode(e.target.checked); manualKey.current = crypto.randomUUID(); }} /><span>Dùng mã vé thay biển số (xe đạp)</span></label>}
           <div className="field">
-            <label htmlFor="manual-plate">{useTicketCode ? 'Mã vé' : translate("Biển số nhập tay")}</label>
+            <label htmlFor="manual-plate">{!isOut && useTicketCode ? 'Mã vé' : translate("Biển số nhập tay")}</label>
             <input id="manual-plate" value={manualPlate} placeholder="29A12345" disabled={state === 'confirming' || Boolean(transactionId)} onChange={event => { setManualPlate(event.target.value); manualKey.current = crypto.randomUUID(); }} />
           </div>
           <div className="scan-result-actions" style={{ marginTop: 4 }}>
-            <button type="submit" className="btn btn-primary btn-small" disabled={!selectedLaneId || manualPlate.replace(/[^a-z0-9]/gi, '').length < 3 || state === 'detecting' || state === 'reading' || state === 'confirming' || Boolean(transactionId)}>{translate("Tạo check-in")}</button>
-            {transactionId && <button type="button" className="btn btn-small" onClick={() => { setTransactionId(null); setEditingPlate(false); setManualPlate(''); setActionError(null); manualKey.current = crypto.randomUUID(); clearCandidates(); reset(); }}>{translate("Xe tiếp theo")}</button>}
+            <button type="submit" className="btn btn-primary btn-small" disabled={!selectedLaneId || manualPlate.replace(/[^a-z0-9]/gi, '').length < 3 || state === 'detecting' || state === 'reading' || locked || Boolean(transactionId) || (isOut && !mayCheckOut)}>{isOut ? 'Tra xe và tính phí' : translate("Tạo check-in")}</button>
+            {transactionId && <button type="button" className="btn btn-small" data-station-shortcut="next" aria-keyshortcuts="F9" onClick={nextVehicle}>{translate("Xe tiếp theo")}</button>}
           </div>
         </form>
         <ErrorPanel error={error} onRetry={() => {
@@ -288,7 +336,7 @@ export default function StationPage() {
           void retry().catch(() => undefined);
         }} />
       </aside>
-    </div>
+    </div>}
 
     <RecentHistory items={history} />
   </section>;

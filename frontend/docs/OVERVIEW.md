@@ -11,5 +11,8 @@ ADMIN quản trị; OPERATOR vận hành và đọc lanes. ACCOUNTANT đọc das
 parking và audit; TECHNICIAN dùng Station/check-in, detection và trang trạng thái.
 
 Profile, preferences, notifications và lỗi đã lưu database. Model readiness, video demo thật và
-accuracy/latency benchmark là các mức xác minh riêng. Check-out/payment/barrier,
-RTSP/vé tháng nằm ngoài phạm vi hiện tại.
+accuracy/latency benchmark là các mức xác minh riêng.
+
+Phase 4 Station hỗ trợ IN/OUT, đối chiếu ảnh vào/ra, thời gian gửi và phí từ snapshot,
+xác nhận CASH, checkout và phím tắt. Barrier được backend mô phỏng bằng sự kiện;
+chưa điều khiển thiết bị vật lý. Chi tiết trong `STATION.md`. RTSP chưa được hỗ trợ.

@@ -1,0 +1,140 @@
+{
+  "provider": "real",
+  "split": "edge_cases",
+  "sample_count": 4,
+  "exact_match_rate": 0.0,
+  "character_accuracy": 1.0,
+  "no_result_rate": 1.0,
+  "false_positive_rate": 0.0,
+  "latency_ms": {
+    "full_p50": 163.893,
+    "full_p95": 306.022,
+    "detector_p50": 142.064,
+    "ocr_p50": 177.206
+  },
+  "station": {
+    "time_to_stable_ms": null,
+    "ocr_calls_per_vehicle": 0.25,
+    "candidate_flip_rate": 0.0,
+    "provider_error_rate": 0.0
+  },
+  "errors": 0,
+  "rows": [
+    {
+      "id": "commons-evening-dark",
+      "vehicle_id": "commons-evening-dark",
+      "scenario": "dark",
+      "expected_plate": null,
+      "actual_plate": null,
+      "exact_match": false,
+      "character_accuracy": 1.0,
+      "no_result": true,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 306.022,
+      "detector_latency_ms": 115.86629999510478,
+      "ocr_latency_ms": 177.20610000833403,
+      "processing_time_ms": 305,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-kim-ma-motion-blur",
+      "vehicle_id": "commons-kim-ma-motion-blur",
+      "scenario": "blur",
+      "expected_plate": null,
+      "actual_plate": null,
+      "exact_match": false,
+      "character_accuracy": 1.0,
+      "no_result": true,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 157.337,
+      "detector_latency_ms": 142.06430000194814,
+      "ocr_latency_ms": null,
+      "processing_time_ms": 156,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-honda-small-partial",
+      "vehicle_id": "commons-honda-small-partial",
+      "scenario": "small-or-partial",
+      "expected_plate": null,
+      "actual_plate": null,
+      "exact_match": false,
+      "character_accuracy": 1.0,
+      "no_result": true,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 163.893,
+      "detector_latency_ms": 148.57150000170805,
+      "ocr_latency_ms": null,
+      "processing_time_ms": 163,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-vinfast-side-negative",
+      "vehicle_id": "commons-vinfast-side-negative",
+      "scenario": "negative",
+      "expected_plate": null,
+      "actual_plate": null,
+      "exact_match": false,
+      "character_accuracy": 1.0,
+      "no_result": true,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 146.551,
+      "detector_latency_ms": 130.47639999422245,
+      "ocr_latency_ms": null,
+      "processing_time_ms": 146,
+      "requires_confirmation": true,
+      "quality_flags": []
+    }
+  ],
+  "dataset": "datasets\\phase2-release.json",
+  "dataset_fingerprint": "437bb9dd3e7fb7db0acaff414d151117ac5b14067c3511c9298b02c6db266be6",
+  "dataset_validation": {
+    "release_ready": true,
+    "warnings": [],
+    "counts": {
+      "smoke": 3,
+      "validation": 4,
+      "demo": 4,
+      "edge_cases": 4
+    },
+    "scenarios": [
+      "blur",
+      "dark",
+      "low-confidence",
+      "negative",
+      "no-plate",
+      "oblique",
+      "small-or-partial",
+      "success"
+    ]
+  },
+  "input_kind": "provisioned-images",
+  "warmup": {
+    "cold_ms": 7704.63,
+    "warm_p50_ms": 295.388
+  },
+  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "hardware": {
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.22631-SP0",
+    "device": "cpu"
+  },
+  "versions": {
+    "ultralytics": "8.4.47",
+    "paddleocr": "3.7.0",
+    "paddlepaddle": "3.3.1"
+  },
+  "provenance": {
+    "source": "User-provided miLPR demo recording plus individually attributed Wikimedia Commons photographs listed per case.",
+    "usage_rights": "User media: internal evaluation only. Commons media: CC BY/CC BY-SA as recorded per case; local media copies are not committed.",
+    "annotation_policy": "Ground truth was manually transcribed from the physical plate. Null means no complete readable plate is present. Overlays and model output were not used as labels.",
+    "dataset_version": "phase2-release-candidate-2026-10-09"
+  }
+}

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearCandidates, confirmDetection, createDetection, getActiveLanes } from '../../src/modules/station/api.ts'
+import { clearCandidates, completeExit, confirmDetection, confirmExitDetection, createDetection, getActiveLanes, prepareExit } from '../../src/modules/station/api.ts'
 import { setToken } from '../../src/api/token.ts'
 
 const result = { detection_id: null, normalized_plate_number: '29A12345', confidence: 0.9 }
@@ -14,7 +14,7 @@ describe('Station API contract', () => {
       { id: 'in', name: 'Entry', direction: 'IN', is_active: true },
       { id: 'out', name: 'Exit', direction: 'OUT', is_active: true },
     ]))
-    expect(await getActiveLanes()).toMatchObject([{ id: 'in', active: true }])
+    expect(await getActiveLanes()).toMatchObject([{ id: 'in', active: true }, { id: 'out', active: true }])
     expect(fetch.mock.calls[0][0]).toContain('/api/v1/lanes/active')
     expect(fetch.mock.calls[0][1]?.headers).toMatchObject({ Authorization: 'Bearer operator-token' })
   })
@@ -73,5 +73,29 @@ describe('Station API contract', () => {
     await expect(createDetection(new Blob(['jpeg']), 'in')).rejects.toMatchObject({ code: 'ALPR_NOT_READY' })
     await Promise.resolve()
     expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('persists and confirms OUT metadata without creating a check-in', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response(result))
+      .mockResolvedValueOnce(response({ ...result, detection_id: 'exit-detection' }))
+      .mockResolvedValueOnce(response({ id: 'exit-detection', image_key: 'exit.jpg' }))
+      .mockResolvedValueOnce(response({ id: 'exit-detection', image_key: 'exit.jpg' }))
+    const preview = await createDetection(new Blob(['out']), 'out')
+    expect(await confirmExitDetection(preview.candidate_id!, 'out', '29A12345')).toBe('/api/v1/alpr/media/exit.jpg')
+    expect(JSON.parse(String(fetch.mock.calls[2][1]?.body))).toEqual({ confirmed_plate: '29A12345', check_in: false })
+    await confirmExitDetection(preview.candidate_id!, 'out', '29A12345')
+    expect(fetch).toHaveBeenCalledTimes(4)
+  })
+
+  it('uses checkout preview and a stable one-touch cash key across retries', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => response(
+      String(url).endsWith('/preview') ? { session_id: 'parked', fee: 17000, exit_image_url: '/api/v1/alpr/media/exit.jpg' } : {},
+    ))
+    const session = await prepareExit('out', '29A12345', '/api/v1/alpr/media/exit.jpg')
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ exit_lane_id: 'out', license_plate: '29A12345', exit_image_url: '/api/v1/alpr/media/exit.jpg' })
+    await completeExit(session, true); await completeExit(session, true)
+    expect(fetch.mock.calls[1][1]?.headers).toEqual(fetch.mock.calls[2][1]?.headers)
+    expect(JSON.parse(String(fetch.mock.calls[1][1]?.body))).toEqual({ session_id: 'parked', exit_lane_id: 'out', expected_fee: 17000, payment_method: 'CASH', exit_image_url: '/api/v1/alpr/media/exit.jpg' })
   })
 })

@@ -1,0 +1,146 @@
+{
+  "provider": "real",
+  "split": "demo",
+  "sample_count": 4,
+  "exact_match_rate": 0.0,
+  "character_accuracy": 0.3854,
+  "no_result_rate": 0.5,
+  "false_positive_rate": 0.0,
+  "latency_ms": {
+    "full_p50": 272.976,
+    "full_p95": 337.212,
+    "detector_p50": 126.443,
+    "ocr_p50": 182.908
+  },
+  "station": {
+    "time_to_stable_ms": null,
+    "ocr_calls_per_vehicle": 0.5,
+    "candidate_flip_rate": 0.0,
+    "provider_error_rate": 0.0
+  },
+  "errors": 0,
+  "rows": [
+    {
+      "id": "commons-daewoo-29A74952",
+      "vehicle_id": "commons-daewoo-29A74952",
+      "scenario": [
+        "success",
+        "oblique"
+      ],
+      "expected_plate": "29A74952",
+      "actual_plate": "29A7952",
+      "exact_match": false,
+      "character_accuracy": 0.875,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 272.976,
+      "detector_latency_ms": 80.88530000532046,
+      "ocr_latency_ms": 182.90820000402164,
+      "processing_time_ms": 272,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-ecobus-29B00312",
+      "vehicle_id": "commons-ecobus-29B00312",
+      "scenario": [
+        "success",
+        "small-or-partial"
+      ],
+      "expected_plate": "29B00312",
+      "actual_plate": null,
+      "exact_match": false,
+      "character_accuracy": 0.0,
+      "no_result": true,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 137.93,
+      "detector_latency_ms": 126.44329998875037,
+      "ocr_latency_ms": null,
+      "processing_time_ms": 137,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-82B167176",
+      "vehicle_id": "commons-82B167176",
+      "scenario": "oblique",
+      "expected_plate": "82B167176",
+      "actual_plate": "82B11766",
+      "exact_match": false,
+      "character_accuracy": 0.6667,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 337.212,
+      "detector_latency_ms": 140.69210000161547,
+      "ocr_latency_ms": 183.53219999698922,
+      "processing_time_ms": 336,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "commons-61K42494",
+      "vehicle_id": "commons-61K42494",
+      "scenario": "success",
+      "expected_plate": "61K42494",
+      "actual_plate": null,
+      "exact_match": false,
+      "character_accuracy": 0.0,
+      "no_result": true,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 130.222,
+      "detector_latency_ms": 119.95209999440704,
+      "ocr_latency_ms": null,
+      "processing_time_ms": 129,
+      "requires_confirmation": true,
+      "quality_flags": []
+    }
+  ],
+  "dataset": "datasets\\phase2-release.json",
+  "dataset_fingerprint": "437bb9dd3e7fb7db0acaff414d151117ac5b14067c3511c9298b02c6db266be6",
+  "dataset_validation": {
+    "release_ready": true,
+    "warnings": [],
+    "counts": {
+      "smoke": 3,
+      "validation": 4,
+      "demo": 4,
+      "edge_cases": 4
+    },
+    "scenarios": [
+      "blur",
+      "dark",
+      "low-confidence",
+      "negative",
+      "no-plate",
+      "oblique",
+      "small-or-partial",
+      "success"
+    ]
+  },
+  "input_kind": "provisioned-images",
+  "warmup": {
+    "cold_ms": 7568.524,
+    "warm_p50_ms": 259.259
+  },
+  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "hardware": {
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.22631-SP0",
+    "device": "cpu"
+  },
+  "versions": {
+    "ultralytics": "8.4.47",
+    "paddleocr": "3.7.0",
+    "paddlepaddle": "3.3.1"
+  },
+  "provenance": {
+    "source": "User-provided miLPR demo recording plus individually attributed Wikimedia Commons photographs listed per case.",
+    "usage_rights": "User media: internal evaluation only. Commons media: CC BY/CC BY-SA as recorded per case; local media copies are not committed.",
+    "annotation_policy": "Ground truth was manually transcribed from the physical plate. Null means no complete readable plate is present. Overlays and model output were not used as labels.",
+    "dataset_version": "phase2-release-candidate-2026-10-09"
+  }
+}

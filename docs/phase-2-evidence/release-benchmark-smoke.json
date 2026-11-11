@@ -1,0 +1,122 @@
+{
+  "provider": "real",
+  "split": "smoke",
+  "sample_count": 3,
+  "exact_match_rate": 0.5,
+  "character_accuracy": 0.9375,
+  "no_result_rate": 0.3333,
+  "false_positive_rate": 0.0,
+  "latency_ms": {
+    "full_p50": 197.72,
+    "full_p95": 198.778,
+    "detector_p50": 124.103,
+    "ocr_p50": 60.022
+  },
+  "station": {
+    "time_to_stable_ms": null,
+    "ocr_calls_per_vehicle": 0.667,
+    "candidate_flip_rate": 0.0,
+    "provider_error_rate": 0.0
+  },
+  "errors": 0,
+  "rows": [
+    {
+      "id": "user-toyota-44500",
+      "vehicle_id": "user-toyota-29A90101",
+      "scenario": "low-confidence",
+      "expected_plate": "29A90101",
+      "actual_plate": "29A9001",
+      "exact_match": false,
+      "character_accuracy": 0.875,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 197.72,
+      "detector_latency_ms": 118.55650000507012,
+      "ocr_latency_ms": 61.32360000628978,
+      "processing_time_ms": 197,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "user-hyundai-90000",
+      "vehicle_id": "user-hyundai-30V4495",
+      "scenario": "success",
+      "expected_plate": "30V4495",
+      "actual_plate": "30V4495",
+      "exact_match": true,
+      "character_accuracy": 1.0,
+      "no_result": false,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 198.778,
+      "detector_latency_ms": 124.10339999769349,
+      "ocr_latency_ms": 60.02160000207368,
+      "processing_time_ms": 198,
+      "requires_confirmation": true,
+      "quality_flags": []
+    },
+    {
+      "id": "user-title-no-plate",
+      "vehicle_id": "user-title",
+      "scenario": "no-plate",
+      "expected_plate": null,
+      "actual_plate": null,
+      "exact_match": false,
+      "character_accuracy": 1.0,
+      "no_result": true,
+      "false_positive": false,
+      "error": null,
+      "full_latency_ms": 138.622,
+      "detector_latency_ms": 124.23169999965467,
+      "ocr_latency_ms": null,
+      "processing_time_ms": 138,
+      "requires_confirmation": true,
+      "quality_flags": []
+    }
+  ],
+  "dataset": "datasets\\phase2-release.json",
+  "dataset_fingerprint": "437bb9dd3e7fb7db0acaff414d151117ac5b14067c3511c9298b02c6db266be6",
+  "dataset_validation": {
+    "release_ready": true,
+    "warnings": [],
+    "counts": {
+      "smoke": 3,
+      "validation": 4,
+      "demo": 4,
+      "edge_cases": 4
+    },
+    "scenarios": [
+      "blur",
+      "dark",
+      "low-confidence",
+      "negative",
+      "no-plate",
+      "oblique",
+      "small-or-partial",
+      "success"
+    ]
+  },
+  "input_kind": "provisioned-images",
+  "warmup": {
+    "cold_ms": 7867.073,
+    "warm_p50_ms": 194.272
+  },
+  "model_version": "ultralytics-8.4.165-yolo26n-plate-v1",
+  "hardware": {
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.22631-SP0",
+    "device": "cpu"
+  },
+  "versions": {
+    "ultralytics": "8.4.47",
+    "paddleocr": "3.7.0",
+    "paddlepaddle": "3.3.1"
+  },
+  "provenance": {
+    "source": "User-provided miLPR demo recording plus individually attributed Wikimedia Commons photographs listed per case.",
+    "usage_rights": "User media: internal evaluation only. Commons media: CC BY/CC BY-SA as recorded per case; local media copies are not committed.",
+    "annotation_policy": "Ground truth was manually transcribed from the physical plate. Null means no complete readable plate is present. Overlays and model output were not used as labels.",
+    "dataset_version": "phase2-release-candidate-2026-10-09"
+  }
+}

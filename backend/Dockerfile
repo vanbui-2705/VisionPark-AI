@@ -38,10 +38,12 @@ ARG INSTALL_DEV=false
 RUN if [ "$INSTALL_DEV" = "true" ]; then python -m pip install ".[dev,onnx]"; fi
 
 COPY tests ./tests
+COPY scripts ./scripts
+COPY datasets ./datasets
 
 USER visionpark
 
-CMD ["sh", "-c", "python -m pytest && python -m ruff check app tests && python -m ruff format --check app tests"]
+CMD ["sh", "-c", "python -m pytest && python -m ruff check app scripts tests && python -m ruff format --check app scripts tests"]
 
 FROM base AS runtime
 

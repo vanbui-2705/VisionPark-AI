@@ -1,9 +1,12 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.modules.checkin.schemas import ParkingTransactionResponse
+
+ALLOWED_CHECKOUT_PAYMENT_METHODS = {"CASH"}
+ALLOWED_SESSION_PAYMENT_METHODS = {"CASH", "VIETQR_MOCK", "OVERRIDE"}
 
 
 class CheckOutRequest(BaseModel):
@@ -29,10 +32,11 @@ class CheckOutRequest(BaseModel):
         None, description="Loại xe nhận diện khi ra (cảnh báo lệch loại)"
     )
 
-    # Thanh toán tại chỗ nếu có phí (vd: CASH, VIETQR_MOCK)
+    # Thanh toán tại chỗ nếu có phí (Station demo chỉ nhận CASH)
     payment_method: str | None = Field(
-        None, description="Phương thức thanh toán trực tiếp tại cổng ra nếu có phí"
+        None, description="Phương thức thanh toán trực tiếp tại cổng ra nếu có phí (CASH)"
     )
+    expected_fee: int | None = Field(None, ge=0, description="Phí đã hiển thị và xác nhận tại trạm")
 
     # Override: bảo vệ ghi lý do cho các trường hợp ngoại lệ
     override_reason: str | None = Field(None, max_length=500)
@@ -51,11 +55,11 @@ class CheckOutRequest(BaseModel):
 class PaymentRecordRequest(BaseModel):
     """Request ghi nhận thu tiền mặt hoặc override thanh toán cho phiên đang chờ."""
 
-    payment_method: str = Field(default="CASH", description="CASH | VIETQR_MOCK | CARD | OVERRIDE")
+    payment_method: str = Field(default="CASH", description="CASH | VIETQR_MOCK | OVERRIDE")
     amount: float = Field(ge=0.0, description="Số tiền thanh toán")
     provider_ref: str | None = Field(None, max_length=100, description="Mã giao dịch đối tác")
     override_reason: str | None = Field(
-        None, max_length=500, description="Lý do nếu override miễn phí"
+        None, max_length=500, description="Lý do nếu override miễn phí hoặc khác số tiền"
     )
 
 
@@ -69,6 +73,7 @@ class CheckOutPreviewResponse(BaseModel):
     vehicle_type_out: str | None = None
     vehicle_type_mismatch: bool = False
     check_in_time: datetime
+    exit_time: datetime | None = None
     check_in_image_url: str | None = None
     exit_image_url: str | None = None
     duration_minutes: int
@@ -89,5 +94,16 @@ class CheckOutResponse(BaseModel):
     fee_breakdown: dict | None = None
     status: str  # COMPLETED | PAID | EXITED | PAYMENT_PENDING
     barrier_opened: bool
+    barrier_event_recorded: bool = False
+    barrier_mode: str = "SIMULATED"
     vehicle_type_mismatch: bool = False
+    invoice_id: UUID | None = None
+    payment_id: UUID | None = None
     message: str
+
+    @field_validator("transaction")
+    @classmethod
+    def normalize_exit_time(cls, value: ParkingTransactionResponse) -> ParkingTransactionResponse:
+        if value.exit_time is not None and value.exit_time.tzinfo is None:
+            value.exit_time = value.exit_time.replace(tzinfo=UTC)
+        return value

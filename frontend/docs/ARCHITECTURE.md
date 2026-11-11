@@ -14,3 +14,10 @@ phí thuần; hóa đơn đọc snapshot thay vì bảng giá mới. Đăng ký 
 chụp hạn hiệu lực lúc check-in để chỉ tính phần vượt hạn. Thanh toán mock lưu
 provider reference và idempotency key; callback xác thực HMAC rồi đối soát với
 hóa đơn. Job đối soát đọc các chênh lệch theo tòa nhà.
+
+Phase 4: Station OUT dùng CheckOutService hiện có (modules/checkout), tái sử dụng
+API client/Bearer, DetectionImage, VideoPlayer và final candidate. Preview trả thời
+điểm server, duration và fee. Checkout CASH một chạm hoàn tất phiên, giảm counter
+và ghi barrier event mô phỏng. expected_fee optional chặn phí thay đổi sau preview
+trước khi thu tiền; client yêu cầu xem lại phí. Phím tắt kích hoạt các nút đang được
+phép thao tác, dùng chung khóa chống submit lặp và idempotency key.
