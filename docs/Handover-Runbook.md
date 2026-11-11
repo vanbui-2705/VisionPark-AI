@@ -78,18 +78,18 @@ Trước khi khởi chạy hệ thống, sao chép file mẫu `env.example` thà
 # ==============================================================================
 POSTGRES_DB=visionpark
 POSTGRES_USER=visionpark
-POSTGRES_PASSWORD=visionpark_secure_pass_2026!
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 POSTGRES_PORT=5433
 
 # Chuỗi kết nối DatabaseURL cho backend kết nối nội bộ container
-DATABASE_URL=postgresql+psycopg://visionpark:visionpark_secure_pass_2026!@db:5432/visionpark
+DATABASE_URL=postgresql+psycopg://visionpark:${POSTGRES_PASSWORD}@db:5432/visionpark
 
 # ==============================================================================
 # 2. BẢO MẬT & XÁC THỰC (JWT AUTHENTICATION)
 # ==============================================================================
 # BẮT BUỘC ĐỔI: Khóa bí mật dùng để ký token JWT. Tuyệt đối không dùng chuỗi mặc định!
 # Tạo chuỗi ngẫu nhiên bằng lệnh: openssl rand -hex 32
-JWT_SECRET_KEY=9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b
+JWT_SECRET_KEY=${JWT_SECRET_KEY}
 
 ENVIRONMENT=production
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
@@ -132,7 +132,7 @@ LOCAL_STORAGE_PATH=/app/var/media
 PUBLIC_REGISTRATION_ENABLED=false
 AUTO_SEED=true
 SEED_ADMIN_USERNAME=admin
-SEED_ADMIN_PASSWORD=Admin@VisionPark2026
+SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}
 
 # ==============================================================================
 # 6. CỔNG MẠNG DỊCH VỤ (NETWORK PORTS)
@@ -437,3 +437,17 @@ Bảng tiêu chuẩn nghiệm thu kỹ thuật bắt buộc phải vượt qua t
 
 - **Đại diện Hội đồng Đánh giá / Giảng viên Hướng dẫn**:  
   *(Ký và ghi rõ họ tên)*
+
+
+## Giới hạn nghiệm thu và quy trình dry-run (main)
+
+- Chỉ nghiệm thu `FILE_UPLOAD` (ảnh hoặc frame MP4); `LIVE_CAMERA/RTSP` **chưa tích hợp**.
+- Barrier `barrier_opened` là trạng thái nghiệp vụ; xác nhận relay/controller vật lý phụ thuộc adapter triển khai và phải ghi evidence riêng.
+- Thu `CASH`: preview phí, xác nhận đã thu tiền tại quầy, đối chiếu invoice/payment `PAID`, transaction `COMPLETED` và counter giảm một lần.
+- `system_gate.py` kiểm tra chức năng, **không** kết luận độ chính xác ALPR. `release_gate.py` báo `PASS/FAIL/HOLD` chất lượng ALPR độc lập.
+- Không dùng chuỗi minh họa trong tài liệu làm mật khẩu. Thiết lập `POSTGRES_PASSWORD`, `DATABASE_URL`, `JWT_SECRET_KEY`, `SEED_ADMIN_PASSWORD`, `SEED_OPERATOR_PASSWORD` trong `.env` riêng (không commit).
+- Preflight: `docker compose config --quiet`, kiểm tra cổng `5433/8000/5173`, `docker compose ps`, `curl -f http://localhost:8000/health/ready`, `curl -f http://localhost:5173/health/live`.
+- Warmup: chờ backend readiness trả HTTP 200 trước khi gửi media; thử ảnh và frame MP4 có quyền sử dụng.
+- Dry-run: `cd backend && python scripts/system_gate.py --image /path/to/acceptance.jpg --video /path/to/acceptance.mp4 --report var/reports/system-functional-gate.json`. Chỉ coi exit code `0` là PASS.
+- Reset môi trường demo: sao lưu database/media, dùng dữ liệu test và quy trình seed được phê duyệt; **không** chạy `docker compose down -v` trên môi trường có dữ liệu cần giữ.
+- Troubleshooting: lỗi database → kiểm tra `db`/migration; lỗi 401 → kiểm tra biến môi trường tài khoản; lỗi health → xem `docker compose logs backend frontend`; lỗi media → kiểm tra file, codec, quyền và SHA-256.

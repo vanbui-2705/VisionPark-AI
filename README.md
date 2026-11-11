@@ -79,3 +79,16 @@ npm run build
 
 Tests use isolated databases and test doubles under `backend/tests`; these are not recognition providers available to the deployed application.
 PostgreSQL race tests require `TEST_POSTGRES_URL` pointing to a disposable server where temporary databases may be created.
+
+
+## Main: functional acceptance (FILE_UPLOAD)
+
+CI áp dụng cho `main` (push/PR), chạy test/lint/format trong Docker theo `.github/workflows/ci.yml`.
+Sau khi khởi động stack và cấu hình `SEED_OPERATOR_PASSWORD` qua biến môi trường:
+
+```bash
+cd backend
+python scripts/system_gate.py --image /path/to/acceptance.jpg --video /path/to/acceptance.mp4 --report var/reports/system-functional-gate.json
+```
+
+Exit code 0=PASS, 1=FAIL, 2=HOLD; chỉ PASS khi mọi check đạt. Gate chức năng **không đo ALPR accuracy**; xem `docs/UAT-Demo-Script.md` và `docs/Handover-Runbook.md`. `LIVE_CAMERA/RTSP` chưa tích hợp.

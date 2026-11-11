@@ -27,6 +27,8 @@ from app.modules.pricing.models import (
     CustomerClass,
     PricingRule,
     PricingVersion,
+    Invoice,
+    Payment,
     Subscription,
     TicketProduct,
     Vehicle,
@@ -273,6 +275,28 @@ def test_e2e_cash_workflow_casual_vehicle_in_and_out(
     )
     assert len(checkout_events) == 1
     assert checkout_events[0].delta == -1
+
+    # Verify the persisted billing ledger, not only the HTTP checkout response.
+    invoices = list(db_session.scalars(select(Invoice).where(Invoice.transaction_id == tx_id)))
+    assert len(invoices) == 1
+    assert invoices[0].total_vnd == expected_fee
+    payments = list(db_session.scalars(select(Payment).where(Payment.invoice_id == invoices[0].id)))
+    assert len(payments) == 1
+    assert payments[0].method == "CASH"
+    assert payments[0].status == "PAID"
+    assert payments[0].amount_vnd == expected_fee
+    assert sum(event.delta for event in db_session.scalars(
+        select(CounterEvent).where(CounterEvent.session_id == tx_id)
+    )) == 0
+
+    # Dashboard must reflect the completed session, not count it as parked.
+    dashboard_response = client.get(
+        "/api/v1/m5/dashboard",
+        headers=operator_headers,
+        params={"building_id": str(DEFAULT_BUILDING_ID)},
+    )
+    assert dashboard_response.status_code == 200, dashboard_response.text
+    assert dashboard_response.json()["parked"] == 0
 
     # Kiểm tra sự kiện vòng đời (LifecycleEvent)
     lifecycle_events = list(
@@ -662,6 +686,12 @@ def test_e2e_cash_workflow_idempotency_and_no_double_charge(
         ).all()
     )
     assert len(events_after_2) == 1
+
+    invoices = list(db_session.scalars(select(Invoice).where(Invoice.transaction_id == tx_id)))
+    assert len(invoices) == 1
+    payments = list(db_session.scalars(select(Payment).where(Payment.invoice_id == invoices[0].id)))
+    assert len(payments) == 1
+    assert payments[0].status == "PAID"
 
     # KHÔNG ghi nhận thanh toán lần thứ 2
     payments_after_2 = list(
