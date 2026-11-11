@@ -25,10 +25,10 @@ from app.modules.lanes.models import Lane, LaneDirection
 from app.modules.pricing.domain import TicketKind
 from app.modules.pricing.models import (
     CustomerClass,
-    PricingRule,
-    PricingVersion,
     Invoice,
     Payment,
+    PricingRule,
+    PricingVersion,
     Subscription,
     TicketProduct,
     Vehicle,
