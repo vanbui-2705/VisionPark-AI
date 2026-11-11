@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { apiClient } from '../../api/client.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
 
@@ -43,18 +43,25 @@ export function PricingSettings() {
   const [initialMinutes, setInitialMinutes] = useState(60)
   const [blockMinutes, setBlockMinutes] = useState(60)
 
-  async function refresh() {
+  const refresh = useCallback(async (isCurrent: () => boolean = () => true) => {
     const [nextClasses, nextProducts, nextVersions, nextQuotas] = await Promise.all([
       apiClient.get<CustomerClass[]>('/api/v1/pricing/customer-classes'),
       apiClient.get<Product[]>('/api/v1/pricing/ticket-products'),
       apiClient.get<Version[]>('/api/v1/pricing/versions'),
       apiClient.get<Quota[]>('/api/v1/tickets/quotas'),
     ])
+    if (!isCurrent()) return
     setClasses(nextClasses); setProducts(nextProducts); setVersions(nextVersions)
     setQuotas(nextQuotas)
-    if (!classId && nextClasses.length) setClassId(nextClasses[0].id)
-  }
-  useEffect(() => { void refresh().catch(e => setError(e instanceof Error ? e.message : 'Không tải được dữ liệu.')) }, [])
+    setClassId(current => current || (nextClasses[0]?.id ?? ''))
+  }, [])
+  useEffect(() => {
+    let current = true
+    // refresh updates state only after asynchronous HTTP responses settle.
+    // oxlint-disable-next-line react/set-state-in-effect
+    void refresh(() => current).catch(e => { if (current) setError(e instanceof Error ? e.message : 'Không tải được dữ liệu.') })
+    return () => { current = false }
+  }, [refresh])
 
   async function save(action: () => Promise<unknown>) {
     setBusy(true); setError(''); setMessage('')

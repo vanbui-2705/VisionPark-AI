@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiClient } from '../../api/client.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
 
@@ -29,18 +29,25 @@ export function MonthlyTickets() {
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function refresh() {
+  const refresh = useCallback(async (isCurrent: () => boolean = () => true) => {
     const [nextProducts, nextVehicles, nextSubscriptions] = await Promise.all([
       apiClient.get<Product[]>('/api/v1/pricing/ticket-products'),
       apiClient.get<Vehicle[]>('/api/v1/tickets/vehicles'),
       apiClient.get<Subscription[]>('/api/v1/tickets/subscriptions'),
     ])
+    if (!isCurrent()) return
     setProducts(nextProducts.filter(item => item.active && item.kind === 'MONTHLY'))
     setVehicles(nextVehicles)
     setSubscriptions(nextSubscriptions)
-    if (!productId) setProductId(nextProducts.find(item => item.active && item.kind === 'MONTHLY')?.id ?? '')
-  }
-  useEffect(() => { void refresh().catch(e => setError(e instanceof Error ? e.message : 'Không tải được vé tháng.')) }, [])
+    setProductId(current => current || (nextProducts.find(item => item.active && item.kind === 'MONTHLY')?.id ?? ''))
+  }, [])
+  useEffect(() => {
+    let current = true
+    // refresh updates state only after asynchronous HTTP responses settle.
+    // oxlint-disable-next-line react/set-state-in-effect
+    void refresh(() => current).catch(e => { if (current) setError(e instanceof Error ? e.message : 'Không tải được vé tháng.') })
+    return () => { current = false }
+  }, [refresh])
 
   const activeSubByVehicle = useMemo(() => {
     const latest = new Map<string, Subscription>()

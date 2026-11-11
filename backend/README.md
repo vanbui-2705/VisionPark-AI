@@ -28,6 +28,10 @@ python -m venv .venv
 
 Preview writes no detection/image. Final writes one image and its metadata. Test doubles are restricted to tests and excluded from the runtime Docker image.
 
+The deployed application operates in `FILE_UPLOAD` mode. JPEG/PNG bytes and frames extracted
+from a local MP4 use the real ALPR provider. Live camera/RTSP ingestion is a separate integration
+that is not implemented yet; its absence does not make the database or business workflows mock.
+
 ## Verification and operations
 
 ```powershell
@@ -35,7 +39,19 @@ python -m pytest tests
 python -m ruff check app scripts tests
 python -m ruff format --check app scripts tests
 python scripts/audit_media.py
+python scripts/system_gate.py --image <path-to-image> --video <path-to-mp4>
+python scripts/release_gate.py --dataset datasets/phase2-release.json
 ```
+
+The two gates have separate meanings:
+
+- `system_gate.py` verifies the real application, PostgreSQL readiness, CASH workflow tests and
+  real-provider FILE_UPLOAD inference. It returns HOLD when the running stack, credentials or
+  acceptance media are unavailable.
+- `release_gate.py` verifies ALPR quality using bytes read from independently labelled real media.
+  Missing media/model evidence returns HOLD; a completed benchmark below threshold returns FAIL.
+
+Both commands use exit codes `0=PASS`, `1=FAIL`, and `2=HOLD` and write JSON reports under `var/`.
 
 The media audit reports missing/orphan files without deletion. Full backup and isolated restore instructions are in [the runbook](../docs/real-data-runbook.md).
 
@@ -45,3 +61,7 @@ waits for actual model warmup and requires `/health/ready` HTTP 200 with OCR ena
 Frontend health is also checked; runtime logs are collected on failure.
 Training checkpoints and download caches remain outside Git. This startup check
 does not replace the labelled real-vehicle accuracy benchmark.
+
+## Functional acceptance and E2E
+
+See [operational runbook](../docs/System-Functional-Runbook.md) for GATE_* credentials, nonzero CASH acceptance pricing, preflight, dry-run and troubleshooting. `system_gate.py` writes real acceptance sessions; use a dedicated quiet acceptance building. Its JSON explicitly does not evaluate ALPR accuracy. `scripts/dry_run.py` runs functional and quality gates independently.

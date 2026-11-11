@@ -7,7 +7,7 @@ RUN npm ci
 
 COPY . .
 
-CMD ["sh", "-c", "npm run lint -- src tests && npm test -- --run && npm run build"]
+CMD ["sh", "-c", "npm run lint -- src tests && npm run lint:operations && npm test -- --run && npm run build"]
 
 FROM node:24-alpine AS build
 

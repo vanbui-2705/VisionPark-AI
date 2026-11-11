@@ -34,6 +34,9 @@ jobs:
           print('::add-mask::' + key)
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write('JWT_SECRET_KEY=' + key + '\n')
+              db_key = secrets.token_hex(32)
+              print('::add-mask::' + db_key)
+              output.write('CI_TEST_DB_PASSWORD=' + db_key + '\n')
           PY
 
       - name: Validate Compose configuration
@@ -47,6 +50,14 @@ jobs:
 
       - name: Run backend checks in Docker
         run: docker compose --profile ci run --rm backend-ci
+
+      - name: Reject a false ALPR quality PASS without acceptance media
+        run: |
+          set +e
+          docker compose --profile ci run --rm backend-ci python scripts/release_gate.py
+          gate_status=$?
+          set -e
+          test "$gate_status" -eq 2
 
       - name: Run frontend checks in Docker
         run: docker compose --profile ci run --rm frontend-ci

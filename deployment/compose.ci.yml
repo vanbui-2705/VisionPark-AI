@@ -23,7 +23,24 @@ services:
     healthcheck:
       timeout: 10s
       start_period: 180s
+  test-db:
+    image: postgres:17-alpine
+    profiles: ["ci"]
+    environment:
+      POSTGRES_USER: visionpark_test
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${CI_TEST_DB_PASSWORD:?Set CI_TEST_DB_PASSWORD}
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U visionpark_test -d postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
   backend-ci:
+    depends_on:
+      test-db:
+        condition: service_healthy
     build:
       args:
         INSTALL_REAL_ALPR: "false"
@@ -31,6 +48,7 @@ services:
     environment:
       ALPR_MANIFEST_PATH: /app/models/alpr-manifest.json
       AUTO_SEED: "false"
+      TEST_POSTGRES_URL: postgresql+psycopg://visionpark_test:${CI_TEST_DB_PASSWORD}@test-db:5432/postgres
 volumes:
   postgres_data:
     name: ${COMPOSE_PROJECT_NAME:-visionpark-ci}_postgres_data

@@ -1,12 +1,17 @@
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.alpr.utils import normalize_plate
 from app.core.errors import AppError
-from app.database.idempotency import validate_idempotency_key
+from app.database.idempotency import (
+    encode_checkout_idempotency_tag,
+    fingerprint_payload,
+    validate_idempotency_key,
+    verify_checkout_idempotency,
+)
 from app.modules.alpr.models import Detection
 from app.modules.audit_logs.service import log_action
 from app.modules.barriers import (
@@ -30,10 +35,23 @@ from app.modules.pricing.domain import (
     calculate_fee,
     check_ticket_access,
 )
-from app.modules.pricing.models import Subscription, TicketProduct, Vehicle
+from app.modules.pricing.models import (
+    Invoice,
+    Payment,
+    PricingVersion,
+    Subscription,
+    TicketProduct,
+    Vehicle,
+)
 from app.modules.users.models import User
 
-from .schemas import CheckOutPreviewResponse, CheckOutRequest, CheckOutResponse
+from .schemas import (
+    ALLOWED_CHECKOUT_PAYMENT_METHODS,
+    ALLOWED_SESSION_PAYMENT_METHODS,
+    CheckOutPreviewResponse,
+    CheckOutRequest,
+    CheckOutResponse,
+)
 
 # Trạng thái phiên được phép checkout (BR-14)
 _CHECKOUT_ELIGIBLE = {
@@ -49,6 +67,35 @@ def _normalize_tz(dt: datetime) -> datetime:
 
 
 DEFAULT_BUILDING_UUID = UUID("00000000-0000-0000-0000-000000000001")
+
+
+def _is_admin_operator(operator: User | None) -> bool:
+    """Kiểm tra người dùng có quyền quản trị (SYSTEM_ADMIN / BUILDING_ADMIN) để override phí."""
+    if operator is None:
+        return False
+    role_obj = getattr(operator, "role", None)
+    role_name = getattr(role_obj, "name", None) or getattr(operator, "role_name", None)
+    return str(role_name or "").upper() in {"SYSTEM_ADMIN", "BUILDING_ADMIN", "ADMIN"}
+
+
+def _compute_checkout_fingerprint(request: CheckOutRequest, norm_method: str | None) -> str:
+    """Tạo fingerprint cho request checkout để phát hiện tái sử dụng key khác payload (BUILD-01)."""
+    if request.session_id:
+        ident = f"session:{request.session_id}"
+    elif request.ticket_code:
+        ident = f"ticket:{request.ticket_code.strip().upper()}"
+    else:
+        ident = f"plate:{normalize_plate(request.license_plate or '')}"
+
+    return fingerprint_payload(
+        {
+            "ident": ident,
+            "exit_lane_id": str(request.exit_lane_id),
+            "payment_method": norm_method,
+            "is_lost_ticket": bool(request.is_lost_ticket),
+            "vehicle_type_out": (request.vehicle_type_out or "").strip().upper() or None,
+        }
+    )
 
 
 def _build_price_snapshot_from_tx(transaction: ParkingTransaction) -> PriceSnapshot:
@@ -212,9 +259,12 @@ class CheckOutService:
         exit_time = datetime.now(UTC)
         t_in = _normalize_tz(transaction.check_in_time)
         t_out = _normalize_tz(exit_time)
-        fee, lines, breakdown = calculate_parking_fee(
-            transaction, t_out, request.is_lost_ticket, session=self.session
-        )
+        if transaction.status == TransactionStatus.PAID:
+            fee, lines, breakdown = float(transaction.fee or 0.0), [], None
+        else:
+            fee, lines, breakdown = calculate_parking_fee(
+                transaction, t_out, request.is_lost_ticket, session=self.session
+            )
         duration_minutes = max(0, int((t_out - t_in).total_seconds() // 60))
         vtype_in = getattr(transaction, "vehicle_type", "CAR") or "CAR"
         vtype_out = request.vehicle_type_out
@@ -257,7 +307,8 @@ class CheckOutService:
             vehicle_type_in=vtype_in,
             vehicle_type_out=vtype_out,
             vehicle_type_mismatch=mismatch,
-            check_in_time=transaction.check_in_time,
+            check_in_time=t_in,
+            exit_time=t_out,
             check_in_image_url=check_in_img,
             exit_image_url=request.exit_image_url,
             duration_minutes=duration_minutes,
@@ -277,34 +328,87 @@ class CheckOutService:
         idempotency_key: str | None = None,
     ) -> CheckOutResponse:
         """
-        POST /check-out — đóng phiên gửi xe (idempotent theo key).
+        POST /check-out — đóng phiên gửi xe (idempotent theo key + fingerprint).
 
         Luồng:
-          1. Kiểm tra idempotency_key: nếu đã COMPLETED với key này thì trả lại.
-          2. Tìm phiên mở (hoặc PAID).
-          3. Cảnh báo lệch loại xe (phải có override_reason nếu lệch).
-          4. Tính phí:
-             - Nếu fee == 0 hoặc request.payment_method được cung cấp:
-               đóng phiên ngay -> COMPLETED, giảm bộ đếm (BR-14).
-             - Nếu fee > 0 và chưa có phương thức thanh toán:
-               chuyển sang PAYMENT_PENDING.
+          1. Kiểm tra payment_method hợp lệ (DEMO-01 / IMPROVE-01).
+          2. Kiểm tra idempotency_key & fingerprint (BUILD-01):
+             - Cùng key + cùng payload -> trả lại kết quả cũ.
+             - Cùng key + khác payload -> trả 409 IDEMPOTENCY_KEY_REUSED.
+          3. Tìm phiên mở (hoặc PAID).
+          4. Cảnh báo lệch loại xe (phải có override_reason nếu lệch).
+          5. Tính phí & đồng bộ sổ Invoice/Payment (BUILD-02 / DEMO-03).
         """
         raw_key = idempotency_key if idempotency_key is not None else request.idempotency_key
         key = validate_idempotency_key(raw_key)
 
-        # 1. Kiểm tra idempotent
+        norm_method = (
+            str(request.payment_method).strip().upper() if request.payment_method else None
+        )
+        if norm_method is not None and norm_method not in ALLOWED_CHECKOUT_PAYMENT_METHODS:
+            raise AppError(
+                status_code=422,
+                code="INVALID_PAYMENT_METHOD",
+                message=(
+                    f"Phương thức thanh toán '{request.payment_method}' không được hỗ trợ "
+                    f"tại trạm. Chỉ chấp nhận: "
+                    f"{', '.join(sorted(ALLOWED_CHECKOUT_PAYMENT_METHODS))}."
+                ),
+            )
+
+        checkout_fp = _compute_checkout_fingerprint(request, norm_method)
+
+        # Serialize checkout decisions before reading replay/ledger state. The row
+        # lock is held until the existing completion transaction commits. Selecting
+        # only the ID avoids FOR UPDATE on nullable joined relationships.
+        lock_query = select(ParkingTransaction.id)
+        if request.session_id:
+            lock_query = lock_query.where(ParkingTransaction.id == request.session_id)
+        elif request.ticket_code:
+            lock_query = lock_query.where(
+                ParkingTransaction.ticket_code == request.ticket_code.strip().upper(),
+                ParkingTransaction.status.in_(_CHECKOUT_ELIGIBLE),
+            )
+        else:
+            lock_query = lock_query.where(
+                ParkingTransaction.normalized_plate == normalize_plate(request.license_plate),
+                ParkingTransaction.status.in_(_CHECKOUT_ELIGIBLE),
+            )
+        building_id = getattr(operator, "building_id", None)
+        if isinstance(building_id, UUID):
+            lock_query = lock_query.where(ParkingTransaction.building_id == building_id)
+        self.session.execute(lock_query.order_by(ParkingTransaction.id).with_for_update()).all()
+
+        # 1. Kiểm tra idempotent + xác thực fingerprint (BUILD-01)
         existing_done = self.repo.get_by_idempotency_key_checkout(key)
         if existing_done and existing_done.status in {
             TransactionStatus.COMPLETED,
             TransactionStatus.EXITED,
         }:
+            verify_checkout_idempotency(existing_done.notes, key, checkout_fp)
             from app.modules.checkin.service import CheckInService
 
+            existing_inv = self.session.scalar(
+                select(Invoice).where(Invoice.transaction_id == existing_done.id)
+            )
+            existing_pay = (
+                self.session.scalar(
+                    select(Payment).where(
+                        Payment.invoice_id == existing_inv.id, Payment.status == "PAID"
+                    )
+                )
+                if existing_inv
+                else None
+            )
             return CheckOutResponse(
                 transaction=CheckInService.to_response(existing_done),
                 fee=float(getattr(existing_done, "fee", 0.0) or 0.0),
                 status=existing_done.status,
                 barrier_opened=True,
+                barrier_event_recorded=True,
+                barrier_mode="SIMULATED",
+                invoice_id=existing_inv.id if existing_inv else None,
+                payment_id=existing_pay.id if existing_pay else None,
                 message="Phiên đã được đóng trước đó (idempotent).",
             )
 
@@ -322,6 +426,7 @@ class CheckOutService:
                 operator,
                 fee=float(transaction.fee or 0.0),
                 key=key,
+                checkout_fingerprint=checkout_fp,
                 fee_lines=lines,
                 fee_breakdown=breakdown,
             )
@@ -375,11 +480,16 @@ class CheckOutService:
             transaction, exit_time, request.is_lost_ticket, session=self.session
         )
 
+        if request.expected_fee is not None and request.expected_fee != fee:
+            raise AppError(
+                status_code=409,
+                code="FEE_CHANGED",
+                message="Phí gửi xe đã thay đổi. Cập nhật phí và xác nhận lại trước khi thu tiền.",
+                details={"expected_fee": request.expected_fee, "fee": fee},
+            )
+
         try:
             # Nếu miễn phí hoặc thanh toán trực tiếp tại cổng (CASH 1 chạm)
-            norm_method = (
-                str(request.payment_method).strip().upper() if request.payment_method else None
-            )
             if fee == 0.0 or norm_method:
                 if norm_method and fee > 0.0:
                     record_lifecycle_event(
@@ -410,6 +520,7 @@ class CheckOutService:
                     operator,
                     fee=fee,
                     key=key,
+                    checkout_fingerprint=checkout_fp,
                     fee_lines=lines,
                     fee_breakdown=breakdown,
                 )
@@ -420,11 +531,10 @@ class CheckOutService:
                 transaction.exit_lane_id = request.exit_lane_id
                 transaction.exit_time = exit_time
                 existing_notes = transaction.notes or ""
+                idemp_tag = encode_checkout_idempotency_tag(key, checkout_fp)
                 if f"[CHECKOUT_KEY:{key}]" not in existing_notes:
                     transaction.notes = (
-                        f"{existing_notes}\n[CHECKOUT_KEY:{key}]".strip()
-                        if existing_notes
-                        else f"[CHECKOUT_KEY:{key}]"
+                        f"{existing_notes}\n{idemp_tag}".strip() if existing_notes else idemp_tag
                     )
 
                 record_lifecycle_event(
@@ -463,12 +573,132 @@ class CheckOutService:
                     fee_breakdown=breakdown,
                     status=TransactionStatus.PAYMENT_PENDING,
                     barrier_opened=False,
+                    barrier_event_recorded=False,
+                    barrier_mode="SIMULATED",
                     vehicle_type_mismatch=mismatch,
                     message=f"Phí {fee:,.0f}đ. Vui lòng thu tiền để hoàn tất check-out.",
                 )
         except Exception:
             self.session.rollback()
             raise
+
+    def _resolve_price_version_id(
+        self,
+        transaction: ParkingTransaction,
+        building_id: UUID,
+        operator: User,
+    ) -> UUID:
+        """Đảm bảo price_version_id trỏ tới một bản ghi hợp lệ trong bảng pricing_versions."""
+        snapshot = _build_price_snapshot_from_tx(transaction)
+        candidate = self.session.get(PricingVersion, snapshot.version_id)
+        if candidate is not None:
+            return candidate.id
+
+        latest_id = self.session.scalar(
+            select(PricingVersion.id)
+            .where(PricingVersion.building_id == building_id)
+            .order_by(PricingVersion.version_number.desc())
+            .limit(1)
+        )
+        if latest_id is not None:
+            return latest_id
+
+        version = PricingVersion(
+            id=uuid4(),
+            building_id=building_id,
+            version_number=1,
+            active_from=datetime(2099, 1, 1, tzinfo=UTC),
+            created_by_id=operator.id,
+        )
+        self.session.add(version)
+        self.session.flush()
+        return version.id
+
+    def _sync_checkout_ledger(
+        self,
+        transaction: ParkingTransaction,
+        *,
+        request: CheckOutRequest,
+        operator: User,
+        exit_time: datetime,
+        fee: float,
+        fee_lines: list[dict] | None,
+        key: str | None,
+        provider_ref: str | None = None,
+    ) -> tuple[UUID, UUID | None]:
+        """
+        BUILD-02 / DEMO-03: Đồng bộ sổ Invoice và Payment trong cùng transaction với Checkout.
+        Đảm bảo:
+          - Mọi phiên COMPLETED đều có đúng 1 Invoice (phục vụ M5 đếm lượt ra).
+          - Mọi phiên có phí > 0 thanh toán CASH / VIETQR_MOCK đều có đúng 1 Payment trạng thái PAID
+            (phục vụ M5 tổng hợp doanh thu ca/ngày).
+          - Retry idempotent không tạo bản ghi Invoice/Payment trùng.
+        """
+        building_id = getattr(transaction, "building_id", None) or DEFAULT_BUILDING_UUID
+        price_version_id = self._resolve_price_version_id(transaction, building_id, operator)
+        norm_method = (
+            str(request.payment_method).strip().upper() if request.payment_method else None
+        )
+        total_vnd = max(0, int(round(fee)))
+        inv_status = "WAIVED" if norm_method == "OVERRIDE" else "PAID"
+
+        invoice = self.session.scalar(
+            select(Invoice).where(Invoice.transaction_id == transaction.id)
+        )
+        if invoice is None:
+            invoice = Invoice(
+                building_id=building_id,
+                transaction_id=transaction.id,
+                price_version_id=price_version_id,
+                status=inv_status,
+                check_out_time=exit_time,
+                lost_ticket=bool(request.is_lost_ticket),
+                overtime=False,
+                extra_free_minutes=0,
+                total_vnd=total_vnd,
+                lines=fee_lines or [],
+            )
+            self.session.add(invoice)
+            self.session.flush()
+        else:
+            invoice.status = inv_status
+            invoice.check_out_time = exit_time
+            invoice.lost_ticket = bool(request.is_lost_ticket)
+            invoice.total_vnd = total_vnd
+            if fee_lines is not None:
+                invoice.lines = fee_lines
+            self.session.flush()
+
+        payment: Payment | None = self.session.scalar(
+            select(Payment).where(Payment.invoice_id == invoice.id, Payment.status == "PAID")
+        )
+        if payment is None and total_vnd > 0 and norm_method in {"CASH", "VIETQR_MOCK"}:
+            pay_key = (key or f"checkout-pay-{transaction.id}")[:255]
+            payment = self.session.scalar(
+                select(Payment).where(
+                    Payment.invoice_id == invoice.id,
+                    Payment.idempotency_key == pay_key,
+                )
+            )
+            if payment is None:
+                payment = Payment(
+                    building_id=building_id,
+                    invoice_id=invoice.id,
+                    provider_ref=provider_ref,
+                    idempotency_key=pay_key,
+                    method=norm_method,
+                    status="PAID",
+                    amount_vnd=total_vnd,
+                    confirmed_at=exit_time,
+                )
+                self.session.add(payment)
+            else:
+                payment.status = "PAID"
+                payment.amount_vnd = total_vnd
+                payment.confirmed_at = payment.confirmed_at or exit_time
+            self.session.flush()
+
+        return invoice.id, (payment.id if payment else None)
 
     def _complete_session(
         self,
@@ -477,14 +707,17 @@ class CheckOutService:
         operator: User,
         fee: float,
         key: str | None = None,
+        checkout_fingerprint: str | None = None,
         fee_lines: list[dict] | None = None,
         fee_breakdown: dict | None = None,
+        provider_ref: str | None = None,
     ) -> CheckOutResponse:
         """
-        Hoàn tất phiên gửi xe trong cùng 1 transaction (BR-14):
+        Hoàn tất phiên gửi xe trong cùng 1 transaction nguyên tử (BR-14, BUILD-02, IMPROVE-02):
           - Cập nhật trạng thái: EXITED -> COMPLETED
+          - Đồng bộ Invoice & Payment (sổ cái M4/M5)
           - Ghi lifecycle: EXIT_CONFIRMED, BARRIER_OPENED_OUT, COMPLETED
-          - Mở barrier mô phỏng (BR-23)
+          - Mở barrier mô phỏng (BR-23, mode=SIMULATED)
           - Giảm bộ đếm nguyên tử qua CounterService.decrement_atomic()
         """
         exit_time = datetime.now(UTC)
@@ -498,17 +731,37 @@ class CheckOutService:
         transaction.exit_lane_id = request.exit_lane_id
         transaction.fee = fee
 
-        # Ghi nhận checkout key & exit image vào notes để idempotent
+        # Ghi nhận checkout key + fingerprint & exit image vào notes để idempotent (BUILD-01)
         existing_notes = transaction.notes or ""
         notes_parts = [existing_notes] if existing_notes else []
-        if key and f"[CHECKOUT_KEY:{key}]" not in existing_notes:
-            notes_parts.append(f"[CHECKOUT_KEY:{key}]")
+        if key:
+            fp = checkout_fingerprint or _compute_checkout_fingerprint(
+                request,
+                str(request.payment_method).strip().upper() if request.payment_method else None,
+            )
+            idemp_tag = encode_checkout_idempotency_tag(key, fp)
+            if f"[CHECKOUT_KEY:{key}]" not in existing_notes:
+                notes_parts.append(idemp_tag)
+            elif f"[CHECKOUT_FP:{key}:" not in existing_notes:
+                notes_parts.append(f"[CHECKOUT_FP:{key}:{fp}]")
         if (
             request.exit_image_url
             and f"[EXIT_IMAGE:{request.exit_image_url}]" not in existing_notes
         ):
             notes_parts.append(f"[EXIT_IMAGE:{request.exit_image_url}]")
         transaction.notes = "\n".join(notes_parts) if notes_parts else None
+
+        # Đồng bộ Invoice & Payment (BUILD-02 / DEMO-03)
+        invoice_id, payment_id = self._sync_checkout_ledger(
+            transaction,
+            request=request,
+            operator=operator,
+            exit_time=exit_time,
+            fee=fee,
+            fee_lines=fee_lines,
+            key=key,
+            provider_ref=provider_ref,
+        )
 
         record_lifecycle_event(
             session=self.session,
@@ -524,6 +777,8 @@ class CheckOutService:
                 "vehicle_type_out": vtype_out,
                 "mismatch": mismatch,
                 "override_reason": request.override_reason,
+                "invoice_id": str(invoice_id),
+                "payment_id": str(payment_id) if payment_id else None,
             },
             image_ref=request.exit_image_url,
         )
@@ -555,6 +810,7 @@ class CheckOutService:
             status=BarrierStatus.OPEN,
             details={
                 "barrier_id": barrier_id,
+                "mode": "SIMULATED",
                 "trigger_reason": trigger_reason,
                 "override_reason": request.override_reason,
                 "source": "CHECK_OUT",
@@ -574,6 +830,7 @@ class CheckOutService:
             details={
                 "barrier_id": barrier_id,
                 "opened": barrier_opened,
+                "mode": "SIMULATED",
                 "trigger_reason": trigger_reason,
                 "override_reason": request.override_reason,
             },
@@ -595,6 +852,8 @@ class CheckOutService:
                 "breakdown": fee_breakdown,
                 "exit_lane_id": str(request.exit_lane_id),
                 "vehicle_type": vtype,
+                "invoice_id": str(invoice_id),
+                "payment_id": str(payment_id) if payment_id else None,
             },
         )
 
@@ -621,6 +880,9 @@ class CheckOutService:
                 "exit_lane_id": str(request.exit_lane_id),
                 "status": TransactionStatus.COMPLETED,
                 "is_lost_ticket": bool(request.is_lost_ticket),
+                "invoice_id": str(invoice_id),
+                "payment_id": str(payment_id) if payment_id else None,
+                "barrier_mode": "SIMULATED",
             },
         )
 
@@ -661,7 +923,11 @@ class CheckOutService:
             fee_breakdown=fee_breakdown,
             status=TransactionStatus.COMPLETED,
             barrier_opened=barrier_opened,
+            barrier_event_recorded=True,
+            barrier_mode="SIMULATED",
             vehicle_type_mismatch=mismatch,
+            invoice_id=invoice_id,
+            payment_id=payment_id,
             message="Xe đã ra thành công." + (" (Lệch loại xe — đã override.)" if mismatch else ""),
         )
 
@@ -755,50 +1021,32 @@ class CheckOutService:
         override_reason: str | None = None,
     ) -> CheckOutResponse:
         """
-        Ghi nhận thanh toán cho phiên PAYMENT_PENDING -> PAID -> COMPLETED.
+        Ghi nhận thanh toán cho phiên PAYMENT_PENDING -> PAID -> COMPLETED
+        (DEMO-01, DEMO-02, IMPROVE-01).
         """
+        norm_method = str(payment_method).strip().upper() if payment_method else ""
+        if norm_method not in ALLOWED_SESSION_PAYMENT_METHODS:
+            raise AppError(
+                status_code=422,
+                code="INVALID_PAYMENT_METHOD",
+                message=(
+                    f"Phương thức thanh toán '{payment_method}' không hợp lệ. "
+                    f"Chỉ chấp nhận: {', '.join(sorted(ALLOWED_SESSION_PAYMENT_METHODS))}."
+                ),
+            )
+
         tx = self.session.get(ParkingTransaction, session_id)
         if tx is None:
             raise AppError(
                 status_code=404, code="SESSION_NOT_FOUND", message="Không tìm thấy phiên gửi xe."
             )
+
         if tx.status not in {TransactionStatus.PAYMENT_PENDING, TransactionStatus.PAID}:
             raise AppError(
                 status_code=409,
                 code="INVALID_SESSION_STATUS",
                 message=f"Phiên ở trạng thái {tx.status} không thể ghi nhận thanh toán.",
             )
-
-        tx_building_id = getattr(tx, "building_id", None)
-        tx.status = TransactionStatus.PAID
-
-        record_lifecycle_event(
-            session=self.session,
-            session_id=tx.id,
-            event_type=LifecycleEventType.PAYMENT_RECEIVED,
-            actor_type=ActorType.OPERATOR,
-            actor_id=operator.id,
-            building_id=tx_building_id,
-            details={
-                "payment_method": payment_method,
-                "amount": amount,
-                "provider_ref": provider_ref,
-                "override_reason": override_reason,
-            },
-        )
-        log_action(
-            db=self.session,
-            user_id=operator.id,
-            action="PAYMENT_RECEIVED",
-            entity_type="ParkingTransaction",
-            entity_id=str(tx.id),
-            new_value={
-                "payment_method": payment_method,
-                "amount": amount,
-                "provider_ref": provider_ref,
-            },
-        )
-        self.session.flush()
 
         if tx.exit_lane_id is None:
             raise AppError(
@@ -807,12 +1055,92 @@ class CheckOutService:
                 message="Phiên chưa có làn ra. Vui lòng gọi lại POST /check-out trước.",
             )
 
-        dummy_request = CheckOutRequest(
-            session_id=tx.id,
-            license_plate=tx.license_plate,
-            ticket_code=tx.ticket_code,
-            exit_lane_id=tx.exit_lane_id,
-            override_reason=override_reason,
-            payment_method=payment_method,
-        )
-        return self._complete_session(tx, dummy_request, operator, fee=float(tx.fee or 0.0))
+        due_fee = round(float(tx.fee or 0.0), 0)
+        paid_amount = round(float(amount), 0)
+        has_reason = bool(override_reason and override_reason.strip())
+
+        if norm_method == "OVERRIDE":
+            if not has_reason:
+                raise AppError(
+                    status_code=422,
+                    code="OVERRIDE_REASON_REQUIRED",
+                    message="Vui lòng nhập lý do override thanh toán.",
+                )
+            if not _is_admin_operator(operator):
+                raise AppError(
+                    status_code=403,
+                    code="OVERRIDE_FORBIDDEN",
+                    message="Chỉ quản trị viên mới có quyền override miễn/giảm phí gửi xe.",
+                )
+        elif paid_amount != due_fee:
+            if has_reason:
+                if not _is_admin_operator(operator):
+                    raise AppError(
+                        status_code=403,
+                        code="OVERRIDE_FORBIDDEN",
+                        message="Chỉ quản trị viên mới có quyền override chênh lệch phí gửi xe.",
+                    )
+            else:
+                raise AppError(
+                    status_code=409,
+                    code="PAYMENT_AMOUNT_MISMATCH",
+                    message=(
+                        f"Số tiền thanh toán ({paid_amount:,.0f}đ) không khớp với "
+                        f"phí phải thu ({due_fee:,.0f}đ)."
+                    ),
+                    details={"expected_amount": due_fee, "received_amount": paid_amount},
+                )
+
+        try:
+            tx_building_id = getattr(tx, "building_id", None)
+            tx.status = TransactionStatus.PAID
+
+            record_lifecycle_event(
+                session=self.session,
+                session_id=tx.id,
+                event_type=LifecycleEventType.PAYMENT_RECEIVED,
+                actor_type=ActorType.OPERATOR,
+                actor_id=operator.id,
+                building_id=tx_building_id,
+                details={
+                    "payment_method": norm_method,
+                    "amount": paid_amount,
+                    "provider_ref": provider_ref,
+                    "override_reason": override_reason,
+                },
+            )
+            log_action(
+                db=self.session,
+                user_id=operator.id,
+                action="PAYMENT_RECEIVED",
+                entity_type="ParkingTransaction",
+                entity_id=str(tx.id),
+                new_value={
+                    "payment_method": norm_method,
+                    "amount": paid_amount,
+                    "provider_ref": provider_ref,
+                    "override_reason": override_reason,
+                },
+            )
+            self.session.flush()
+
+            dummy_request = CheckOutRequest(
+                session_id=tx.id,
+                license_plate=tx.license_plate,
+                ticket_code=tx.ticket_code,
+                exit_lane_id=tx.exit_lane_id,
+                override_reason=override_reason,
+                payment_method=norm_method,
+            )
+            settled_fee = 0.0 if norm_method == "OVERRIDE" else paid_amount
+            return self._complete_session(
+                tx,
+                dummy_request,
+                operator,
+                fee=settled_fee,
+                key=f"session-payment-{tx.id}",
+                provider_ref=provider_ref,
+            )
+        except Exception:
+            self.session.rollback()
+            raise

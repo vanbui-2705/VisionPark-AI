@@ -42,7 +42,9 @@ class DatabaseManager:
         try:
             with self.engine.connect() as connection:
                 connection.execute(text("SELECT 1"))
-            return ReadinessStatus(True, "Database connection is ready.")
+            return ReadinessStatus(
+                True, "Database connection is ready.", provider=self.engine.dialect.name
+            )
         except Exception:
             return ReadinessStatus(False, "Database connection failed.")
 
