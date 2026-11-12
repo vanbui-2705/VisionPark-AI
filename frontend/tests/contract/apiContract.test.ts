@@ -60,18 +60,22 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
 
     // SYSTEM_ADMIN has full access
     expect(can(makeUser('SYSTEM_ADMIN'), 'dashboard.read')).toBe(true)
+    expect(can(makeUser('SYSTEM_ADMIN'), 'operations.report.read')).toBe(true)
     expect(can(makeUser('SYSTEM_ADMIN'), 'users.manage')).toBe(true)
 
     // BUILDING_ADMIN can manage lanes but not system-wide documentation
     expect(can(makeUser('BUILDING_ADMIN'), 'lanes.manage')).toBe(true)
+    expect(can(makeUser('BUILDING_ADMIN'), 'operations.report.read')).toBe(true)
     expect(can(makeUser('BUILDING_ADMIN'), 'docs.read')).toBe(false)
 
     // OPERATOR has operations access, no users.manage
     expect(can(makeUser('OPERATOR'), 'station.use')).toBe(true)
+    expect(can(makeUser('OPERATOR'), 'operations.report.read')).toBe(false)
     expect(can(makeUser('OPERATOR'), 'users.manage')).toBe(false)
 
     // ACCOUNTANT has dashboard & transactions & audit, no lanes.create
     expect(can(makeUser('ACCOUNTANT'), 'dashboard.read')).toBe(true)
+    expect(can(makeUser('ACCOUNTANT'), 'operations.report.read')).toBe(false)
     expect(can(makeUser('ACCOUNTANT'), 'transactions.read')).toBe(true)
     expect(can(makeUser('ACCOUNTANT'), 'lanes.create')).toBe(false)
 
@@ -79,6 +83,7 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
     expect(can(makeUser('TECHNICIAN'), 'station.use')).toBe(true)
     expect(can(makeUser('TECHNICIAN'), 'system.read')).toBe(true)
     expect(can(makeUser('TECHNICIAN'), 'dashboard.read')).toBe(false)
+    expect(can(makeUser('TECHNICIAN'), 'operations.report.read')).toBe(false)
     expect(can(makeUser('TECHNICIAN'), 'checkin.create')).toBe(true)
     expect(can(makeUser('TECHNICIAN'), 'transactions.read')).toBe(false)
     expect(can(makeUser('ACCOUNTANT'), 'audit.read')).toBe(true)

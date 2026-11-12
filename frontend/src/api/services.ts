@@ -92,13 +92,13 @@ const realAudit: AuditApi = {
   page: async (p) => {
     const page = p?.page ?? 0
     const pageSize = p?.pageSize ?? 20
-    const raw = await apiClient.get<PaginatedResponse<AuditLog> | AuditLog[]>('/api/v1/audit-logs', {
+    const raw = await apiClient.get<PaginatedResponse<AuditLog> | AuditLog[]>('/api/v1/audit-logs/', {
       params: { ...p, paginated: true, limit: pageSize, offset: page * pageSize },
     })
     if (Array.isArray(raw)) return { items: raw, total: raw.length, page, pageSize, totalPages: Math.max(1, Math.ceil(raw.length / pageSize)) }
     return { ...raw, page, pageSize, totalPages: Math.max(1, Math.ceil(raw.total / pageSize)) }
   },
-  list: (p) => apiClient.get<AuditLog[]>('/api/v1/audit-logs', { params: p }),
+  list: (p) => apiClient.get<AuditLog[]>('/api/v1/audit-logs/', { params: p }),
 }
 
 const realRoles: RolesApi = {

@@ -101,6 +101,7 @@ export function useAlprDetection() {
     lastBboxRef.current = null;
   }, []);
   const beginConfirm = useCallback(() => setState("confirming"), []);
+  const completePreview = useCallback(() => setState("preview_ready"), []);
   const completeConfirm = useCallback(() => setState("success"), []);
   const failConfirm = useCallback(() => setState("error"), []);
   return {
@@ -111,6 +112,7 @@ export function useAlprDetection() {
     retry,
     reset,
     beginConfirm,
+    completePreview,
     completeConfirm,
     failConfirm
   };

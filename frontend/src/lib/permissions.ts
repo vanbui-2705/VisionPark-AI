@@ -2,6 +2,7 @@ import type { CurrentUser } from '../api/types.ts'
 
 export type Permission =
   | 'dashboard.read'
+  | 'operations.report.read'
   | 'station.use'
   | 'station.history.read'
   | 'detections.read'
@@ -31,6 +32,7 @@ export type Permission =
 
 export const PERMISSION_MATRIX: { perm: Permission; label: string; admin: boolean; operator: boolean; accountant: boolean; technician: boolean }[] = [
   { perm: 'dashboard.read', label: 'Dashboard', admin: true, operator: false, accountant: true, technician: false },
+  { perm: 'operations.report.read', label: 'Báo cáo vận hành tòa nhà', admin: true, operator: false, accountant: false, technician: false },
   { perm: 'station.use', label: 'Quét biển số', admin: true, operator: true, accountant: false, technician: true },
   { perm: 'station.history.read', label: 'Lịch sử station', admin: true, operator: true, accountant: false, technician: true },
   { perm: 'detections.read', label: 'Xem detection', admin: true, operator: true, accountant: false, technician: true },
@@ -68,7 +70,7 @@ const ROLE_COLUMN: Record<string, 'admin' | 'operator' | 'accountant' | 'technic
 }
 
 const BUILDING_ADMIN_PERMISSIONS = new Set<Permission>([
-  'dashboard.read', 'station.use', 'station.history.read', 'detections.read',
+  'dashboard.read', 'operations.report.read', 'station.use', 'station.history.read', 'detections.read',
   'detections.confirm', 'checkin.create', 'checkout.create', 'transactions.read', 'lanes.read',
   'lanes.create', 'lanes.update', 'lanes.manage', 'users.read', 'users.manage',
   'audit.read', 'profile.read',

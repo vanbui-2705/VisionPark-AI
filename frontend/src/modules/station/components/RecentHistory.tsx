@@ -8,8 +8,8 @@ export default function RecentHistory({
   return <div className="card scan-history">
     <div className="scan-card-head">
       <div>
-        <span className="card-kicker">RECENT ACTIVITY</span>
-        <h3>Recent History</h3>
+        <span className="card-kicker">HOẠT ĐỘNG GẦN ĐÂY</span>
+        <h3>Lịch sử check-in</h3>
       </div>
       <span className="scan-count">{items.length}</span>
     </div>
@@ -18,7 +18,7 @@ export default function RecentHistory({
         <thead>
           <tr>
             <th>{translate("Biển số")}</th>
-            <th>{translate("Kết quả")}</th>
+            <th>{translate("Trạng thái check-in")}</th>
             <th>{translate("Thời gian")}</th>
           </tr>
         </thead>

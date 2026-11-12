@@ -16,5 +16,6 @@ canonical. API backend luôn enforce quyền độc lập với route guard.
 
 BUILDING_ADMIN dùng `/settings` để quản lý ba tab Loại vé, Bảng giá, Hạng khách.
 Trang `/settings` có thêm quản lý đăng ký/gia hạn vé tháng theo biển số và nhập danh sách xe CSV.
-BUILDING_ADMIN xem `/admin/m5` để cấu hình sức chứa, báo cáo doanh thu tiền mặt theo ca và xuất CSV lượt xe.
+SYSTEM_ADMIN/BUILDING_ADMIN xem `/admin/m5` qua quyền `operations.report.read` để cấu hình sức chứa,
+báo cáo doanh thu tiền mặt theo ca và xuất CSV lượt xe. Route có mục điều hướng riêng trên sidebar.
 SYSTEM_ADMIN dùng cùng trang để tạo tòa nhà, rồi gán tòa nhà khi tạo/sửa người dùng.

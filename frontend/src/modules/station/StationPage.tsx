@@ -56,6 +56,7 @@ export default function StationPage() {
     retry,
     reset,
     beginConfirm,
+    completePreview,
     completeConfirm,
     failConfirm
   } = useAlprDetection();
@@ -161,7 +162,7 @@ export default function StationPage() {
         const exitImageUrl = await confirmExitDetection(detectionId, selectedLaneId, confirmedPlate);
         const session = await prepareExit(selectedLaneId, confirmedPlate, exitImageUrl);
         setExitSession(session); setTransactionId(session.session_id);
-        completeConfirm();
+        completePreview();
         return;
       }
       const outcome = await confirmDetection(detectionId, selectedLaneId, plate ? {
@@ -194,7 +195,7 @@ export default function StationPage() {
       if (isOut) {
         const session = await prepareExit(selectedLaneId, manualPlate);
         setExitSession(session); setTransactionId(session.session_id);
-        completeConfirm();
+        completePreview();
         return;
       }
       const outcome = await manualCheckIn(selectedLaneId, manualPlate, `manual-${manualKey.current}`, priceContext, useTicketCode);
@@ -213,7 +214,8 @@ export default function StationPage() {
     stable: translate("Kết quả ổn định."),
     needs_confirmation: translate("Cần Operator xác nhận."),
     confirming: isOut ? 'Đang tra xe và tính phí…' : translate("Đang tạo check-in..."),
-    success: isOut ? 'Đã tìm thấy giao dịch xe ra.' : translate("Check-in thành công."),
+    preview_ready: 'Đã tìm thấy giao dịch. Chờ đối chiếu và xác nhận checkout.',
+    success: isOut ? 'Checkout hoàn tất. Barrier mô phỏng đã mở.' : translate("Check-in thành công."),
     error: translate("Xử lý thất bại.")
   };
   const error = actionError ?? detectionError;
@@ -223,11 +225,17 @@ export default function StationPage() {
     setExitSession(null); setTransactionId(null); setEditingPlate(false); setManualPlate('');
     setActionError(null); manualKey.current = crypto.randomUUID(); clearCandidates(); reset();
   };
+  const captureExitImage = () => {
+    if (confirming.current) return;
+    setExitSession(null); setTransactionId(null); setActionError(null);
+    setInputMode('image'); setImageFile(null); setImageUrl('');
+    clearCandidates(); reset();
+  };
   return <section ref={stationRoot} className="stack scan-page">
-    <header className="scan-hero">
+    <header className={`scan-hero${exitSession ? ' scan-hero--checkout' : ''}`}>
       <div className="scan-hero-copy">
         <span className="scan-kicker">TRẠM KIỂM SOÁT CỔNG</span>
-        <h2>{translate("Trạm quét biển số")}</h2>
+        <h2>{exitSession ? 'Checkout xe ra' : translate("Trạm quét biển số")}</h2>
         <p>{statusLabel[state]}</p>
       </div>
       <div className="scan-hero-actions">
@@ -235,7 +243,7 @@ export default function StationPage() {
       </div>
     </header>
 
-    <div className="scan-toolbar">
+    {!exitSession && <><div className="scan-toolbar">
       <label className="field scan-control-group">
         <span>{translate("Chế độ nhận diện")}</span>
         <span className="scan-select-wrap">
@@ -257,7 +265,7 @@ export default function StationPage() {
       {videoName && <div className="scan-file-name">Video: <strong>{videoName}</strong></div>}
     </div>
 
-    <p className="muted">Phím tắt: F2 chụp / nhận diện · F4 xác nhận biển số · F8 thu tiền và mở cổng · F10 mở cổng xe miễn phí / đã trả · F9 xe tiếp theo.</p>
+    <p className="muted">Phím tắt: F2 chụp / nhận diện · F4 xác nhận biển số · F8 thu tiền và mở cổng · F10 mở cổng xe miễn phí / đã trả · F9 xe tiếp theo.</p></>}
     {isOut && !mayCheckOut && <p role="alert" className="alert alert-danger">Bạn không có quyền thu tiền và cho xe ra tại trạm.</p>}
     {!isOut && scopedLane && <div className="card card-polished">
       <div className="scan-card-head" style={{ marginBottom: 12 }}>
@@ -274,9 +282,9 @@ export default function StationPage() {
       </div>
     </div>}
 
-    {exitSession ? <div className="grid-2 scan-grid">
+    {exitSession ? <div className="grid-2 scan-grid station-checkout-grid">
+      <ExitSummary key={exitSession.session_id} session={exitSession} onBusyChange={busy => { confirming.current = busy; setExitBusy(busy); }} onCompleted={() => { completeConfirm(); void refreshHistory(); }} onNext={nextVehicle} onRequireExitImage={captureExitImage} />
       <ImageComparison entryImage={exitSession.check_in_image_url} exitImage={exitSession.exit_image_url} plate={exitSession.license_plate ?? exitSession.ticket_code ?? 'Không có biển số'} />
-      <ExitSummary key={exitSession.session_id} session={exitSession} onBusyChange={busy => { confirming.current = busy; setExitBusy(busy); }} onCompleted={() => { void refreshHistory(); }} onNext={nextVehicle} />
     </div> : <div className="grid-2 scan-grid">
       <div className="card scan-video">
         <div className="scan-card-head">

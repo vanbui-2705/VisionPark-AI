@@ -27,6 +27,11 @@ Route canonical: `/station/scan`; fullscreen cũ redirect về đây.
 - F8 / Xác nhận thu tiền và mở cổng gửi checkout CASH với expected_fee. Backend xử lý
   một chạm, giảm bộ đếm và ghi sự kiện barrier. Retry dùng cùng khóa theo session.
   Không gọi payment API riêng. Phí đã đổi thì cập nhật preview và xác nhận lại.
+- Preview xe ra dùng trạng thái `PREVIEW_READY`, chưa phải thành công. UI chỉ chuyển sang
+  thành công sau khi backend trả đúng phiên/làn/phí và `barrier_opened=true`. F8/F10 mở
+  hộp thoại xác nhận cuối; request checkout chỉ gửi sau khi Operator xác nhận trong dialog.
+- Checkout bắt buộc có ảnh xe ra. Tra biển số thủ công vẫn được dùng để tìm phiên nhưng
+  nút checkout bị khóa cho đến khi Operator quay lại chụp hoặc chọn ảnh xe ra.
 - Xe phí 0 hoặc đã PAID dùng F10 / Mở cổng, không gửi thêm CASH.
 - F2 chụp/nhận diện; F4 xác nhận biển số hoặc bản sửa; F9 xe tiếp theo sau thành công.
   Phím tắt dùng cùng nút và điều kiện khóa như click; bỏ qua nhập liệu/dialog/IME,
