@@ -110,7 +110,7 @@ export function AppRoutes() {
         <Route path="/admin/alpr" element={<PermissionGuard permission="alpr.read"><AlprPage /></PermissionGuard>} />
         <Route path="/admin/alpr/test" element={<AdminGuard><AlprTestPage /></AdminGuard>} />
         <Route path="/admin/audit-logs" element={<PermissionGuard permission="audit.read"><AuditLogsPage /></PermissionGuard>} />
-        <Route path="/admin/errors" element={<AdminGuard><ErrorCenterPage /></AdminGuard>} />
+        <Route path="/admin/errors" element={<PermissionGuard permission="errors.read"><ErrorCenterPage /></PermissionGuard>} />
         <Route path="/admin/system" element={<PermissionGuard permission="system.read"><SystemPage /></PermissionGuard>} />
 
         {/* Tài khoản — mọi role đăng nhập */}

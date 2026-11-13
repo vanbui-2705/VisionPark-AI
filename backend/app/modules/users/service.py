@@ -29,6 +29,7 @@ def to_public_user(user: User) -> UserPublic:
         must_change_password=user.must_change_password,
         email=user.email,
         last_login_at=user.last_login_at,
+        building_id=user.building_id,
     )
 
 
