@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -6,14 +7,12 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.database.session import get_db
+from app.database.tenant import resolve_building
 from app.modules.auth.dependencies import CurrentUser
 from app.modules.auth.schemas import LoginRequest, TokenResponse
 from app.modules.auth.service import AuthService
 from app.modules.users.schemas import RegistrationRequest, UserPublic
 from app.modules.users.service import to_public_user
-
-from uuid import UUID
-from app.database.tenant import resolve_building
 
 router = APIRouter()
 
