@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.database.session import get_db
+from app.database.tenant import requested_building
 from app.modules.auth.dependencies import require_roles
 from app.modules.checkin.models import TransactionStatus
 from app.modules.checkin.repository import DatabaseCheckInRepository
@@ -68,13 +69,28 @@ def check_access_endpoint(
 def get_parking_availability(
     db: Annotated[Session, Depends(get_db)],
     building_id: UUID | None = None,
+    current_user: User = Depends(
+        require_roles(
+            RoleName.OPERATOR,
+            RoleName.SYSTEM_ADMIN,
+            RoleName.BUILDING_ADMIN,
+            RoleName.ACCOUNTANT,
+        )
+    ),
 ) -> list[AvailabilityItem]:
     """Lấy số chỗ trống theo loại xe cho màn hình cổng / dashboard (mục 4.4 nghiepvu.md)."""
     from app.modules.checkin.counter_service import CounterService
 
+    effective_building_id = requested_building(db, current_user, building_id)
+    if effective_building_id is None:
+        raise AppError(
+            status_code=422,
+            code="BUILDING_REQUIRED",
+            message="Select a building before requesting parking availability.",
+        )
     return [
         AvailabilityItem(**item)
-        for item in CounterService.get_availability(db, building_id=building_id)
+        for item in CounterService.get_availability(db, building_id=effective_building_id)
     ]
 
 
@@ -91,9 +107,16 @@ def adjust_parking_counter(
     from app.modules.audit_logs.service import log_action
     from app.modules.checkin.counter_service import CounterService
 
+    effective_building_id = requested_building(db, current_user, building_id)
+    if effective_building_id is None:
+        raise AppError(
+            status_code=422,
+            code="BUILDING_REQUIRED",
+            message="Select a building before adjusting a parking counter.",
+        )
     counter = CounterService.adjust_counter(
         db=db,
-        building_id=building_id,
+        building_id=effective_building_id,
         vehicle_type=request.vehicle_type,
         delta=request.delta,
         reason=request.reason,
@@ -137,7 +160,13 @@ def get_counter_discrepancies(
     ),
 ) -> list[CounterDiscrepancyItem]:
     """Kiểm tra sai lệch giữa số phiên PARKED thực tế và bộ đếm (mục 4.4 nghiepvu.md)."""
-    effective_building_id = building_id or current_user.building_id
+    effective_building_id = requested_building(db, current_user, building_id)
+    if effective_building_id is None:
+        raise AppError(
+            status_code=422,
+            code="BUILDING_REQUIRED",
+            message="Select a building before checking parking counters.",
+        )
     from app.modules.checkin.counter_reconciliation import CounterReconciliationService
 
     discrepancies = CounterReconciliationService.check_discrepancies(
@@ -164,7 +193,13 @@ def reconcile_parking_counters(
     ),
 ) -> ReconciliationReportResponse:
     """Job đối soát định kỳ và hiệu chỉnh qua counter_events có audit (mục 4.4 nghiepvu.md)."""
-    effective_building_id = building_id or current_user.building_id
+    effective_building_id = requested_building(db, current_user, building_id)
+    if effective_building_id is None:
+        raise AppError(
+            status_code=422,
+            code="BUILDING_REQUIRED",
+            message="Select a building before reconciling parking counters.",
+        )
     from app.modules.checkin.counter_reconciliation import CounterReconciliationService
 
     discrepancies, adjusted = CounterReconciliationService.reconcile_and_adjust(
@@ -203,9 +238,16 @@ def compensate_offline_session_endpoint(
     """Tạo phiên bù khi mạng lỗi: tăng bộ đếm qua counter_events (mục 4.4 nghiepvu.md)."""
     from app.modules.checkin.counter_reconciliation import CounterReconciliationService
 
+    effective_building_id = requested_building(db, current_user, building_id)
+    if effective_building_id is None:
+        raise AppError(
+            status_code=422,
+            code="BUILDING_REQUIRED",
+            message="Select a building before compensating a parking session.",
+        )
     counter = CounterReconciliationService.compensate_offline_session(
         db=db,
-        building_id=building_id,
+        building_id=effective_building_id,
         vehicle_type=request.vehicle_type,
         actor_id=current_user.id,
         session_id=request.session_id,

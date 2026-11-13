@@ -335,6 +335,7 @@ def test_build_02_and_build_07_e2e_cash_checkout_ledger_counter_m5_and_audit(
     assert int(daily["entries"]) == 1
     assert int(daily["exits"]) == 1
     assert int(float(daily["revenue"])) == expected_fee
+    assert int(daily["occupancy_peak"]) == 1
 
     shift_start = (datetime.now(UTC) - timedelta(hours=3)).isoformat()
     shift_end = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()

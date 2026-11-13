@@ -23,6 +23,7 @@ export function LoginPage() {
   const returnUrl = search.get('returnUrl')
 
   const targetAfterLogin = useMemo(() => {
+    if (user?.must_change_password) return '/change-password'
     if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) return returnUrl
     return user?.role === 'SYSTEM_ADMIN' ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'
   }, [returnUrl, user])
@@ -128,9 +129,9 @@ export function LoginPage() {
               {translate("Đăng nhập")}
             </Button>
           </form>
-          <p className="auth-foot">
+          {import.meta.env.VITE_PUBLIC_REGISTRATION_ENABLED === 'true' ? <p className="auth-foot">
             {translate("Chưa có tài khoản?")} <Link to="/register">{translate("Đăng ký")}</Link>
-          </p>
+          </p> : null}
         </section>
       </div>
     </div>

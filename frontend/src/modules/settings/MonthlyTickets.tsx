@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiClient } from '../../api/client.ts'
 import { Alert } from '../../components/ui/Alert.tsx'
 
-type Product = { id: string; code: string; name: string; kind: string; vehicle_type: string; active: boolean }
+type Product = { id: string; code: string; name: string; kind: string; vehicle_type: string; customer_class_id: string | null; active: boolean }
 type Vehicle = { id: string; normalized_plate: string | null; ticket_code: string | null; vehicle_type: string; customer_class_id: string | null }
 type Subscription = { id: string; product_id: string; vehicle_id: string; zone_id: string; valid_from: string; valid_until: string; grace_days: number }
+type CustomerClass = { id: string; code: string; name: string; active: boolean }
+type ParkingZone = { id: string; code: string; name: string; active: boolean }
 
-const localIso = (value: string) => new Date(value).toISOString()
 const fmt = (value: string) => new Date(value).toLocaleString('vi-VN')
+const normalizePlate = (value: string) => value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+const normalizeCode = (value: string) => value.trim().toUpperCase()
 const localInput = (value: Date) => {
   const pad = (number: number) => String(number).padStart(2, '0')
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`
@@ -17,11 +20,15 @@ export function MonthlyTickets() {
   const [products, setProducts] = useState<Product[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+  const [classes, setClasses] = useState<CustomerClass[]>([])
+  const [zones, setZones] = useState<ParkingZone[]>([])
   const [productId, setProductId] = useState('')
-  const [plate, setPlate] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [vehicleType, setVehicleType] = useState('MOTORBIKE')
   const [customerClassId, setCustomerClassId] = useState('')
   const [zoneId, setZoneId] = useState('')
+  const [zoneCode, setZoneCode] = useState('')
+  const [zoneName, setZoneName] = useState('')
   const [validFrom, setValidFrom] = useState(localInput(new Date()))
   const [validUntil, setValidUntil] = useState(localInput(new Date(new Date().setMonth(new Date().getMonth() + 1))))
   const [file, setFile] = useState<File | null>(null)
@@ -30,23 +37,48 @@ export function MonthlyTickets() {
   const [busy, setBusy] = useState(false)
 
   async function refresh() {
-    const [nextProducts, nextVehicles, nextSubscriptions] = await Promise.all([
+    const [nextProducts, nextVehicles, nextSubscriptions, nextClasses, nextZones] = await Promise.all([
       apiClient.get<Product[]>('/api/v1/pricing/ticket-products'),
       apiClient.get<Vehicle[]>('/api/v1/tickets/vehicles'),
       apiClient.get<Subscription[]>('/api/v1/tickets/subscriptions'),
+      apiClient.get<CustomerClass[]>('/api/v1/pricing/customer-classes'),
+      apiClient.get<ParkingZone[]>('/api/v1/tickets/zones'),
     ])
     setProducts(nextProducts.filter(item => item.active && item.kind === 'MONTHLY'))
     setVehicles(nextVehicles)
     setSubscriptions(nextSubscriptions)
-    if (!productId) setProductId(nextProducts.find(item => item.active && item.kind === 'MONTHLY')?.id ?? '')
+    setClasses(nextClasses.filter(item => item.active))
+    setZones(nextZones.filter(item => item.active))
+    setCustomerClassId(current => current || nextClasses.find(item => item.active)?.id || '')
+    setZoneId(current => current || nextZones.find(item => item.active)?.id || '')
   }
+
   useEffect(() => { void refresh().catch(e => setError(e instanceof Error ? e.message : 'Không tải được vé tháng.')) }, [])
+
+  const filteredProducts = useMemo(
+    () => products.filter(item => item.vehicle_type === vehicleType && (!item.customer_class_id || item.customer_class_id === customerClassId)),
+    [products, vehicleType, customerClassId],
+  )
+
+  useEffect(() => {
+    if (!filteredProducts.some(item => item.id === productId)) setProductId(filteredProducts[0]?.id ?? '')
+  }, [filteredProducts, productId])
 
   const activeSubByVehicle = useMemo(() => {
     const latest = new Map<string, Subscription>()
     subscriptions.forEach(sub => {
       const current = latest.get(sub.vehicle_id)
       if (!current || new Date(sub.valid_until) > new Date(current.valid_until)) latest.set(sub.vehicle_id, sub)
+    })
+    return latest
+  }, [subscriptions])
+
+  const activeSubByVehicleZone = useMemo(() => {
+    const latest = new Map<string, Subscription>()
+    subscriptions.forEach(sub => {
+      const key = `${sub.vehicle_id}:${sub.zone_id}`
+      const current = latest.get(key)
+      if (!current || new Date(sub.valid_until) > new Date(current.valid_until)) latest.set(key, sub)
     })
     return latest
   }, [subscriptions])
@@ -59,21 +91,52 @@ export function MonthlyTickets() {
   }
 
   async function registerOrRenew() {
-    if (!productId || !zoneId || !validUntil) { setError('Chọn gói vé tháng, mã khu vực và ngày hết hạn.'); return }
+    if (!productId || !zoneId || !validUntil || !identifier.trim()) {
+      setError('Nhập mã xe và chọn đầy đủ gói vé, khu vực, ngày hết hạn.')
+      return
+    }
     await submit(async () => {
-      let vehicle = vehicles.find(item => item.normalized_plate === plate.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''))
+      const isBicycle = vehicleType === 'BICYCLE'
+      const normalized = isBicycle ? normalizeCode(identifier) : normalizePlate(identifier)
+      let vehicle = vehicles.find(item => isBicycle
+        ? item.ticket_code === normalized
+        : item.normalized_plate === normalized)
+      if (vehicle && vehicle.vehicle_type !== vehicleType) throw new Error('Mã xe đã tồn tại với loại xe khác.')
+      if (vehicle && customerClassId && vehicle.customer_class_id !== customerClassId) throw new Error('Xe đã tồn tại với hạng khách hàng khác.')
       if (!vehicle) vehicle = await apiClient.post<Vehicle>('/api/v1/tickets/vehicles', {
-        normalized_plate: plate, vehicle_type: vehicleType, customer_class_id: customerClassId || null,
+        normalized_plate: isBicycle ? null : normalized,
+        ticket_code: isBicycle ? normalized : null,
+        vehicle_type: vehicleType,
+        customer_class_id: customerClassId || null,
       })
-      const previous = activeSubByVehicle.get(vehicle.id)
-      const start = previous && new Date(previous.valid_until) > new Date(validFrom)
-        ? new Date(previous.valid_until).toISOString()
-        : localIso(validFrom)
+      const previous = activeSubByVehicleZone.get(`${vehicle.id}:${zoneId}`)
+      const requestedStart = new Date(validFrom)
+      const previousEnd = previous ? new Date(previous.valid_until) : null
+      const start = previousEnd && previousEnd >= requestedStart
+        ? new Date(previousEnd.getTime() + 1)
+        : requestedStart
+      let end = new Date(validUntil)
+      if (end <= start) {
+        end = new Date(start)
+        end.setMonth(end.getMonth() + 1)
+      }
       await apiClient.post('/api/v1/tickets/subscriptions', {
-        product_id: productId, vehicle_id: vehicle.id, zone_id: zoneId,
-        valid_from: start, valid_until: localIso(validUntil), grace_days: 3,
+        product_id: productId,
+        vehicle_id: vehicle.id,
+        zone_id: zoneId,
+        valid_from: start.toISOString(),
+        valid_until: end.toISOString(),
+        grace_days: 3,
       })
     }, 'Đã đăng ký/gia hạn vé tháng.')
+  }
+
+  async function createZone() {
+    if (!zoneCode.trim() || !zoneName.trim()) { setError('Nhập mã và tên khu vực.'); return }
+    await submit(async () => {
+      const created = await apiClient.post<ParkingZone>('/api/v1/tickets/zones', { code: zoneCode, name: zoneName })
+      setZoneId(created.id); setZoneCode(''); setZoneName('')
+    }, 'Đã tạo khu vực đỗ xe.')
   }
 
   async function importCsv() {
@@ -87,19 +150,24 @@ export function MonthlyTickets() {
 
   return <section className="card card-polished stack">
     <div className="card-head"><div><span className="card-kicker">RESIDENT MONTHLY PASSES</span><h2>Quản lý xe vé tháng</h2></div></div>
-    <p className="muted">Đăng ký theo biển số; gia hạn nối tiếp ngày hết hạn hiện tại. CSV dùng cột <code>normalized_plate,vehicle_type,customer_class_id</code>.</p>
+    <p className="muted">Đăng ký theo biển số hoặc mã vé xe đạp; lần gia hạn bắt đầu ngay sau khi gói hiện tại kết thúc. CSV dùng cột <code>normalized_plate,vehicle_type,customer_class_id</code>.</p>
     {error && <Alert variant="error">{error}</Alert>}{notice && <Alert variant="success">{notice}</Alert>}
     <form className="stack" onSubmit={e => { e.preventDefault(); void registerOrRenew() }}>
       <div className="form-grid">
-        <label className="field"><span>Biển số xe</span><input required value={plate} onChange={e => setPlate(e.target.value)} placeholder="Ví dụ: 30A12345" /></label>
+        <label className="field"><span>{vehicleType === 'BICYCLE' ? 'Mã vé xe đạp' : 'Biển số xe'}</span><input required value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder={vehicleType === 'BICYCLE' ? 'Ví dụ: BIKE-001' : 'Ví dụ: 30A12345'} /></label>
         <label className="field"><span>Loại xe</span><select value={vehicleType} onChange={e => setVehicleType(e.target.value)}><option value="CAR">Ô tô</option><option value="MOTORBIKE">Xe máy</option><option value="BICYCLE">Xe đạp</option></select></label>
-        <label className="field"><span>Gói vé tháng</span><select required value={productId} onChange={e => setProductId(e.target.value)}><option value="">Chọn gói</option>{products.map(item => <option key={item.id} value={item.id}>{item.name} ({item.vehicle_type})</option>)}</select></label>
-        <label className="field"><span>Mã hạng khách (UUID, nếu có)</span><input value={customerClassId} onChange={e => setCustomerClassId(e.target.value)} /></label>
-        <label className="field"><span>Mã khu vực (UUID)</span><input required value={zoneId} onChange={e => setZoneId(e.target.value)} /></label>
+        <label className="field"><span>Gói vé tháng</span><select required value={productId} onChange={e => setProductId(e.target.value)}><option value="">Chọn gói</option>{filteredProducts.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="field"><span>Hạng khách hàng</span><select value={customerClassId} onChange={e => setCustomerClassId(e.target.value)}><option value="">Không áp dụng</option>{classes.map(item => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
+        <label className="field"><span>Khu vực đỗ xe</span><select required value={zoneId} onChange={e => setZoneId(e.target.value)}><option value="">Chọn khu vực</option>{zones.map(item => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
         <label className="field"><span>Bắt đầu từ</span><input required type="datetime-local" value={validFrom} onChange={e => setValidFrom(e.target.value)} /></label>
         <label className="field"><span>Hết hạn</span><input required type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)} /></label>
       </div>
-      <div><button className="btn btn-primary" disabled={busy || !productId}>Đăng ký / gia hạn</button></div>
+      <div><button className="btn btn-primary" disabled={busy || !productId || !zoneId}>Đăng ký / gia hạn</button></div>
+    </form>
+    <form className="row-actions" onSubmit={e => { e.preventDefault(); void createZone() }}>
+      <label className="field"><span>Mã khu vực</span><input maxLength={40} value={zoneCode} onChange={e => setZoneCode(e.target.value)} placeholder="ZONE-A" /></label>
+      <label className="field"><span>Tên khu vực</span><input maxLength={120} value={zoneName} onChange={e => setZoneName(e.target.value)} placeholder="Tầng hầm A" /></label>
+      <button className="btn" disabled={busy || !zoneCode.trim() || !zoneName.trim()}>Thêm khu vực</button>
     </form>
     <form className="row-actions" onSubmit={e => { e.preventDefault(); void importCsv() }}>
       <label className="field"><span>Nhập danh sách xe CSV</span><input type="file" accept=".csv,text/csv" onChange={e => setFile(e.target.files?.[0] ?? null)} /></label>

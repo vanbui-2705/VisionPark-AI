@@ -30,7 +30,7 @@ export function AlprPage() {
 
       <section className="utility-hero utility-hero--forest">
         <div className="utility-hero-copy">
-          <span className="utility-kicker">License Plate Recognition · Duy Anh</span>
+          <span className="utility-kicker">License Plate Recognition · VisionPark</span>
           <h1>ALPR</h1>
           <p>{translate("Trạng thái provider/threshold, readonly khi backend chưa có API cấu hình.")}</p>
         </div>

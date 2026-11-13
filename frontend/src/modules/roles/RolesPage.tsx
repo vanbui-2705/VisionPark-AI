@@ -18,9 +18,9 @@ export function RolesPage() {
       )
   }, [])
   const adminCount = PERMISSION_MATRIX.filter((p) => p.admin).length
+  const buildingAdminCount = PERMISSION_MATRIX.filter((p) => p.buildingAdmin).length
   const operatorCount = PERMISSION_MATRIX.filter((p) => p.operator).length
   const accountantCount = PERMISSION_MATRIX.filter((p) => p.accountant).length
-  const technicianCount = PERMISSION_MATRIX.filter((p) => p.technician).length
 
   return (
     <div className="utility-page">
@@ -34,14 +34,14 @@ export function RolesPage() {
           <p>
             {translate("Vai trò trong hệ thống:")}{" "}
             {roles.join(', ') || translate("Đang tải…")}
-            {translate(". ADMIN và OPERATOR vận hành Station; ACCOUNTANT và TECHNICIAN hiện có trang tài khoản.")}
+            . SYSTEM_ADMIN quản trị toàn hệ thống; BUILDING_ADMIN quản lý tòa nhà; OPERATOR vận hành cổng; ACCOUNTANT đối soát.
           </p>
         </div>
         <div className="utility-stat-row">
           <div className="utility-hero-stat"><strong>{adminCount}</strong><span>ADMIN · {translate("quyền")}</span></div>
+          <div className="utility-hero-stat"><strong>{buildingAdminCount}</strong><span>BUILDING_ADMIN · {translate("quyền")}</span></div>
           <div className="utility-hero-stat"><strong>{operatorCount}</strong><span>OPERATOR · {translate("quyền")}</span></div>
           <div className="utility-hero-stat"><strong>{accountantCount}</strong><span>ACCOUNTANT · {translate("quyền")}</span></div>
-          <div className="utility-hero-stat"><strong>{technicianCount}</strong><span>TECHNICIAN · {translate("quyền")}</span></div>
         </div>
       </section>
 
@@ -50,16 +50,31 @@ export function RolesPage() {
           <div className="role-panel-head">
             <div>
               <span className="utility-section-kicker">SYSTEM AUTHORITY</span>
-              <h3>ADMIN</h3>
+              <h3>SYSTEM_ADMIN</h3>
             </div>
             <Badge variant="success">{translate("Toàn quyền")}</Badge>
           </div>
-          <p className="muted">{translate("Cấu hình hệ thống, quản lý làn, người dùng, audit, ALPR.")}</p>
+          <p className="muted">Quản trị tòa nhà, người dùng hệ thống, audit, ALPR và tài liệu vận hành.</p>
           <div className="role-permission-list">
             {PERMISSION_MATRIX.filter((p) => p.admin).map((p) => (
               <div key={p.perm} className="role-permission-row">
                 <span>{translate(p.label)}</span>
                 <code>{p.perm}</code>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="utility-panel role-panel role-panel--admin">
+          <div className="role-panel-head">
+            <div><span className="utility-section-kicker">BUILDING AUTHORITY</span><h3>BUILDING_ADMIN</h3></div>
+            <Badge variant="info">Quản trị tòa nhà</Badge>
+          </div>
+          <p className="muted">Quản lý làn, nhân sự, cấu hình và vận hành trong đúng tòa nhà được gán.</p>
+          <div className="role-permission-list">
+            {PERMISSION_MATRIX.map((p) => (
+              <div key={p.perm} className={`role-permission-row ${p.buildingAdmin ? '' : 'is-unavailable'}`}>
+                <span>{translate(p.label)}</span><span className="role-permission-state">{p.buildingAdmin ? '✓' : '✗'}</span>
               </div>
             ))}
           </div>
@@ -103,24 +118,6 @@ export function RolesPage() {
           </div>
         </section>
 
-        <section className="utility-panel role-panel">
-          <div className="role-panel-head">
-            <div>
-              <span className="utility-section-kicker">HARDWARE & ALPR</span>
-              <h3>TECHNICIAN</h3>
-            </div>
-            <Badge variant="info">{translate("Kỹ thuật")}</Badge>
-          </div>
-          <p className="muted">{translate("Station, làn, ALPR, system health và hồ sơ.")}</p>
-          <div className="role-permission-list">
-            {PERMISSION_MATRIX.map((p) => (
-              <div key={p.perm} className={`role-permission-row ${p.technician ? '' : 'is-unavailable'}`}>
-                <span>{translate(p.label)}</span>
-                <span className="role-permission-state">{p.technician ? '✓' : '✗'}</span>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
 
       <section className="utility-table-panel">
@@ -138,10 +135,10 @@ export function RolesPage() {
               <tr>
                 <th>{translate("Chức năng")}</th>
                 <th>Permission</th>
-                <th>ADMIN</th>
+                <th>SYSTEM_ADMIN</th>
+                <th>BUILDING_ADMIN</th>
                 <th>OPERATOR</th>
                 <th>ACCOUNTANT</th>
-                <th>TECHNICIAN</th>
               </tr>
             </thead>
             <tbody>
@@ -150,9 +147,9 @@ export function RolesPage() {
                   <td style={{ fontWeight: 500 }}>{translate(p.label)}</td>
                   <td className="data-mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{p.perm}</td>
                   <td><Badge variant={p.admin ? 'success' : 'neutral'}>{p.admin ? '✓' : '✗'}</Badge></td>
+                  <td><Badge variant={p.buildingAdmin ? 'info' : 'neutral'}>{p.buildingAdmin ? '✓' : '✗'}</Badge></td>
                   <td><Badge variant={p.operator ? 'info' : 'neutral'}>{p.operator ? '✓' : '✗'}</Badge></td>
                   <td><Badge variant={p.accountant ? 'success' : 'neutral'}>{p.accountant ? '✓' : '✗'}</Badge></td>
-                  <td><Badge variant={p.technician ? 'info' : 'neutral'}>{p.technician ? '✓' : '✗'}</Badge></td>
                 </tr>
               ))}
             </tbody>

@@ -242,7 +242,9 @@ def test_manual_source_and_historical_names_are_preserved(client, db_session, op
     assert detail["lane_name"] == lane["name"]
 
 
-def test_audit_resource_search_and_pagination(client, db_session, operator_headers):
+def test_audit_resource_search_and_pagination(
+    client, db_session, operator_headers, admin_token
+):
     from app.modules.audit_logs.models import AuditLog
 
     db_session.add_all(
@@ -253,7 +255,7 @@ def test_audit_resource_search_and_pagination(client, db_session, operator_heade
     db_session.commit()
     response = client.get(
         "/api/v1/audit-logs/?paginated=true&resource=ParkingTransaction&q=review-&limit=20&offset=200",
-        headers=operator_headers,
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200, response.text
     data = response.json()

@@ -131,7 +131,7 @@ describe('Station OUT flow', () => {
     render(<ImageComparison plate="29A12345" />)
     expect(screen.getByText(/Không có ảnh lúc vào/)).toBeInTheDocument()
     expect(screen.getByText(/Chưa có ảnh lúc ra/)).toBeInTheDocument()
-    for (const role of ['TECHNICIAN', 'ACCOUNTANT'] as const) expect(can({ ...user, role }, 'checkout.create')).toBe(false)
+    expect(can({ ...user, role: 'ACCOUNTANT' }, 'checkout.create')).toBe(false)
     expect(can(user, 'checkout.create')).toBe(true)
     expect(can({ ...user, role: 'BUILDING_ADMIN' }, 'checkout.create')).toBe(true)
     expect(can({ ...user, role: 'SYSTEM_ADMIN' }, 'checkout.create')).toBe(true)

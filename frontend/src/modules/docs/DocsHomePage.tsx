@@ -343,7 +343,7 @@ export function DocsHomePage() {
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span className="explore-stat-pill" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#60a5fa' }} />
-                VisionPark Discovery Center · Duy Anh
+                VisionPark Discovery Center
               </span>
             </div>
             <h1 className="explore-hero-title">

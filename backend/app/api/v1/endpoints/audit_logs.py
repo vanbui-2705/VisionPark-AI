@@ -38,7 +38,7 @@ def list_audit_logs(
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: User = Depends(
         require_roles(
-            RoleName.OPERATOR, RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
+            RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN, RoleName.ACCOUNTANT
         )
     ),
 ):
@@ -127,6 +127,7 @@ def list_audit_logs(
             action=row.action,
             resource=row.entity_type,
             resource_id=row.entity_id,
+            correlation_id=row.correlation_id,
             source=(
                 (row.new_value or {}).get("source") if isinstance(row.new_value, dict) else None
             ),

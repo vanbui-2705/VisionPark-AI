@@ -16,7 +16,7 @@ export function ErrorCenterPage() {
 
       <section className="utility-hero utility-hero--forest">
         <div className="utility-hero-copy">
-          <span className="utility-kicker">Client Diagnostics · Duy Anh</span>
+          <span className="utility-kicker">Client Diagnostics · VisionPark</span>
           <h1>Error Center</h1>
           <p>{translate("Lỗi thật được lưu trong database. Dùng mã hỗ trợ để tra cứu log hệ thống.")}</p>
         </div>

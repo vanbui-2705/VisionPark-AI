@@ -13,6 +13,8 @@ Route canonical: `/station/scan`; fullscreen cũ redirect về đây.
   ngừng sampling trong khi confirm và sau success; “Xe tiếp theo” reset phiên.
 - Nhập tay độc lập với ALPR gọi `/api/v1/parking/check-in`, source MANUAL_ENTRY.
   Không cần provider ready để tạo manual check-in.
+- Nhập tay hỗ trợ CAR/MOTORBIKE bằng biển số và BICYCLE bằng mã vé. Luồng OUT có thể
+  tra theo mã vé, đánh dấu mất vé và gửi loại xe thực tế để backend kiểm tra mismatch.
 
 ## Phase 4 — VAN-119 đến VAN-123
 
@@ -33,6 +35,8 @@ Route canonical: `/station/scan`; fullscreen cũ redirect về đây.
 - Checkout bắt buộc có ảnh xe ra. Tra biển số thủ công vẫn được dùng để tìm phiên nhưng
   nút checkout bị khóa cho đến khi Operator quay lại chụp hoặc chọn ảnh xe ra.
 - Xe phí 0 hoặc đã PAID dùng F10 / Mở cổng, không gửi thêm CASH.
+- Preview lại phí giữ nguyên cờ mất vé và loại xe thực tế; phí mất vé được hiển thị rõ
+  trong phần tóm tắt trước khi xác nhận checkout.
 - F2 chụp/nhận diện; F4 xác nhận biển số hoặc bản sửa; F9 xe tiếp theo sau thành công.
   Phím tắt dùng cùng nút và điều kiện khóa như click; bỏ qua nhập liệu/dialog/IME,
   phím lặp và tổ hợp bổ trợ. Không đổi làn/nguồn ảnh trong lúc gửi xác nhận/checkout.

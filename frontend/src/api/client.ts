@@ -1,5 +1,6 @@
 import { ApiError } from './errors.ts'
 import { getToken, removeToken } from './token.ts'
+import { recordError } from '../lib/recordError.ts'
 
 function getBaseUrl(): string {
   const v = import.meta.env.VITE_API_BASE_URL
@@ -9,8 +10,8 @@ function getBaseUrl(): string {
 
 function getTimeoutMs(): number {
   const v = import.meta.env.VITE_API_TIMEOUT_MS
-  const n = v ? Number(v) : 2000
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 2000) : 2000
+  const n = v ? Number(v) : 15000
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 120000) : 15000
 }
 
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
@@ -126,7 +127,7 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
     const parsed = await parseErrorBody(res)
     const previewFrame = path.endsWith('/alpr/detections') && isFormData && (body as FormData).get('mode') === 'preview'
     if (token && !path.includes('/errors') && !previewFrame) {
-      void import('../lib/errorLog').then(({ recordError }) => recordError({ code: parsed.code, status: res.status, message: parsed.message, source: 'api', correlationId: parsed.correlationId })).catch(() => undefined)
+      recordError({ code: parsed.code, status: res.status, source: 'api', correlationId: parsed.correlationId })
     }
     throw new ApiError(parsed.message, {
       status: res.status,

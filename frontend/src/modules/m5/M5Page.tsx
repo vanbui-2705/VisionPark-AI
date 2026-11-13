@@ -96,7 +96,7 @@ export function M5Page() {
     try {
       const from = new Date(`${start}T00:00:00`).toISOString()
       const to = new Date(`${end}T23:59:59`).toISOString()
-      const blob = await apiClient.getBlob('/api/v1/lifecycle/sessions/export-csv', { params: { from_time: from, to_time: to }, timeoutMs: 30000 })
+      const blob = await apiClient.getBlob('/api/v1/lifecycle/sessions/export-csv', { params: { building_id: buildingId, from_time: from, to_time: to }, timeoutMs: 30000 })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a'); link.href = url; link.download = `parking-sessions-${start}-${end}.csv`; link.click()
       window.setTimeout(() => URL.revokeObjectURL(url), 1000)

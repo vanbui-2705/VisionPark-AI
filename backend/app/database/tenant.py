@@ -19,6 +19,18 @@ def forbidden_scope():
     )
 
 
+def requested_building(session: Session, user: User, requested: UUID | None) -> UUID | None:
+    """Resolve a query/body building id without trusting a client supplied scope."""
+    if user.role.name == "SYSTEM_ADMIN":
+        return requested
+    scoped = session.info.get("building_id")
+    if not isinstance(scoped, UUID):
+        raise forbidden_scope()
+    if requested is not None and requested != scoped:
+        raise forbidden_scope()
+    return scoped
+
+
 def resolve_building(session: Session, user: User, claim: str | None = None) -> UUID | None:
     if user.role.name == "SYSTEM_ADMIN":
         return None

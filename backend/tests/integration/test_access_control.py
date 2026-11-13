@@ -113,9 +113,20 @@ def test_checkin_denied_when_vehicle_type_not_allowed_on_lane(
 
 
 def test_checkin_denied_when_blacklisted_plate(
-    client: TestClient, operator_token: str, in_lane: Lane
+    client: TestClient, operator_token: str, in_lane: Lane, db_session: Session
 ):
-    """Biển số trong blacklist (stub M1) bị từ chối ACCESS_DENIED (403)."""
+    """Biển số trong blacklist lưu bền vững bị từ chối ACCESS_DENIED (403)."""
+    from app.modules.pricing.models import VehicleAccessRule
+
+    db_session.add(
+        VehicleAccessRule(
+            building_id=in_lane.building_id,
+            normalized_plate="29A99999",
+            decision="DENY",
+            reason="TEST_BLACKLIST",
+        )
+    )
+    db_session.commit()
     headers = {
         "Authorization": f"Bearer {operator_token}",
         "Idempotency-Key": str(uuid4()),

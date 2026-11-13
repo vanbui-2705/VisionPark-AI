@@ -98,7 +98,6 @@ export function CreateUserPage() {
               {user?.role === 'SYSTEM_ADMIN' && <option value="SYSTEM_ADMIN">SYSTEM_ADMIN — Quản trị hệ thống</option>}
               {user?.role === 'SYSTEM_ADMIN' && <option value="BUILDING_ADMIN">BUILDING_ADMIN — Quản trị tòa nhà</option>}
               <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
-              <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>
             </Select>
             {user?.role === 'SYSTEM_ADMIN' && (
               <Select label="Tòa nhà" value={buildingId} onChange={(e) => setBuildingId(e.target.value)}>

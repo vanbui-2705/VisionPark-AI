@@ -3,7 +3,7 @@
 import csv
 import io
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, UploadFile
@@ -22,7 +22,16 @@ from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
 
 from .domain import AccessResult, TicketEntitlement, TicketKind, check_ticket_access
-from .models import ClassQuota, CustomerClass, GuestInvite, Subscription, TicketProduct, Vehicle
+from .models import (
+    ClassQuota,
+    CustomerClass,
+    GuestInvite,
+    ParkingZone,
+    Subscription,
+    TicketProduct,
+    Vehicle,
+    VehicleAccessRule,
+)
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 Db = Annotated[Session, Depends(get_db)]
@@ -68,6 +77,44 @@ class QuotaCreate(BaseModel):
 class QuotaResponse(QuotaCreate):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+
+
+class ZoneCreate(BaseModel):
+    code: str = Field(min_length=1, max_length=40)
+    name: str = Field(min_length=1, max_length=120)
+
+
+class ZoneResponse(ZoneCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    active: bool
+
+
+class AccessRuleCreate(BaseModel):
+    normalized_plate: str | None = Field(default=None, max_length=50)
+    ticket_code: str | None = Field(default=None, max_length=80)
+    decision: Literal["ALLOW", "DENY"]
+    reason: str = Field(min_length=3, max_length=255)
+
+    @model_validator(mode="after")
+    def normalize_identifier(self) -> "AccessRuleCreate":
+        self.normalized_plate = (
+            normalize_plate(self.normalized_plate) if self.normalized_plate else None
+        )
+        self.ticket_code = self.ticket_code.strip().upper() if self.ticket_code else None
+        if bool(self.normalized_plate) == bool(self.ticket_code):
+            raise ValueError("Exactly one plate or ticket code is required")
+        return self
+
+
+class AccessRuleUpdate(BaseModel):
+    active: bool
+
+
+class AccessRuleResponse(AccessRuleCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    active: bool
 
 
 class SubscriptionCreate(BaseModel):
@@ -237,6 +284,115 @@ def list_subscriptions(db: Db, actor: CurrentUser) -> list[Subscription]:
     )
 
 
+@router.get("/zones", response_model=list[ZoneResponse])
+def list_zones(db: Db, actor: CurrentUser) -> list[ParkingZone]:
+    return list(
+        db.scalars(
+            select(ParkingZone)
+            .where(ParkingZone.building_id == _building(actor), ParkingZone.active.is_(True))
+            .order_by(ParkingZone.code)
+        )
+    )
+
+
+@router.post("/zones", response_model=ZoneResponse, status_code=201)
+def create_zone(payload: ZoneCreate, db: Db, actor: BuildingAdmin) -> ParkingZone:
+    building_id = _building(actor)
+    item = ParkingZone(
+        building_id=building_id,
+        code=payload.code.strip().upper(),
+        name=payload.name.strip(),
+    )
+    db.add(item)
+    try:
+        db.flush()
+        log_action(
+            db,
+            actor.id,
+            "CREATE_PARKING_ZONE",
+            "ParkingZone",
+            str(item.id),
+            new_value=payload.model_dump(mode="json"),
+        )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppError(status_code=409, code="ZONE_EXISTS", message="Zone code exists.") from exc
+    db.refresh(item)
+    return item
+
+
+@router.get("/access-rules", response_model=list[AccessRuleResponse])
+def list_access_rules(db: Db, actor: CurrentUser) -> list[VehicleAccessRule]:
+    return list(
+        db.scalars(
+            select(VehicleAccessRule)
+            .where(VehicleAccessRule.building_id == _building(actor))
+            .order_by(VehicleAccessRule.created_at.desc())
+        )
+    )
+
+
+@router.post("/access-rules", response_model=AccessRuleResponse, status_code=201)
+def create_access_rule(
+    payload: AccessRuleCreate, db: Db, actor: BuildingAdmin
+) -> VehicleAccessRule:
+    item = VehicleAccessRule(building_id=_building(actor), **payload.model_dump())
+    db.add(item)
+    try:
+        db.flush()
+        log_action(
+            db,
+            actor.id,
+            "CREATE_VEHICLE_ACCESS_RULE",
+            "VehicleAccessRule",
+            str(item.id),
+            new_value=payload.model_dump(mode="json"),
+        )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppError(
+            status_code=409,
+            code="ACCESS_RULE_EXISTS",
+            message="An access rule already exists for this vehicle.",
+        ) from exc
+    db.refresh(item)
+    return item
+
+
+@router.patch("/access-rules/{rule_id}", response_model=AccessRuleResponse)
+def update_access_rule(
+    rule_id: UUID, payload: AccessRuleUpdate, db: Db, actor: BuildingAdmin
+) -> VehicleAccessRule:
+    item = db.scalar(
+        select(VehicleAccessRule).where(
+            VehicleAccessRule.id == rule_id,
+            VehicleAccessRule.building_id == _building(actor),
+        )
+    )
+    if item is None:
+        raise AppError(
+            status_code=404,
+            code="ACCESS_RULE_NOT_FOUND",
+            message="Access rule not found.",
+        )
+    old = {"active": item.active}
+    item.active = payload.active
+    log_action(
+        db,
+        actor.id,
+        "UPDATE_VEHICLE_ACCESS_RULE",
+        "VehicleAccessRule",
+        str(item.id),
+        old_value=old,
+        new_value=payload.model_dump(mode="json"),
+    )
+    db.commit()
+    db.refresh(item)
+    return item
+
+
 @router.post("/subscriptions", response_model=SubscriptionResponse, status_code=201)
 def create_subscription(payload: SubscriptionCreate, db: Db, actor: BuildingAdmin) -> Subscription:
     building_id = _building(actor)
@@ -251,6 +407,15 @@ def create_subscription(payload: SubscriptionCreate, db: Db, actor: BuildingAdmi
     vehicle = db.scalar(
         select(Vehicle).where(Vehicle.id == payload.vehicle_id, Vehicle.building_id == building_id)
     )
+    zone = db.scalar(
+        select(ParkingZone).where(
+            ParkingZone.id == payload.zone_id,
+            ParkingZone.building_id == building_id,
+            ParkingZone.active.is_(True),
+        )
+    )
+    if zone is None:
+        raise AppError(status_code=422, code="INVALID_ZONE", message="Parking zone is invalid.")
     if product is None or vehicle is None or product.vehicle_type != vehicle.vehicle_type:
         raise AppError(
             status_code=422, code="INVALID_TICKET", message="Product or vehicle is invalid."

@@ -37,6 +37,7 @@ export default function StationPage() {
   const [exitBusy, setExitBusy] = useState(false);
   const [manualPlate, setManualPlate] = useState('');
   const [useTicketCode, setUseTicketCode] = useState(false);
+  const [lostTicket, setLostTicket] = useState(false);
   const [customerClasses, setCustomerClasses] = useState<{ id: string; name: string }[]>([]);
   const [classId, setClassId] = useState('');
   const [vehicleType, setVehicleType] = useState('CAR');
@@ -141,6 +142,8 @@ export default function StationPage() {
     setSelectedLaneId(laneId);
     setExitSession(null);
     setManualPlate('');
+    setUseTicketCode(false);
+    setLostTicket(false);
     setEditingPlate(false);
     setTransactionId(null);
     setActionError(null);
@@ -160,7 +163,7 @@ export default function StationPage() {
       if (isOut) {
         const confirmedPlate = plate ?? result?.normalized_plate_number ?? result?.raw_plate_number ?? '';
         const exitImageUrl = await confirmExitDetection(detectionId, selectedLaneId, confirmedPlate);
-        const session = await prepareExit(selectedLaneId, confirmedPlate, exitImageUrl);
+        const session = await prepareExit(selectedLaneId, confirmedPlate, exitImageUrl, undefined, { vehicleTypeOut: vehicleType });
         setExitSession(session); setTransactionId(session.session_id);
         completePreview();
         return;
@@ -193,7 +196,7 @@ export default function StationPage() {
     setActionError(null);
     try {
       if (isOut) {
-        const session = await prepareExit(selectedLaneId, manualPlate);
+        const session = await prepareExit(selectedLaneId, manualPlate, undefined, undefined, { useTicketCode, isLostTicket: lostTicket, vehicleTypeOut: vehicleType });
         setExitSession(session); setTransactionId(session.session_id);
         completePreview();
         return;
@@ -222,7 +225,7 @@ export default function StationPage() {
   const locked = state === 'confirming' || exitBusy;
   const nextVehicle = () => {
     if (confirming.current) return;
-    setExitSession(null); setTransactionId(null); setEditingPlate(false); setManualPlate('');
+    setExitSession(null); setTransactionId(null); setEditingPlate(false); setManualPlate(''); setLostTicket(false);
     setActionError(null); manualKey.current = crypto.randomUUID(); clearCandidates(); reset();
   };
   const captureExitImage = () => {
@@ -275,7 +278,7 @@ export default function StationPage() {
         </div>
       </div>
       <div className="form-grid">
-        <label className="field"><span>Loại xe</span><input value={vehicleType} onChange={e => setVehicleType(e.target.value)} /></label>
+        <label className="field"><span>Loại xe</span><select value={vehicleType} onChange={e => setVehicleType(e.target.value)}><option value="CAR">Ô tô</option><option value="MOTORBIKE">Xe máy</option><option value="BICYCLE">Xe đạp</option></select></label>
         <label className="field"><span>Loại vé</span><select value={ticketKind} onChange={e => setTicketKind(e.target.value as PriceContext['ticket_kind'])}><option value="HOURLY">Theo giờ</option><option value="DAILY">Ngày</option><option value="MONTHLY">Tháng</option><option value="NIGHT">Đêm</option></select></label>
         <label className="field"><span>Hạng khách</span><select value={classId} onChange={e => setClassId(e.target.value)}><option value="">Chọn hạng khách</option>{customerClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         {(ticketKind === 'DAILY' || ticketKind === 'MONTHLY') && <label className="field"><span>Mã khu vực (nếu có nhiều gói)</span><input value={zoneId} onChange={e => setZoneId(e.target.value)} /></label>}
@@ -327,11 +330,15 @@ export default function StationPage() {
         <ConfirmationPanel key={result?.candidate_id ?? result?.detection_id ?? "none"} onEditingChange={setEditingPlate} disabled={state === 'detecting' || state === 'reading' || locked || Boolean(transactionId) || (isOut && !mayCheckOut)} result={result} onConfirmCorrect={id => confirm(id)} onConfirmCorrection={(id, plate) => confirm(id, plate)} />
         <form className="stack" style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #ead9bb", gap: 10 }} onSubmit={event => { event.preventDefault(); void confirmManual(); }}>
           <span className="card-kicker">MANUAL OVERRIDE</span>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 400 }}>{isOut ? 'Tra xe ra bằng biển số' : translate("Check-in thủ công")}</h3>
-          {!isOut && scopedLane && <label className="checkbox-row"><input type="checkbox" checked={useTicketCode} onChange={e => { setUseTicketCode(e.target.checked); manualKey.current = crypto.randomUUID(); }} /><span>Dùng mã vé thay biển số (xe đạp)</span></label>}
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 400 }}>{isOut ? 'Tra phiên xe ra' : translate("Check-in thủ công")}</h3>
+          {scopedLane && <label className="checkbox-row"><input type="checkbox" checked={useTicketCode} onChange={e => { setUseTicketCode(e.target.checked); manualKey.current = crypto.randomUUID(); }} /><span>Dùng mã vé thay biển số (xe đạp)</span></label>}
+          {isOut && <div className="form-grid">
+            <label className="field"><span>Loại xe nhận diện lúc ra</span><select value={vehicleType} onChange={e => setVehicleType(e.target.value)}><option value="CAR">Ô tô</option><option value="MOTORBIKE">Xe máy</option><option value="BICYCLE">Xe đạp</option></select></label>
+            <label className="checkbox-row"><input type="checkbox" checked={lostTicket} onChange={e => setLostTicket(e.target.checked)} /><span>Mất vé / thẻ (áp dụng phí mất vé)</span></label>
+          </div>}
           <div className="field">
-            <label htmlFor="manual-plate">{!isOut && useTicketCode ? 'Mã vé' : translate("Biển số nhập tay")}</label>
-            <input id="manual-plate" value={manualPlate} placeholder="29A12345" disabled={state === 'confirming' || Boolean(transactionId)} onChange={event => { setManualPlate(event.target.value); manualKey.current = crypto.randomUUID(); }} />
+            <label htmlFor="manual-plate">{useTicketCode ? 'Mã vé' : translate("Biển số nhập tay")}</label>
+            <input id="manual-plate" value={manualPlate} placeholder={useTicketCode ? 'BIKE-001' : '29A12345'} disabled={state === 'confirming' || Boolean(transactionId)} onChange={event => { setManualPlate(event.target.value); manualKey.current = crypto.randomUUID(); }} />
           </div>
           <div className="scan-result-actions" style={{ marginTop: 4 }}>
             <button type="submit" className="btn btn-primary btn-small" disabled={!selectedLaneId || manualPlate.replace(/[^a-z0-9]/gi, '').length < 3 || state === 'detecting' || state === 'reading' || locked || Boolean(transactionId) || (isOut && !mayCheckOut)}>{isOut ? 'Tra xe và tính phí' : translate("Tạo check-in")}</button>

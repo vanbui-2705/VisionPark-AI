@@ -41,7 +41,10 @@ export default function ExitSummary({ session, onBusyChange, onCompleted, onNext
     setBusy(true); onBusyChange(true); setError('')
     try {
       if (refresh) {
-        setPreview(await prepareExit(preview.laneId, preview.license_plate ?? '', preview.exit_image_url ?? undefined, preview.session_id))
+        setPreview(await prepareExit(preview.laneId, preview.license_plate ?? preview.ticket_code ?? '', preview.exit_image_url ?? undefined, preview.session_id, {
+          isLostTicket: preview.is_lost_ticket,
+          vehicleTypeOut: preview.vehicle_type_out ?? undefined,
+        }))
         setNeedsRefresh(false)
         return
       }
@@ -104,6 +107,9 @@ export default function ExitSummary({ session, onBusyChange, onCompleted, onNext
       {preview.vehicle_type_mismatch && !completed && <div role="alert" className="alert alert-danger station-action-alert">
         <strong>Loại xe không khớp.</strong>
         <span> Vui lòng kiểm tra lại xe, biển số và liên hệ quản lý trước khi tiếp tục.</span>
+      </div>}
+      {preview.is_lost_ticket && !completed && <div role="status" className="alert alert-warning station-action-alert">
+        <strong>Đang xử lý mất vé / thẻ.</strong><span> Phí mất vé đã được đưa vào bản tính phí.</span>
       </div>}
       {preview.message && <p role="status" className="station-preview-message">{preview.message}</p>}
       {error && <p role="alert" className="alert alert-danger">{error}</p>}

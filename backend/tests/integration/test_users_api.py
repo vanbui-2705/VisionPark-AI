@@ -1,6 +1,7 @@
 from sqlalchemy import select
 
 from app.modules.audit_logs.models import AuditLog
+from app.modules.audit_logs.service import log_action
 
 
 def test_admin_user_management_and_operator_rbac(client, db_session, admin_token, operator_headers):
@@ -47,6 +48,43 @@ def test_admin_user_management_and_operator_rbac(client, db_session, admin_token
     audit = db_session.scalars(select(AuditLog).where(AuditLog.entity_type == "User")).all()
     assert len(audit) == 2
     assert payload["password"] not in str([row.new_value for row in audit])
+
+
+def test_audit_records_correlation_id_and_recursively_redacts_secrets(
+    client, db_session, admin_token
+):
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "X-Correlation-ID": "audit-correlation-123",
+    }
+    created = client.post(
+        "/api/v1/users",
+        headers=headers,
+        json={
+            "username": "audit-user",
+            "display_name": "Audit User",
+            "password": "temporary-password-123",
+            "role": "OPERATOR",
+        },
+    )
+    assert created.status_code == 201, created.text
+    audit = db_session.scalar(
+        select(AuditLog).where(AuditLog.entity_id == created.json()["id"])
+    )
+    assert audit.correlation_id == "audit-correlation-123"
+
+    nested = log_action(
+        db_session,
+        None,
+        "TEST_REDACTION",
+        "Test",
+        "nested",
+        new_value={"profile": {"access_token": "do-not-store", "safe": "value"}},
+    )
+    db_session.commit()
+    assert nested.new_value == {
+        "profile": {"access_token": "[REDACTED]", "safe": "value"}
+    }
 
 
 def test_admin_cannot_disable_or_demote_self(client, admin_token):

@@ -67,7 +67,7 @@ export function UserDetailPage() {
           <div className="form-grid">
             <Input label="Display Name" value={displayName} onChange={e=>setDisplayName(e.target.value)} />
             <Input label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-            <Select label="Role" value={role} onChange={e=>setRole(e.target.value as ManagedUser['role'])}><option value="OPERATOR">OPERATOR</option><option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option><option value="BUILDING_ADMIN">BUILDING_ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option><option value="TECHNICIAN">TECHNICIAN</option></Select>
+            <Select label="Role" value={role} onChange={e=>setRole(e.target.value as ManagedUser['role'])}><option value="OPERATOR">OPERATOR</option><option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option><option value="BUILDING_ADMIN">BUILDING_ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option></Select>
           </div>
           <label className="checkbox"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)} /> Active</label>
           <p className="muted" style={{ margin: 0 }}>Username: {user.username} — ID: {user.id}</p>

@@ -7,7 +7,7 @@ export function HelpPage() {
       <Breadcrumb items={[{ label: translate("Trợ giúp") }]} />
       <section className="utility-hero utility-hero--forest">
         <div className="utility-hero-copy">
-          <span className="utility-kicker">Guide · Duy Anh</span>
+          <span className="utility-kicker">Guide · VisionPark</span>
           <h1>{translate("Trợ giúp")}</h1>
           <p>{translate("Vai trò, trạm quét, ALPR Test Lab và cách gửi mã hỗ trợ khi gặp lỗi.")}</p>
         </div>

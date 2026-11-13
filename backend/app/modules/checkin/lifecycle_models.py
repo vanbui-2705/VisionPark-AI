@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class LifecycleEventType(StrEnum):
@@ -51,7 +52,7 @@ class ActorType(StrEnum):
     CUSTOMER = "CUSTOMER"
 
 
-class LifecycleEvent(Base, UUIDPrimaryKeyMixin):
+class LifecycleEvent(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin):
     __tablename__ = "lifecycle_events"
     __table_args__ = (
         Index("ix_lifecycle_events_building_occurred", "building_id", "occurred_at"),

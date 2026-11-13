@@ -21,8 +21,8 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
     expect(typeof samplePagination.total).toBe('number')
   })
 
-  it('validates ManagedUser contract contains 5 allowed roles and active flag', () => {
-    const roles: ManagedUser['role'][] = ['SYSTEM_ADMIN', 'BUILDING_ADMIN', 'OPERATOR', 'ACCOUNTANT', 'TECHNICIAN']
+  it('validates ManagedUser contract contains 4 allowed roles and active flag', () => {
+    const roles: ManagedUser['role'][] = ['SYSTEM_ADMIN', 'BUILDING_ADMIN', 'OPERATOR', 'ACCOUNTANT']
     roles.forEach((r) => {
       const u: ManagedUser = {
         id: 'u-1',
@@ -45,11 +45,11 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
       expect(typeof entry.admin).toBe('boolean')
       expect(typeof entry.operator).toBe('boolean')
       expect(typeof entry.accountant).toBe('boolean')
-      expect(typeof entry.technician).toBe('boolean')
+      expect(typeof entry.buildingAdmin).toBe('boolean')
     })
   })
 
-  it('validates can() evaluation across all 5 roles', () => {
+  it('validates can() evaluation across all 4 roles', () => {
     const makeUser = (role: CurrentUser['role']): CurrentUser => ({
       id: '1',
       username: 'u',
@@ -79,15 +79,8 @@ describe('API Contract Tests — VisionPark Phase 2', () => {
     expect(can(makeUser('ACCOUNTANT'), 'transactions.read')).toBe(true)
     expect(can(makeUser('ACCOUNTANT'), 'lanes.create')).toBe(false)
 
-    // TECHNICIAN has station, lanes, system health, no dashboard
-    expect(can(makeUser('TECHNICIAN'), 'station.use')).toBe(true)
-    expect(can(makeUser('TECHNICIAN'), 'system.read')).toBe(true)
-    expect(can(makeUser('TECHNICIAN'), 'dashboard.read')).toBe(false)
-    expect(can(makeUser('TECHNICIAN'), 'operations.report.read')).toBe(false)
-    expect(can(makeUser('TECHNICIAN'), 'checkin.create')).toBe(true)
-    expect(can(makeUser('TECHNICIAN'), 'transactions.read')).toBe(false)
     expect(can(makeUser('ACCOUNTANT'), 'audit.read')).toBe(true)
     expect(can(makeUser('ACCOUNTANT'), 'checkin.create')).toBe(false)
-    expect(can(makeUser('SYSTEM_ADMIN'), 'lanes.manage')).toBe(true)
+    expect(can(makeUser('SYSTEM_ADMIN'), 'lanes.manage')).toBe(false)
   })
 })

@@ -1,27 +1,24 @@
 import { t as translate } from "../lib/i18n"
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../modules/auth/AuthContext.tsx'
 import { can, type Permission } from '../lib/permissions.ts'
 import { ProtectedRoute } from '../modules/auth/guards.tsx'
 import { LoginPage } from '../modules/auth/LoginPage.tsx'
 import { RegisterPage } from '../modules/auth/RegisterPage.tsx'
+import { ChangePasswordPage } from '../modules/auth/ChangePasswordPage.tsx'
 import { LaneListPage } from '../modules/lanes/LaneListPage.tsx'
 import { LaneCreatePage, LaneEditPage, LaneDetailPage } from '../modules/lanes/LanePages.tsx'
 import { AppShell } from '../layouts/AppShell.tsx'
 import { ForbiddenPage, NotFoundPage } from '../modules/error/ErrorPages.tsx'
-import { M5Page } from '../modules/m5/M5Page.tsx'
 import { DashboardPage } from '../modules/dashboard/DashboardPage.tsx'
-import StationPage from '../modules/station/StationPage.tsx'
 import { DetectionHistoryPage } from '../modules/detections/DetectionHistoryPage.tsx'
 import { DetectionDetailPage } from '../modules/detections/DetectionDetailPage.tsx'
 import { UserListPage } from '../modules/users/UserListPage.tsx'
 import { CreateUserPage } from '../modules/users/CreateUserPage.tsx'
 import { UserDetailPage } from '../modules/users/UserDetailPage.tsx'
 import { UserEditPage } from '../modules/users/UserEditPage.tsx'
-import { RolesPage } from '../modules/roles/RolesPage.tsx'
-import { PermissionsPage } from '../modules/permissions/PermissionsPage.tsx'
 import { AlprPage } from '../modules/alpr/AlprPage.tsx'
-import { AlprTestPage } from '../modules/alpr/AlprTestPage.tsx'
 import { AuditLogsPage } from '../modules/audit/AuditLogsPage.tsx'
 import { ParkingDetailPage } from '../modules/parking/ParkingDetailPage.tsx'
 import { ParkingHistoryPage } from '../modules/parking/ParkingHistoryPage.tsx'
@@ -31,10 +28,16 @@ import { ProfilePage } from '../modules/profile/ProfilePage.tsx'
 import { SettingsPage } from '../modules/settings/SettingsPage.tsx'
 import { NotificationsPage } from '../modules/notifications/NotificationsPage.tsx'
 import { HelpPage } from '../modules/help/HelpPage.tsx'
-import { UiKitPage } from '../modules/uikit/UiKitPage.tsx'
 import { DocsLayout } from '../modules/docs/DocsLayout.tsx'
-import { DocsHomePage } from '../modules/docs/DocsHomePage.tsx'
-import { DocsArticlePage } from '../modules/docs/DocsArticlePage.tsx'
+
+const StationPage = lazy(() => import('../modules/station/StationPage.tsx'))
+const M5Page = lazy(() => import('../modules/m5/M5Page.tsx').then(module => ({ default: module.M5Page })))
+const RolesPage = lazy(() => import('../modules/roles/RolesPage.tsx').then(module => ({ default: module.RolesPage })))
+const PermissionsPage = lazy(() => import('../modules/permissions/PermissionsPage.tsx').then(module => ({ default: module.PermissionsPage })))
+const AlprTestPage = lazy(() => import('../modules/alpr/AlprTestPage.tsx').then(module => ({ default: module.AlprTestPage })))
+const UiKitPage = lazy(() => import('../modules/uikit/UiKitPage.tsx').then(module => ({ default: module.UiKitPage })))
+const DocsHomePage = lazy(() => import('../modules/docs/DocsHomePage.tsx').then(module => ({ default: module.DocsHomePage })))
+const DocsArticlePage = lazy(() => import('../modules/docs/DocsArticlePage.tsx').then(module => ({ default: module.DocsArticlePage })))
 
 function RootRedirect() {
   const { initialized, isAuthenticated, user } = useAuth()
@@ -56,9 +59,11 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 
 export function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<div style={{ padding: 24 }}>{translate("Đang tải...")}</div>}>
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register" element={import.meta.env.VITE_PUBLIC_REGISTRATION_ENABLED === 'true' ? <RegisterPage /> : <Navigate to="/login" replace />} />
+      <Route path="/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
       <Route path="/" element={<RootRedirect />} />
       <Route path="/403" element={<ForbiddenPage />} />
       <Route path="/404" element={<NotFoundPage />} />
@@ -93,13 +98,13 @@ export function AppRoutes() {
         <Route path="/admin/m5" element={<PermissionGuard permission="operations.report.read"><M5Page /></PermissionGuard>} />
         <Route path="/admin/dashboard" element={<PermissionGuard permission="dashboard.read"><DashboardPage /></PermissionGuard>} />
         <Route path="/admin/lanes" element={<PermissionGuard permission="lanes.read"><LaneListPage /></PermissionGuard>} />
-        <Route path="/admin/lanes/new" element={<AdminGuard><LaneCreatePage /></AdminGuard>} />
+        <Route path="/admin/lanes/new" element={<PermissionGuard permission="lanes.create"><LaneCreatePage /></PermissionGuard>} />
         <Route path="/admin/lanes/:id" element={<PermissionGuard permission="lanes.read"><LaneDetailPage /></PermissionGuard>} />
-        <Route path="/admin/lanes/:id/edit" element={<AdminGuard><LaneEditPage /></AdminGuard>} />
-        <Route path="/admin/users" element={<AdminGuard><UserListPage /></AdminGuard>} />
-        <Route path="/admin/users/new" element={<AdminGuard><CreateUserPage /></AdminGuard>} />
-        <Route path="/admin/users/:id" element={<AdminGuard><UserDetailPage /></AdminGuard>} />
-        <Route path="/admin/users/:id/edit" element={<AdminGuard><UserEditPage /></AdminGuard>} />
+        <Route path="/admin/lanes/:id/edit" element={<PermissionGuard permission="lanes.update"><LaneEditPage /></PermissionGuard>} />
+        <Route path="/admin/users" element={<PermissionGuard permission="users.read"><UserListPage /></PermissionGuard>} />
+        <Route path="/admin/users/new" element={<PermissionGuard permission="users.manage"><CreateUserPage /></PermissionGuard>} />
+        <Route path="/admin/users/:id" element={<PermissionGuard permission="users.read"><UserDetailPage /></PermissionGuard>} />
+        <Route path="/admin/users/:id/edit" element={<PermissionGuard permission="users.manage"><UserEditPage /></PermissionGuard>} />
         <Route path="/admin/roles" element={<AdminGuard><RolesPage /></AdminGuard>} />
         <Route path="/admin/permissions" element={<AdminGuard><PermissionsPage /></AdminGuard>} />
         <Route path="/admin/alpr" element={<PermissionGuard permission="alpr.read"><AlprPage /></PermissionGuard>} />
@@ -114,7 +119,7 @@ export function AppRoutes() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/help" element={<HelpPage />} />
-        <Route path="/dev/ui-kit" element={<UiKitPage />} />
+        {import.meta.env.DEV ? <Route path="/dev/ui-kit" element={<AdminGuard><UiKitPage /></AdminGuard>} /> : null}
 
         {/* Docs & Explore Center — ADMIN only */}
         <Route path="/docs" element={<AdminGuard><DocsLayout /></AdminGuard>}>
@@ -126,6 +131,7 @@ export function AppRoutes() {
       </Route>
 
       <Route path="*" element={<Navigate to="/404" replace />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   )
 }

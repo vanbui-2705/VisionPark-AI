@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.database.tenant import requested_building
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
 
@@ -68,9 +69,10 @@ def list_barrier_events(
     current_user: User = Depends(get_current_user),
 ) -> list[BarrierEventResponse]:
     """Truy vấn lịch sử sự kiện barrier phục vụ audit và giám sát vận hành."""
+    effective_building_id = requested_building(service.session, current_user, building_id)
     return service.list_events(
         lane_id=lane_id,
-        building_id=building_id,
+        building_id=effective_building_id,
         trigger_reason=trigger_reason,
         session_id=session_id,
         limit=limit,

@@ -77,7 +77,40 @@ def test_building_price_snapshot_invoice_payment_and_callback(
         json={"normalized_plate": "29A12345", "vehicle_type": "CAR", "customer_class_id": class_id},
     )
     assert vehicle.status_code == 201, vehicle.text
-    zone_id = str(uuid4())
+    zone = client.post(
+        "/api/v1/tickets/zones",
+        headers=building,
+        json={"code": "ZONE-A", "name": "Zone A"},
+    )
+    assert zone.status_code == 201, zone.text
+    zone_id = zone.json()["id"]
+    zones = client.get("/api/v1/tickets/zones", headers=building)
+    assert zones.status_code == 200 and zones.json()[0]["code"] == "ZONE-A", zones.text
+    access_rule = client.post(
+        "/api/v1/tickets/access-rules",
+        headers=building,
+        json={
+            "normalized_plate": "51A-000.01",
+            "decision": "DENY",
+            "reason": "SECURITY_REVIEW",
+        },
+    )
+    assert access_rule.status_code == 201, access_rule.text
+    rules = client.get("/api/v1/tickets/access-rules", headers=building)
+    assert rules.status_code == 200 and rules.json()[0]["normalized_plate"] == "51A00001"
+    invalid_zone_subscription = client.post(
+        "/api/v1/tickets/subscriptions",
+        headers=building,
+        json={
+            "product_id": product.json()["id"],
+            "vehicle_id": vehicle.json()["id"],
+            "zone_id": str(uuid4()),
+            "valid_from": datetime.now(UTC).isoformat(),
+            "valid_until": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+        },
+    )
+    assert invalid_zone_subscription.status_code == 422, invalid_zone_subscription.text
+    assert invalid_zone_subscription.json()["code"] == "INVALID_ZONE"
     subscription = client.post(
         "/api/v1/tickets/subscriptions",
         headers=building,

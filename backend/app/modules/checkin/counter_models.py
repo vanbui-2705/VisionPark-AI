@@ -15,10 +15,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 from app.modules.checkin.lifecycle_models import AppendOnlyModelError
 
 
-class ParkingCounter(Base, UUIDPrimaryKeyMixin):
+class ParkingCounter(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin):
     """Bộ đếm số xe đang đỗ trong bãi theo từng loại xe (mục 4.4 nghiepvu.md)."""
 
     __tablename__ = "parking_counters"
@@ -39,7 +40,7 @@ class ParkingCounter(Base, UUIDPrimaryKeyMixin):
     )
 
 
-class CounterEvent(Base, UUIDPrimaryKeyMixin):
+class CounterEvent(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin):
     """Nhật ký thay đổi bộ đếm append-only (mục 4.4 & 4.10 nghiepvu.md)."""
 
     __tablename__ = "counter_events"

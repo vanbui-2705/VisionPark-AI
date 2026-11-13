@@ -72,7 +72,6 @@ export function UserEditPage() {
           <option value="BUILDING_ADMIN">BUILDING_ADMIN — Quản trị tòa nhà</option>
           <option value="OPERATOR">OPERATOR — Vận hành</option>
           <option value="ACCOUNTANT">ACCOUNTANT — Kế toán</option>
-          <option value="TECHNICIAN">TECHNICIAN — Kỹ thuật</option>
         </Select>
         <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />

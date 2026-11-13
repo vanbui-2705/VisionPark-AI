@@ -9,7 +9,9 @@ from app.core.security import create_access_token, hash_password
 from app.database.session import database
 from app.modules.alpr.models import Detection
 from app.modules.audit_logs.models import AuditLog
+from app.modules.barriers.models import BarrierEvent
 from app.modules.buildings.models import Building, ParkingLot, UserBuilding
+from app.modules.checkin.counter_models import ParkingCounter
 from app.modules.checkin.models import ParkingTransaction
 from app.modules.lanes.models import Lane
 from app.modules.users.models import Role, User
@@ -124,14 +126,12 @@ def test_cross_building_detail_checkin_and_history_are_rejected(
         f"/api/v1/audit-logs/?resource_id={audit.entity_id}&paginated=true",
         headers=operator_headers,
     )
-    assert audits.status_code == 200
-    assert audits.json()["total"] == 0
+    assert audits.status_code == 403
     own_audits = client.get(
         f"/api/v1/audit-logs/?resource_id={audit.entity_id}&paginated=true",
         headers=headers_b(client),
     )
-    assert own_audits.status_code == 200
-    assert own_audits.json()["total"] == 1
+    assert own_audits.status_code == 403
 
 
 def test_building_b_write_and_audit_use_the_same_building(client, second_building, db_session):
@@ -304,3 +304,98 @@ def test_media_requires_authentication_and_building_ownership(
     assert response.status_code == 200
     assert response.content == b"private-image-fixture"
     assert response.headers["Cache-Control"] == "private, no-store"
+
+
+def test_counter_endpoints_cannot_cross_building_scope(
+    client,
+    second_building,
+    operator_headers,
+    db_session,
+):
+    building, *_ = second_building
+    foreign_counter = ParkingCounter(
+        building_id=building.id,
+        vehicle_type="CAR",
+        occupied=7,
+    )
+    db_session.add(foreign_counter)
+    db_session.commit()
+
+    assert client.get("/api/v1/parking/availability").status_code == 401
+
+    availability = client.get(
+        f"/api/v1/parking/availability?building_id={building.id}",
+        headers=operator_headers,
+    )
+    assert availability.status_code == 403
+    assert availability.json()["code"] == "BUILDING_ACCESS_DENIED"
+
+    adjustment = client.post(
+        f"/api/v1/parking/counters/adjust?building_id={building.id}",
+        headers=operator_headers,
+        json={
+            "vehicle_type": "CAR",
+            "delta": 1,
+            "reason": "CROSS_BUILDING_ATTEMPT",
+        },
+    )
+    assert adjustment.status_code == 403
+    assert adjustment.json()["code"] == "BUILDING_ACCESS_DENIED"
+    db_session.refresh(foreign_counter)
+    assert foreign_counter.occupied == 7
+
+
+def test_barrier_history_is_scoped_to_authenticated_building(
+    client,
+    second_building,
+    operator_headers,
+    db_session,
+):
+    building, _user, lane, *_ = second_building
+    foreign_event = BarrierEvent(
+        building_id=building.id,
+        lane_id=lane.id,
+        action="OPEN",
+        trigger_reason="NORMAL",
+        status="OPEN",
+    )
+    db_session.add(foreign_event)
+    db_session.commit()
+
+    response = client.get("/api/v1/barriers/events", headers=operator_headers)
+    assert response.status_code == 200
+    assert str(foreign_event.id) not in {event["id"] for event in response.json()}
+
+    forbidden = client.get(
+        f"/api/v1/barriers/events?building_id={building.id}",
+        headers=operator_headers,
+    )
+    assert forbidden.status_code == 403
+    assert forbidden.json()["code"] == "BUILDING_ACCESS_DENIED"
+
+
+def test_system_admin_lifecycle_export_honors_selected_building(
+    client,
+    second_building,
+    admin_token,
+    db_session,
+):
+    building, *_ = second_building
+    other_building_id = db_session.scalar(
+        select(Building.id).where(Building.id != building.id)
+    )
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    selected = client.get(
+        f"/api/v1/lifecycle/sessions/export-csv?building_id={building.id}",
+        headers=headers,
+    )
+    assert selected.status_code == 200, selected.text
+    assert "B12345" in selected.content.decode("utf-8-sig")
+
+    other = client.get(
+        f"/api/v1/lifecycle/sessions/export-csv?building_id={other_building_id}",
+        headers=headers,
+    )
+    assert other.status_code == 200, other.text
+    assert "B12345" not in other.content.decode("utf-8-sig")

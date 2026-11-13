@@ -4,6 +4,7 @@ import { apiClient } from '../../api/client.ts'
 import { PreferencesEditor } from './PreferencesEditor.tsx'
 import { PricingSettings } from './PricingSettings.tsx'
 import { MonthlyTickets } from './MonthlyTickets.tsx'
+import { AccessRules } from './AccessRules.tsx'
 import { Link } from 'react-router-dom'
 
 export function SettingsPage() {
@@ -52,5 +53,6 @@ export function SettingsPage() {
     </section>}
     {hasBuildingContext && <PricingSettings />}
     {hasBuildingContext && <MonthlyTickets />}
+    {hasBuildingContext && <AccessRules />}
   </div>
 }

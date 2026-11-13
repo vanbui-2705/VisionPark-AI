@@ -4,10 +4,10 @@ Nguồn: `src/lib/permissions.ts` (`PERMISSION_MATRIX` + `can()`), `src/layouts/
 
 - Roles hiện hành: `SYSTEM_ADMIN`, `BUILDING_ADMIN`, `OPERATOR`, `ACCOUNTANT` (derive từ `GET /api/v1/auth/me`).
 - Sidebar lọc bằng `can(user, perm)` — không `role ===` rải rác.
-- `AdminGuard` render `ForbiddenPage` (403) cho OPERATOR vào route ADMIN-only.
-- OPERATOR vận hành Station/check-in, đọc detection, parking, lanes và audit liên quan; không quản trị users/lanes.
+- `PermissionGuard` render `ForbiddenPage` (403) khi role thiếu quyền; `AdminGuard` chỉ còn
+  cho các trang system-only như role matrix, test lab và docs nội bộ.
+- OPERATOR vận hành Station/check-in, đọc detection, parking và lanes; không đọc audit hay quản trị users/lanes.
 - ACCOUNTANT đọc dashboard, parking và audit; không check-in hoặc xem detection.
-- TECHNICIAN dùng Station/check-in, đọc và xác nhận detection, xem lanes, ALPR status và system health; không đọc parking/audit tổng quát.
 
 Không fake role ở client; quyền thực thi ở backend.
 
@@ -19,8 +19,10 @@ SYSTEM_ADMIN tạo tòa nhà và gán membership cho tài khoản. Thay đổi m
 hiệu lực token cũ. Callback thanh toán xác thực bằng chữ ký thay vì bearer token.
 
 Phase 4 thêm checkout.create cho OPERATOR, SYSTEM_ADMIN và BUILDING_ADMIN, khớp
-require_roles ở API checkout. ACCOUNTANT và TECHNICIAN không được thu tiền/cho xe ra.
+require_roles ở API checkout. ACCOUNTANT không được thu tiền/cho xe ra.
 Luồng OUT không tự gọi payment API riêng; CASH đi qua endpoint checkout.
 
 `operations.report.read` bảo vệ `/admin/m5` và mục “Báo cáo vận hành” trên sidebar.
 Quyền này dành cho SYSTEM_ADMIN và BUILDING_ADMIN; ACCOUNTANT chỉ có dashboard tổng quan.
+SYSTEM_ADMIN không ghi lane trực tiếp vì API lane mutation yêu cầu BUILDING_ADMIN có tenant
+context; frontend phản ánh đúng giới hạn này. BUILDING_ADMIN được quản lý users trong tòa nhà.

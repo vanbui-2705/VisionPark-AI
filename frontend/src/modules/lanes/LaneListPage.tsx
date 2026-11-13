@@ -46,7 +46,7 @@ export function LaneListPage() {
     <div className="data-page lanes-page">
       <section className="data-hero data-hero--cream">
         <div className="data-hero-copy">
-          <span className="data-kicker">Lane Management · Duy Anh</span>
+          <span className="data-kicker">Lane Management · VisionPark</span>
           <h2>{translate("Quản lý làn")}</h2>
           <p>{translate("Cấu hình làn IN/OUT, nguồn video và trạng thái vận hành.")}</p>
         </div>

@@ -11,7 +11,9 @@ def get_in_lane(db_session):
     return db_session.scalar(select(Lane).where(Lane.direction == LaneDirection.IN))
 
 
-def test_checkin_creates_parked_transaction_and_audit(client, db_session, operator_headers):
+def test_checkin_creates_parked_transaction_and_audit(
+    client, db_session, operator_headers, admin_token
+):
     lane = get_in_lane(db_session)
     response = client.post(
         "/api/v1/parking/check-in",
@@ -32,7 +34,8 @@ def test_checkin_creates_parked_transaction_and_audit(client, db_session, operat
     assert len(history.json()["data"]) == 1
 
     audit = client.get(
-        "/api/v1/audit-logs/?paginated=true&action=CREATE_CHECKIN", headers=operator_headers
+        "/api/v1/audit-logs/?paginated=true&action=CREATE_CHECKIN",
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert audit.status_code == 200
     assert audit.json()["data"][0]["resource"] == "ParkingTransaction"
