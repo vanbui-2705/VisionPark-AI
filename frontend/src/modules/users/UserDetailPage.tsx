@@ -16,6 +16,7 @@ import type { AuditLog } from '../../api/domain'
 export function UserDetailPage() {
   const { id } = useParams()
   const [user, setUser] = useState<ManagedUser | null>(null)
+  const [buildings, setBuildings] = useState<{ id: string; name: string }[]>([])
   const [tab, setTab] = useState<'info'|'perm'|'security'|'activity'>('info')
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -35,6 +36,12 @@ export function UserDetailPage() {
     usersApi.get(id).then(u => { setUser(u); setDisplayName(u.display_name); setEmail(u.email ?? ''); setRole(u.role); setActive(u.active)}).catch(e=>setErr(e instanceof Error?e.message:translate("Không tải được user"))).finally(()=>setLoading(false))
   }, [id])
 
+  useEffect(() => {
+    apiClient.get<{ id: string; name: string }[]>('/api/v1/buildings')
+      .then(setBuildings)
+      .catch(() => setBuildings([]))
+  }, [])
+
   const onSave = async () => {
     if (!id || !user) return
     setSaving(true); setErr(null)
@@ -44,6 +51,7 @@ export function UserDetailPage() {
   if (loading) return <Spinner />
   if (err && !user) return <Alert variant="error">{err}</Alert>
   if (!user) return <Alert variant="info">{translate("Không tìm thấy user.")}</Alert>
+  const assignedBuilding = buildings.find(item => item.id === user.building_id)
 
   return (
     <div className="data-page">
@@ -67,6 +75,7 @@ export function UserDetailPage() {
           <div className="form-grid">
             <Input label="Display Name" value={displayName} onChange={e=>setDisplayName(e.target.value)} />
             <Input label="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+            <Input label="Tòa nhà" value={assignedBuilding?.name ?? user.building_id ?? 'Chưa gán'} disabled />
             <Select label="Role" value={role} onChange={e=>setRole(e.target.value as ManagedUser['role'])}><option value="OPERATOR">OPERATOR</option><option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option><option value="BUILDING_ADMIN">BUILDING_ADMIN</option><option value="ACCOUNTANT">ACCOUNTANT</option></Select>
           </div>
           <label className="checkbox"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)} /> Active</label>
