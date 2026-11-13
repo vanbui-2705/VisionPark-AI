@@ -201,6 +201,42 @@ class TestALPREndpoint:
         response = client.post("/api/v1/alpr/detections", files=files, data=data, headers=headers)
         assert response.status_code == 503
 
+    def test_fire_detection_demo_mode_uses_single_frame_debounce(
+        self, client: TestClient, valid_image_file, operator_headers: dict[str, str]
+    ):
+        """Demo Station can alert from one uploaded frame without changing production defaults."""
+        fire_runtime = MagicMock()
+        fire_runtime.process_frame.return_value = [
+            {
+                "building_id": None,
+                "camera_id": "ENTRY_CAMERA",
+                "zone_code": None,
+                "event_type": "FIRE",
+                "confidence": 0.92,
+                "confirmed_frame_count": 1,
+                "bbox": [1, 2, 30, 40],
+                "timestamp": "2026-11-13T10:00:00Z",
+                "status": "VERIFYING",
+            }
+        ]
+        old_runtime = getattr(client.app.state, "fire_runtime", None)
+        client.app.state.fire_runtime = fire_runtime
+        try:
+            response = client.post(
+                "/api/v1/alpr/fire-detection",
+                files={"image": valid_image_file},
+                data={"camera_id": "ENTRY_CAMERA", "demo_mode": "true"},
+                headers=operator_headers,
+            )
+        finally:
+            client.app.state.fire_runtime = old_runtime
+
+        assert response.status_code == 200
+        assert response.json()[0]["event_type"] == "FIRE"
+        args, kwargs = fire_runtime.process_frame.call_args
+        assert args[1] == "ENTRY_CAMERA"
+        assert kwargs["settings"] == {"temporal_debounce_frames": 1}
+
 
 class TestLocalStorageAdapter:
     """Test cases cho LocalStorageAdapter."""

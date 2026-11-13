@@ -3,6 +3,9 @@
 Route canonical: `/station/scan`; fullscreen cũ redirect về đây.
 
 - Chọn một lane IN hoặc OUT active từ backend; chọn JPEG/PNG hoặc MP4 local.
+- Giám sát cháy chạy song song với ALPR: khi video đang phát, Station tự lấy một JPEG tối đa 640 px mỗi 2,5 giây; ảnh tĩnh được kiểm tra cháy cùng lúc người dùng bấm nhận diện. Request dùng `camera_id` cấu hình trên lane (fallback về lane ID), `building_id` của lane và `demo_mode=true`.
+- Khi backend trả về `FIRE` hoặc `SMOKE`, Station hiển thị `alertdialog` toàn màn hình và giữ nguyên cho đến khi Operator bấm **ĐÃ NHẬN CẢNH BÁO – TẮT**. Backdrop, Escape và phím tắt Station không tắt cảnh báo. Một sự cố được latch để không bật lại liên tục; monitor chỉ tái kích hoạt sau một frame không còn tín hiệu cháy/khói hoặc khi đổi lane/nguồn ảnh.
+- Lỗi riêng của fire runtime không chặn luồng xe và không tạo error-report theo từng frame nền. Demo hiện chỉ cảnh báo tại màn hình, chưa lưu incident, phát âm thanh hay điều khiển thiết bị PCCC.
 - Sampling mặc định 1000ms, không queue nhiều inference cùng lúc.
 - Preview gửi `persist=false`; giữ tối đa 8 frame ở bộ nhớ phục vụ consensus 2/3.
 - Chưa đủ consensus thì cần xác nhận; chuyển làn/video/xe sẽ reset candidate.

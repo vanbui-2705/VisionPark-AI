@@ -42,11 +42,9 @@ def read_current_user(
     current_user: CurrentUser,
     session: Annotated[Session, Depends(get_db)],
 ) -> UserPublic:
-    public_user = to_public_user(current_user)
-
     building_id = session.info.get("building_id")
 
     if not isinstance(building_id, UUID):
         building_id = resolve_building(session, current_user)
 
-    return public_user.model_copy(update={"building_id": building_id})
+    return to_public_user(current_user, building_id=building_id)
