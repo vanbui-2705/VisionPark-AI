@@ -24,8 +24,8 @@ export function LoginPage() {
 
   const targetAfterLogin = useMemo(() => {
     if (user?.must_change_password) return '/change-password'
-    if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) return returnUrl
-    return user?.role === 'SYSTEM_ADMIN' ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'
+    if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//') && returnUrl !== '/change-password') return returnUrl
+    return can(user, 'dashboard.read') ? '/admin/dashboard' : can(user, 'station.use') ? '/station/scan' : '/profile'
   }, [returnUrl, user])
 
   useEffect(() => {

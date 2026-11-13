@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.database.session import get_db
+from app.database.tenant import resolve_building
 from app.modules.auth.dependencies import CurrentUser
 from app.modules.auth.schemas import LoginRequest, TokenResponse
 from app.modules.auth.service import AuthService
@@ -36,5 +38,15 @@ def login(
 
 
 @router.get("/me", response_model=UserPublic)
-def read_current_user(current_user: CurrentUser) -> UserPublic:
-    return to_public_user(current_user)
+def read_current_user(
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_db)],
+) -> UserPublic:
+    public_user = to_public_user(current_user)
+
+    building_id = session.info.get("building_id")
+
+    if not isinstance(building_id, UUID):
+        building_id = resolve_building(session, current_user)
+
+    return public_user.model_copy(update={"building_id": building_id})
