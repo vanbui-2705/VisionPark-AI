@@ -100,6 +100,11 @@ def test_normalize_plate():
     assert normalize_plate("2981234D", auto_correct=False) == "2981234D"
 
 
+def test_normalize_plate_does_not_guess_an_ambiguous_series_by_default():
+    assert normalize_plate("301-6238") == "3016238"
+    assert normalize_plate("61-04392") == "6104392"
+
+
 def test_correct_vietnamese_plate_series_digit_to_letter():
     assert correct_vietnamese_plate("29812345") == "29B12345"
     assert correct_vietnamese_plate("30012345") == "30D12345"

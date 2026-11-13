@@ -21,6 +21,7 @@ from typing import Any
 import cv2
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_SPLITS = ["smoke", "validation", "demo", "edge_cases"]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
@@ -127,6 +128,7 @@ class BenchmarkRunner:
         normalized_expected = normalize_plate(expected) if expected else None
         normalized_actual = normalize_plate(actual) if actual else None
         exact = normalized_expected == normalized_actual
+        detector_found = result.bbox is not None
 
         return {
             "id": case.get("id"),
@@ -137,9 +139,15 @@ class BenchmarkRunner:
             "expected": normalized_expected,
             "actual": normalized_actual,
             "exact_match": exact,
+            "detector_found": detector_found,
+            "detector_required": bool(case.get("detector_required", expected is not None)),
+            "negative_false_positive": expected is None and normalized_actual is not None,
             "char_accuracy": round(character_accuracy(normalized_expected, normalized_actual), 4),
             "latency_ms": round(float(result.processing_time_ms or measured_latency_ms), 3),
             "confidence": result.confidence,
+            "bbox": list(result.bbox.as_tuple) if result.bbox else None,
+            "detector_latency_ms": result.detector_latency_ms,
+            "ocr_latency_ms": result.ocr_latency_ms,
             "provider": result.provider,
             "model_version": result.model_version,
         }
@@ -167,6 +175,8 @@ def evaluate_dataset(
 def _metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     positive = [row for row in rows if row["expected"]]
     negative = [row for row in rows if not row["expected"]]
+    detector_scored = [row for row in positive if row["detector_required"]]
+    detected_positive = [row for row in detector_scored if row["detector_found"]]
     latencies = [float(row["latency_ms"]) for row in rows]
     return {
         "sample_count": len(rows),
@@ -177,6 +187,24 @@ def _metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "positive_exact_match_rate": round(
             sum(1 for row in positive if row["exact_match"]) / max(len(positive), 1), 4
+        ),
+        "detector_scored_count": len(detector_scored),
+        "detector_recall": round(
+            sum(1 for row in detector_scored if row["detector_found"])
+            / max(len(detector_scored), 1),
+            4,
+        ),
+        "ocr_exact_given_detection": round(
+            sum(1 for row in detected_positive if row["exact_match"])
+            / max(len(detected_positive), 1),
+            4,
+        ),
+        "negative_false_positive_count": sum(
+            1 for row in negative if row["negative_false_positive"]
+        ),
+        "negative_false_positive_rate": round(
+            sum(1 for row in negative if row["negative_false_positive"]) / max(len(negative), 1),
+            4,
         ),
         "negative_accuracy": round(
             sum(1 for row in negative if row["exact_match"]) / max(len(negative), 1), 4
@@ -212,6 +240,9 @@ def run_quality_gate(
     splits: list[str] | None = None,
     min_exact_match: float = 0.80,
     min_positive_exact_match: float = 0.80,
+    min_detector_recall: float = 0.94,
+    min_ocr_exact_given_detection: float = 0.80,
+    max_negative_false_positive_rate: float = 0.0,
     max_p95_latency_ms: float = 1000.0,
 ) -> tuple[GateStatus, dict[str, Any]]:
     """Return a truthful quality status and a machine-readable report."""
@@ -243,7 +274,7 @@ def run_quality_gate(
         return GateStatus.HOLD, report
 
     payload = json.loads(dataset.read_text(encoding="utf-8"))
-    selected_splits = splits or ["validation", "demo", "edge_cases"]
+    selected_splits = splits or DEFAULT_SPLITS
     rows, errors = evaluate_dataset(runtime, dataset, payload, selected_splits)
     metrics = _metrics(rows)
     report.update(
@@ -254,6 +285,9 @@ def run_quality_gate(
         thresholds={
             "min_exact_match": min_exact_match,
             "min_positive_exact_match": min_positive_exact_match,
+            "min_detector_recall": min_detector_recall,
+            "min_ocr_exact_given_detection": min_ocr_exact_given_detection,
+            "max_negative_false_positive_rate": max_negative_false_positive_rate,
             "max_p95_latency_ms": max_p95_latency_ms,
         },
     )
@@ -272,6 +306,22 @@ def run_quality_gate(
             "Positive exact match "
             f"{metrics['positive_exact_match_rate']:.4f} is below "
             f"{min_positive_exact_match:.4f}"
+        )
+    if metrics["detector_recall"] < min_detector_recall:
+        reasons.append(
+            f"Detector recall {metrics['detector_recall']:.4f} is below {min_detector_recall:.4f}"
+        )
+    if metrics["ocr_exact_given_detection"] < min_ocr_exact_given_detection:
+        reasons.append(
+            "OCR exact given detection "
+            f"{metrics['ocr_exact_given_detection']:.4f} is below "
+            f"{min_ocr_exact_given_detection:.4f}"
+        )
+    if metrics["negative_false_positive_rate"] > max_negative_false_positive_rate:
+        reasons.append(
+            "Negative false positive rate "
+            f"{metrics['negative_false_positive_rate']:.4f} exceeds "
+            f"{max_negative_false_positive_rate:.4f}"
         )
     if metrics["latency_ms"]["p95"] > max_p95_latency_ms:
         reasons.append(
@@ -300,9 +350,12 @@ def main() -> int:
         type=Path,
         default=BACKEND_DIR / "var" / "benchmarks" / "alpr-quality-gate-report.json",
     )
-    parser.add_argument("--splits", nargs="+", default=["validation", "demo", "edge_cases"])
+    parser.add_argument("--splits", nargs="+", default=DEFAULT_SPLITS)
     parser.add_argument("--min-exact-match", type=float, default=0.80)
     parser.add_argument("--min-positive-exact-match", type=float, default=0.80)
+    parser.add_argument("--min-detector-recall", type=float, default=0.94)
+    parser.add_argument("--min-ocr-exact-given-detection", type=float, default=0.80)
+    parser.add_argument("--max-negative-false-positive-rate", type=float, default=0.0)
     parser.add_argument("--max-p95-latency-ms", type=float, default=1000.0)
     args = parser.parse_args()
 
@@ -311,6 +364,9 @@ def main() -> int:
         splits=args.splits,
         min_exact_match=args.min_exact_match,
         min_positive_exact_match=args.min_positive_exact_match,
+        min_detector_recall=args.min_detector_recall,
+        min_ocr_exact_given_detection=args.min_ocr_exact_given_detection,
+        max_negative_false_positive_rate=args.max_negative_false_positive_rate,
         max_p95_latency_ms=args.max_p95_latency_ms,
     )
     _write_report(args.report, report)

@@ -6,6 +6,9 @@ export interface LanePayload {
   direction: LaneDirection
   video_source?: string | null
   active?: boolean
+  allowed_vehicle_types?: Array<'CAR' | 'MOTORBIKE' | 'BICYCLE'>
+  camera_id?: string | null
+  barrier_id?: string | null
 }
 
 interface LaneResponse extends Omit<Lane, 'active'> { is_active: boolean }

@@ -49,6 +49,26 @@ def test_checkout_preview(client, db_session, operator_headers):
     assert tx.status == TransactionStatus.PARKED
 
 
+def test_checkout_preview_rejects_an_in_lane(client, db_session, operator_headers):
+    in_lane = get_lane_by_direction(db_session, LaneDirection.IN)
+    plate = "30A-999.89"
+    checkin_res = client.post(
+        "/api/v1/parking/check-in",
+        json={"lane_id": str(in_lane.id), "license_plate": plate},
+        headers={**operator_headers, "Idempotency-Key": f"chk-in-{uuid4()}"},
+    )
+    assert checkin_res.status_code == 201
+
+    preview_res = client.post(
+        "/api/v1/parking/check-out/preview",
+        json={"license_plate": plate, "exit_lane_id": str(in_lane.id)},
+        headers=operator_headers,
+    )
+
+    assert preview_res.status_code == 400
+    assert preview_res.json()["code"] == "INVALID_LANE_TYPE"
+
+
 def test_checkout_success_with_direct_payment(client, db_session, operator_headers):
     """Test xe ra hoàn tất: mở barrier, EXITED -> COMPLETED, giảm bộ đếm (BR-14)."""
     in_lane = get_lane_by_direction(db_session, LaneDirection.IN)

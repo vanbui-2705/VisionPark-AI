@@ -112,10 +112,11 @@ export default function StationPage() {
     clearCandidates(); reset(); setTransactionId(null); setEditingPlate(false);
     setImageFile(null); setImageUrl(''); setActionError(null);
     if (!file) return;
-    if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+    const normalizedFile = normalizeStationImage(file);
+    if (!normalizedFile || normalizedFile.size > 5 * 1024 * 1024) {
       setActionError({ status: 422, code: 'INVALID_IMAGE', message: translate("Chọn ảnh JPEG/PNG không quá 5MB.") }); return;
     }
-    setImageFile(file); setImageUrl(URL.createObjectURL(file));
+    setImageFile(normalizedFile); setImageUrl(URL.createObjectURL(normalizedFile));
   };
   const onVideo = (file: File, url: string) => {
     if (confirming.current) { URL.revokeObjectURL(url); return; }
@@ -162,7 +163,11 @@ export default function StationPage() {
     }
     setActionError(null);
     void monitorFire(image);
-    await detect(image, selectedLaneId, { inputKind: inputMode === 'image' ? 'IMAGE_UPLOAD' : 'VIDEO_FRAME', videoTimeMs });
+    const detection = await detect(image, selectedLaneId, { inputKind: inputMode === 'image' ? 'IMAGE_UPLOAD' : 'VIDEO_FRAME', videoTimeMs });
+    const detectedType = detection?.vehicle_type?.toUpperCase()
+    if (detectedType === 'CAR' || detectedType === 'MOTORBIKE' || detectedType === 'BICYCLE') {
+      setVehicleType(detectedType)
+    }
   }, [detect, monitorFire, selectedLaneId, transactionId, inputMode]);
   const changeLane = (laneId: string) => {
     if (confirming.current) return;
@@ -388,4 +393,22 @@ export default function StationPage() {
 
     <RecentHistory items={history} />
   </section>;
+}
+
+function normalizeStationImage(file: File): File | null {
+  const extension = file.name.toLowerCase().split('.').pop()
+  const inferredType = extension === 'png'
+    ? 'image/png'
+    : extension === 'jpg' || extension === 'jpeg'
+      ? 'image/jpeg'
+      : null
+  const normalizedType = file.type === 'image/jpg' ? 'image/jpeg' : file.type
+  const imageType = normalizedType === 'image/jpeg' || normalizedType === 'image/png'
+    ? normalizedType
+    : normalizedType === ''
+      ? inferredType
+      : null
+  if (!imageType) return null
+  if (file.type === imageType) return file
+  return new File([file], file.name, { type: imageType, lastModified: file.lastModified })
 }

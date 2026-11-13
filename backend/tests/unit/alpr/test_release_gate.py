@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from app.alpr.interface import ALPRRuntime
-from app.alpr.schema import ALPRResult
+from app.alpr.schema import ALPRResult, BoundingBox
 from scripts.release_gate import BenchmarkRunner, GateStatus, run_quality_gate
 
 
@@ -27,6 +27,9 @@ class RecordingRuntime(ALPRRuntime):
             plate_number=plate,
             normalized_plate=plate,
             confidence=0.95 if plate else 0.0,
+            detector_confidence=0.95 if plate else 0.0,
+            ocr_confidence=0.95 if plate else None,
+            bbox=BoundingBox(x1=1, y1=2, x2=20, y2=10) if plate else None,
             processing_time_ms=25,
             requires_confirmation=False,
             model_version=self.model_version,
@@ -117,7 +120,11 @@ def test_quality_gate_passes_only_after_real_media_inference(tmp_path):
     assert status == GateStatus.PASS
     assert report["status"] == GateStatus.PASS
     assert report["metrics"]["exact_match_rate"] == 1.0
-    assert len(runtime.received) == 7  # smoke is validated but not scored by default
+    assert report["metrics"]["detector_recall"] == 1.0
+    assert report["metrics"]["ocr_exact_given_detection"] == 1.0
+    assert report["metrics"]["negative_false_positive_count"] == 0
+    assert report["splits"] == ["smoke", "validation", "demo", "edge_cases"]
+    assert len(runtime.received) == 8
 
 
 def test_quality_gate_holds_when_release_media_is_missing(tmp_path):
@@ -155,3 +162,19 @@ def test_quality_gate_fails_when_inference_does_not_meet_threshold(tmp_path):
     assert status == GateStatus.FAIL
     assert report["status"] == GateStatus.FAIL
     assert report["metrics"]["exact_match_rate"] < 0.8
+
+
+def test_quality_gate_fails_on_a_negative_false_positive(tmp_path):
+    dataset, results = _write_release_dataset(tmp_path)
+    false_positive_results = dict(results)
+    negative_body = next(body for body, plate in results.items() if plate is None)
+    false_positive_results[negative_body] = "29A12345"
+
+    status, report = run_quality_gate(
+        dataset,
+        runtime=RecordingRuntime(false_positive_results),
+    )
+
+    assert status == GateStatus.FAIL
+    assert report["metrics"]["negative_false_positive_count"] == 1
+    assert any("false positive" in reason.lower() for reason in report["reasons"])

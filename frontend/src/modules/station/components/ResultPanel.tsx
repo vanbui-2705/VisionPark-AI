@@ -28,6 +28,10 @@ export default function ResultPanel({
       <div>Detector: {result.detector_confidence == null ? "-" : `${(result.detector_confidence * 100).toFixed(1)}%`} · OCR: {result.ocr_confidence == null ? "-" : `${(result.ocr_confidence * 100).toFixed(1)}%`}</div>
     </div>
     <div className="result-metric">
+      <span className="muted">LOẠI XE</span>
+      <div>{vehicleTypeLabel(result.vehicle_type)}{result.vehicle_confidence == null ? '' : ` · ${(result.vehicle_confidence * 100).toFixed(1)}%`}</div>
+    </div>
+    <div className="result-metric">
       <span className="muted">COMBINED / QUALITY</span>
       <div>Combined: {result.combined_confidence == null ? "-" : `${(result.combined_confidence * 100).toFixed(1)}%`} · Quality: {result.quality_flags?.length ? result.quality_flags.join(", ") : "OK"}</div>
     </div>
@@ -40,4 +44,11 @@ export default function ResultPanel({
       <div>Model: {result.model_version} · Provider: {result.provider ?? "-"}</div>
     </div>
   </div>;
+}
+
+function vehicleTypeLabel(value: DetectionResult['vehicle_type']): string {
+  if (value === 'CAR') return 'Ô tô'
+  if (value === 'MOTORBIKE') return 'Xe máy'
+  if (value === 'BICYCLE') return 'Xe đạp'
+  return 'Chưa xác định'
 }

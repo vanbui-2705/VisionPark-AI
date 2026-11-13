@@ -17,7 +17,7 @@ export type FireSignalEvent = {
   bbox: [number, number, number, number]
   evidence_image_path?: string | null
   timestamp: string
-  status: string
+  status: 'DETECTED' | 'VERIFYING' | 'CONFIRMED' | string
 }
 type Candidate = { image: Blob; laneId: string; context: InputContext; final?: DetectionResult }
 const candidates = new Map<string, Candidate>()
@@ -91,12 +91,13 @@ export async function prepareExit(laneId: string, identifier: string, exitImageU
   }
 }
 
-export function completeExit(session: ExitSession, cash = false): Promise<CheckOutResult> {
+export function completeExit(session: ExitSession, cash = false, overrideReason?: string): Promise<CheckOutResult> {
   return apiClient.post<CheckOutResult>('/api/v1/parking/check-out', {
     session_id: session.session_id, exit_lane_id: session.laneId, expected_fee: session.fee,
     ...(session.exit_image_url ? { exit_image_url: session.exit_image_url } : {}),
     ...(session.vehicle_type_out ? { vehicle_type_out: session.vehicle_type_out } : {}),
     ...(session.is_lost_ticket ? { is_lost_ticket: true } : {}),
+    ...(overrideReason?.trim() ? { override_reason: overrideReason.trim() } : {}),
     ...(cash ? { payment_method: 'CASH' } : {}),
   }, { headers: { 'Idempotency-Key': `station-exit-${session.session_id}` }, timeoutMs: 15000 })
 }

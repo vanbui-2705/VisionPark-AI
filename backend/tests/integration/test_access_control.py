@@ -45,7 +45,8 @@ def motorbike_only_lane(db_session: Session) -> Lane:
             direction=LaneDirection.IN,
             video_source="rtsp://dummy_moto",
             is_active=True,
-            allowed_vehicle_type=AllowedVehicleType.MOTORBIKE,
+            allowed_vehicle_type=AllowedVehicleType.ALL,
+            allowed_vehicle_types=["MOTORBIKE"],
         )
         db_session.add(lane)
         db_session.commit()
