@@ -258,6 +258,8 @@ def evaluate_access_control(
 ) -> AccessCheckResult:
     """Đánh giá Access Control (ALLOW / DENY / REVIEW) trước khi tạo phiên check-in."""
     del operator
+    if not vehicle_type or vehicle_type == "UNKNOWN":
+        vehicle_type = "CAR"
     # 1. Kiểm tra làn xe có cho phép loại xe này không (BR làn xe & loại xe)
     legacy_allowed = getattr(lane, "allowed_vehicle_type", AllowedVehicleType.ALL)
     if type(legacy_allowed).__name__ == "MagicMock" or not legacy_allowed:

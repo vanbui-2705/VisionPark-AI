@@ -83,7 +83,15 @@ def confirm_detection(
                 source=payload.source,
                 override_reason=payload.override_reason,
                 vehicle_type=(
-                    payload.vehicle_type or getattr(detection, "vehicle_type", None) or "CAR"
+                    payload.vehicle_type
+                    or payload.confirmed_vehicle_type
+                    or (
+                        detection.vehicle_type
+                        if getattr(detection, "vehicle_type", None)
+                        and detection.vehicle_type != "UNKNOWN"
+                        else None
+                    )
+                    or "CAR"
                 ),
                 ticket_kind=payload.ticket_kind,
                 customer_class_id=payload.customer_class_id,
