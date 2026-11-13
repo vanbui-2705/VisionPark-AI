@@ -65,6 +65,8 @@ def create_pricing_version(
         created_by_id=actor_id,
     )
     db.add(version)
+    db.flush()
+
     for rule in payload.rules:
         values = rule.model_dump(
             mode="json", exclude={"vehicle_type", "ticket_kind", "customer_class_id"}

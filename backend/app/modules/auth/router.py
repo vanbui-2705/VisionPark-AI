@@ -12,6 +12,9 @@ from app.modules.auth.service import AuthService
 from app.modules.users.schemas import RegistrationRequest, UserPublic
 from app.modules.users.service import to_public_user
 
+from uuid import UUID
+from app.database.tenant import resolve_building
+
 router = APIRouter()
 
 
@@ -36,5 +39,17 @@ def login(
 
 
 @router.get("/me", response_model=UserPublic)
-def read_current_user(current_user: CurrentUser) -> UserPublic:
-    return to_public_user(current_user)
+def read_current_user(
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_db)],
+) -> UserPublic:
+    public_user = to_public_user(current_user)
+
+    building_id = session.info.get("building_id")
+
+    if not isinstance(building_id, UUID):
+        building_id = resolve_building(session, current_user)
+
+    return public_user.model_copy(
+        update={"building_id": building_id}
+    )

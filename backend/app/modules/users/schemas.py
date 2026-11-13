@@ -21,6 +21,7 @@ class UserPublic(BaseModel):
     must_change_password: bool = False
     email: str | None = None
     last_login_at: datetime | None
+    building_id: UUID | None = None
 
 
 class ManagedUserPublic(UserPublic):
