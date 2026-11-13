@@ -27,6 +27,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.core.config import Settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
+import app.database.models  # noqa: F401
 from app.database.session import DatabaseManager  # noqa: E402
 from app.modules.buildings.models import Building, ParkingLot, UserBuilding  # noqa: E402
 from app.modules.checkin.counter_models import ParkingCounter  # noqa: E402
@@ -36,6 +37,7 @@ from app.modules.lot_settings.schemas import default_settings  # noqa: E402
 from app.modules.pricing.domain import TicketKind  # noqa: E402
 from app.modules.pricing.models import (  # noqa: E402
     CustomerClass,
+    ParkingZone,
     PricingRule,
     PricingVersion,
     Subscription,
@@ -417,7 +419,7 @@ def apply_demo_environment(
     ):
         role = session.scalar(select(Role).where(Role.name == role_enum.value))
         if role is None:
-            role = Role(name=role_enum.value, description=f"Role {role_enum.value}")
+            role = Role(name=role_enum.value)
             session.add(role)
             session.flush()
 
@@ -605,6 +607,18 @@ def apply_demo_environment(
     else:
         vehicle.vehicle_type = "CAR"
         vehicle.customer_class_id = std_class.id
+        session.flush()
+
+    zone = session.get(ParkingZone, DEMO_ZONE_UUID)
+    if zone is None:
+        zone = ParkingZone(
+            id=DEMO_ZONE_UUID,
+            building_id=building_id,
+            code="ZONE-A",
+            name="Zone A - Resident",
+            active=True,
+        )
+        session.add(zone)
         session.flush()
 
     sub = session.scalar(
