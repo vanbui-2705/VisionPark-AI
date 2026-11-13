@@ -1195,6 +1195,43 @@ body { background: radial-gradient(circle at top left, rgba(37,99,235,0.08), tra
 .station-confirm-facts { display: grid; gap: 0; margin: 16px 0; }
 .station-confirm-facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid #dfcaa6; }
 .station-confirm-facts dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.station-fire-backdrop {
+  position: fixed;
+  z-index: 1400;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(28, 3, 3, .9);
+  backdrop-filter: blur(5px);
+}
+.station-fire-alert {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: clamp(28px, 5vw, 48px);
+  border: 3px solid #b42318;
+  border-radius: 12px;
+  background: #fff7f5;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .58), 0 0 0 8px rgba(220, 38, 38, .16);
+  color: #45110d;
+  text-align: center;
+  animation: station-fire-enter .18s ease-out;
+}
+.station-fire-kicker { display: inline-block; margin-bottom: 14px; padding: 7px 10px; border-radius: 4px; background: #b42318; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+.station-fire-alert h2 { margin: 0; color: #b42318; font-size: clamp(38px, 8vw, 64px); font-weight: 800; letter-spacing: -.03em; line-height: .98; }
+.station-fire-message { max-width: 52ch; margin: 24px auto 0; color: #561b16; font-size: clamp(18px, 3vw, 23px); line-height: 1.5; }
+.station-fire-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 26px 0; text-align: left; }
+.station-fire-facts > div { padding: 13px 15px; border: 1px solid #e8b4ad; border-radius: 8px; background: #fff; }
+.station-fire-facts dt { color: #8b4c45; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.station-fire-facts dd { margin: 5px 0 0; color: #45110d; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.station-fire-dismiss { width: 100%; min-height: 54px; border-color: #9f1d14; background: #b42318; color: #fff; font-size: 16px; font-weight: 750; }
+.station-fire-dismiss:hover { border-color: #7f160f; background: #8f1c14; }
+.station-fire-dismiss:focus-visible { outline: 4px solid #f59e0b; outline-offset: 4px; }
+@keyframes station-fire-enter {
+  from { opacity: 0; transform: scale(.97); }
+  to { opacity: 1; transform: scale(1); }
+}
 .text-danger { color: #9f2f27; font-weight: 600; }
 @media (max-width: 640px) { .station-image-comparison { grid-template-columns: 1fr; } }
 .scan-video, .scan-result, .scan-history { min-width: 0; padding: 24px; border: 1px solid #ddd; border-radius: 10px !important; box-shadow: none; }
@@ -1312,10 +1349,14 @@ body { background: radial-gradient(circle at top left, rgba(37,99,235,0.08), tra
   .station-exit-critical { grid-template-columns: 1fr; }
   .station-confirm-dialog { padding: 18px; }
   .station-dialog-backdrop { align-items: end; padding: 12px; }
+  .station-fire-backdrop { padding: 12px; }
+  .station-fire-alert { max-height: calc(100vh - 24px); padding: 28px 20px; }
+  .station-fire-facts { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .station-spinner { animation-duration: 1.4s; }
+  .station-fire-alert { animation: none; }
 }
 
 .settings-context-empty { max-width: 760px; }

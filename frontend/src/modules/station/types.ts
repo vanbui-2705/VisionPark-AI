@@ -15,6 +15,7 @@ export type Lane = {
   direction: LaneDirection;
   active: boolean;
   building_id?: string | null;
+  camera_id?: string | null;
 };
 export type DetectionResult = {
   detection_id: string | null;
