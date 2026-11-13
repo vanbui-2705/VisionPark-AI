@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from app.alpr.errors import ALPRInferenceError, ALPRModelLoadError
-from app.alpr.ocr_provider import PaddleOCRTextRecognition
+from app.alpr.ocr_provider import OCRCandidate, PaddleOCRTextRecognition, select_plate_candidate
 
 
 def test_collect_candidates_supports_scalar_and_array_shapes():
@@ -22,6 +22,47 @@ def test_collect_candidates_supports_scalar_and_array_shapes():
     )
 
     assert output == [("30A-123.45", 0.91), ("51F 12345", 0.82)]
+
+
+def test_candidate_consensus_beats_one_higher_confidence_misread():
+    result = select_plate_candidate(
+        [
+            OCRCandidate("29A-90.01", 0.90, "original"),
+            OCRCandidate("29A-901.01", 0.84, "upscaled"),
+            OCRCandidate("29A90101", 0.82, "contrast"),
+        ]
+    )
+
+    assert result.raw_text == "29A-901.01"
+    assert result.normalized_text == "29A90101"
+    assert result.confidence == 0.84
+
+
+def test_low_confidence_full_crop_uses_a_tighter_preprocessed_candidate(monkeypatch):
+    class CropSensitiveTextRecognition:
+        def __init__(self, **kwargs):
+            pass
+
+        def predict(self, **kwargs):
+            crop = kwargs["input"]
+            if crop.shape[0] < 28:
+                return [{"rec_texts": ["51B-04392"], "rec_scores": [0.86]}]
+            return [{"rec_texts": ["51B-0392"], "rec_scores": [0.74]}]
+
+    monkeypatch.setitem(
+        sys.modules,
+        "paddleocr",
+        SimpleNamespace(TextRecognition=CropSensitiveTextRecognition),
+    )
+    provider = PaddleOCRTextRecognition()
+    image = np.tile(np.arange(128, dtype=np.uint8), (32, 1))
+    image = np.repeat(image[:, :, None], 3, axis=2)
+
+    result = provider.recognize(image)
+
+    assert result.raw_text == "51B-04392"
+    assert result.normalized_text == "51B04392"
+    assert result.confidence == 0.86
 
 
 def test_recognition_model_is_lazy_loaded_and_normalizes_text(monkeypatch):
@@ -80,8 +121,6 @@ def test_model_load_and_inference_errors_are_typed(monkeypatch):
 
 
 def test_two_line_square_plate_splits_and_combines(monkeypatch):
-    calls = []
-
     class TwoLineTextRecognition:
         def __init__(self, **kwargs):
             pass
@@ -89,11 +128,10 @@ def test_two_line_square_plate_splits_and_combines(monkeypatch):
         def predict(self, **kwargs):
             crop = kwargs.get("input")
             h, w = crop.shape[:2]
-            calls.append((h, w))
-            # First call is line 1 (upper half)
-            if len(calls) == 1:
+            if h == 64:
+                return []
+            if float(crop.mean()) < 125:
                 return [{"rec_texts": ["29-A1"], "rec_scores": [0.92]}]
-            # Second call is line 2 (lower half)
             return [{"rec_texts": ["123.45"], "rec_scores": [0.96]}]
 
     monkeypatch.setitem(
@@ -102,18 +140,17 @@ def test_two_line_square_plate_splits_and_combines(monkeypatch):
     provider = PaddleOCRTextRecognition()
     # Aspect ratio: 80 / 64 = 1.25 <= 2.0 (two-line square plate)
     image = np.zeros((64, 80, 3), dtype=np.uint8)
+    image[:32] = 50
+    image[32:] = 200
 
     result = provider.recognize(image)
 
-    assert len(calls) == 2
     assert result.raw_text == "29-A1 123.45"
     assert result.normalized_text == "29A112345"
     assert round(result.confidence, 4) == 0.94
 
 
 def test_two_line_square_plate_falls_back_when_split_fails(monkeypatch):
-    calls = []
-
     class FallbackTextRecognition:
         def __init__(self, **kwargs):
             pass
@@ -121,14 +158,9 @@ def test_two_line_square_plate_falls_back_when_split_fails(monkeypatch):
         def predict(self, **kwargs):
             crop = kwargs.get("input")
             h, w = crop.shape[:2]
-            calls.append((h, w))
-            # Line 1 returns text, but line 2 fails/empty
-            if len(calls) == 1:
-                return [{"rec_texts": ["29-A1"], "rec_scores": [0.90]}]
-            if len(calls) == 2:
-                return []
-            # Third call is the fallback on full crop
-            return [{"rec_texts": ["29A1 12345"], "rec_scores": [0.88]}]
+            if h == 64:
+                return [{"rec_texts": ["29A1 12345"], "rec_scores": [0.88]}]
+            return []
 
     monkeypatch.setitem(
         sys.modules, "paddleocr", SimpleNamespace(TextRecognition=FallbackTextRecognition)
@@ -138,7 +170,6 @@ def test_two_line_square_plate_falls_back_when_split_fails(monkeypatch):
 
     result = provider.recognize(image)
 
-    assert len(calls) == 3
     assert result.raw_text == "29A1 12345"
     assert result.normalized_text == "29A112345"
     assert round(result.confidence, 4) == 0.88

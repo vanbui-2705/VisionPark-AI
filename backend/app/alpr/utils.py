@@ -196,6 +196,13 @@ def normalize_plate(plate: str, *, auto_correct: bool = True) -> str:
         return ""
     cleaned = re.sub(r"[^A-Z0-9]", "", plate.upper())
     if auto_correct:
+        # ``0`` and ``1`` in the series position are highly ambiguous: either
+        # can be a misread letter, or the OCR may have dropped the real series
+        # character entirely (for example ``61-04392``).  Guessing here turns
+        # uncertain OCR into a plausible but incorrect plate, so leave these
+        # values untouched for the review/candidate-selection layer.
+        if len(cleaned) >= 3 and cleaned[2] in {"0", "1"}:
+            return cleaned
         return correct_vietnamese_plate(cleaned)
     return cleaned
 
