@@ -5,7 +5,9 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
 
 export function PermissionsPage() {
   const admin = PERMISSION_MATRIX.filter((r) => r.admin).length
+  const buildingAdmin = PERMISSION_MATRIX.filter((r) => r.buildingAdmin).length
   const operator = PERMISSION_MATRIX.filter((r) => r.operator).length
+  const accountant = PERMISSION_MATRIX.filter((r) => r.accountant).length
 
   return (
     <div className="utility-page">
@@ -19,8 +21,10 @@ export function PermissionsPage() {
         </div>
         <div className="utility-stat-row">
           <div className="utility-hero-stat"><strong>{PERMISSION_MATRIX.length}</strong><span>Permissions</span></div>
-          <div className="utility-hero-stat"><strong>{admin}</strong><span>ADMIN</span></div>
+          <div className="utility-hero-stat"><strong>{admin}</strong><span>SYSTEM_ADMIN</span></div>
+          <div className="utility-hero-stat"><strong>{buildingAdmin}</strong><span>BUILDING_ADMIN</span></div>
           <div className="utility-hero-stat"><strong>{operator}</strong><span>OPERATOR</span></div>
+          <div className="utility-hero-stat"><strong>{accountant}</strong><span>ACCOUNTANT</span></div>
         </div>
       </section>
 

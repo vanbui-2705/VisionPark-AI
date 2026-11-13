@@ -218,8 +218,8 @@ p { margin: 0 0 8px; }
 .kbd { display: inline-block; border: 1px solid #475569; border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-family: monospace; background: #1e293b; }
 
 /* docs */
-.docs-layout { display: flex; min-height: 100vh; }
-.docs-sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 16px; overflow: auto; position: sticky; top: 0; height: 100vh; }
+.docs-layout { display: flex; align-items: flex-start; min-height: calc(100vh - 100px); }
+.docs-sidebar { width: 260px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; position: sticky; top: 76px; max-height: calc(100vh - 96px); align-self: flex-start; }
 .docs-sidebar a { display: block; color: var(--text-secondary); text-decoration: none; padding: 5px 8px; border-radius: 6px; font-size: 14px; }
 .docs-sidebar a.active { background: #eff6ff; color: var(--info); font-weight: 600; }
 .docs-group { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 4px; padding: 0 8px; }
@@ -279,7 +279,7 @@ p { margin: 0 0 8px; }
 
 /* global visual refresh — applies across all existing tabs/pages without changing behavior */
 body { background: radial-gradient(circle at top left, rgba(37,99,235,0.08), transparent 28%), var(--bg); }
-.admin-sidebar { width: 250px; padding: 18px 14px; background: linear-gradient(180deg, #0b1220 0%, #111827 48%, #0f172a 100%); box-shadow: 10px 0 30px rgba(15,23,42,0.12); }
+.admin-sidebar { width: 250px; padding: 18px 14px; background: linear-gradient(180deg, #0b1220 0%, #111827 48%, #0f172a 100%); box-shadow: 10px 0 30px rgba(15,23,42,0.12); position: sticky; top: 0; height: 100vh; overflow-y: auto; align-self: flex-start; z-index: 60; }
 .admin-sidebar .brand { min-height: 44px; padding: 0 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 4px; }
 .admin-sidebar .brand span { letter-spacing: -0.02em; }
 .admin-sidebar .brand .collapse-btn { width: 28px; height: 28px; border-radius: 9px; background: rgba(255,255,255,0.06); color: #cbd5e1; }
