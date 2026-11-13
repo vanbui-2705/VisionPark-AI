@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../api/client.ts";
-import { removeToken } from "../../api/token.ts";
 import { Alert } from "../../components/ui/Alert.tsx";
 import { Button } from "../../components/ui/Button.tsx";
 import { Input } from "../../components/ui/Input.tsx";
@@ -9,7 +8,7 @@ import { useAuth } from "./AuthContext.tsx";
 import { can } from "../../lib/permissions.ts";
 
 export function ChangePasswordPage() {
-    const { logout, user } = useAuth();
+    const { clearSession, user } = useAuth();
     const navigate = useNavigate();
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -38,8 +37,7 @@ export function ChangePasswordPage() {
                 current_password: currentPassword,
                 new_password: newPassword,
             });
-            removeToken();
-            logout();
+            clearSession();
             navigate("/login", { replace: true });
         } catch (reason) {
             setError(
