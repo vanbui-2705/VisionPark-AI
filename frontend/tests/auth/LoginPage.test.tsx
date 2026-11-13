@@ -22,6 +22,8 @@ describe('LoginPage', () => {
             <Route path="/station/scan" element={<div>station page</div>} />
             <Route path="/admin/dashboard" element={<div>dashboard page</div>} />
             <Route path="/admin/lanes" element={<div>lanes page</div>} />
+            <Route path="/change-password" element={<div>forced password page</div>} />
+            <Route path="/profile" element={<div>profile page</div>} />
           </Routes>
         </AuthProvider>
       </MemoryRouter>,
@@ -60,5 +62,30 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('Mật khẩu'), 'pass')
     await user.click(screen.getByRole('button', { name: /đăng nhập/i }))
     await waitFor(() => expect(screen.getByText(/dashboard page/i)).toBeInTheDocument())
+  })
+
+  it('ignores a stale change-password return URL after the forced flag is cleared', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const u = String(url)
+      if (u.includes('/auth/login')) return jsonResponse({ access_token: 'tok', token_type: 'bearer' })
+      if (u.includes('/auth/me')) {
+        return jsonResponse({
+          id: '1',
+          username: 'building-admin',
+          display_name: 'Building Admin',
+          role: 'BUILDING_ADMIN',
+          is_active: true,
+          must_change_password: false,
+        })
+      }
+      return jsonResponse({}, 200)
+    })
+    renderLogin('/login?returnUrl=%2Fchange-password%3Freason%3Dexpired')
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Tên đăng nhập'), 'building-admin')
+    await user.type(screen.getByLabelText('Mật khẩu'), 'new-password')
+    await user.click(screen.getByRole('button', { name: /Đăng nhập/i }))
+    await waitFor(() => expect(screen.getByText(/dashboard page/i)).toBeInTheDocument())
+    expect(screen.queryByText(/forced password page/i)).not.toBeInTheDocument()
   })
 })
