@@ -381,9 +381,7 @@ def test_system_admin_lifecycle_export_honors_selected_building(
     db_session,
 ):
     building, *_ = second_building
-    other_building_id = db_session.scalar(
-        select(Building.id).where(Building.id != building.id)
-    )
+    other_building_id = db_session.scalar(select(Building.id).where(Building.id != building.id))
     headers = {"Authorization": f"Bearer {admin_token}"}
 
     selected = client.get(

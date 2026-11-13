@@ -68,9 +68,7 @@ def test_audit_records_correlation_id_and_recursively_redacts_secrets(
         },
     )
     assert created.status_code == 201, created.text
-    audit = db_session.scalar(
-        select(AuditLog).where(AuditLog.entity_id == created.json()["id"])
-    )
+    audit = db_session.scalar(select(AuditLog).where(AuditLog.entity_id == created.json()["id"]))
     assert audit.correlation_id == "audit-correlation-123"
 
     nested = log_action(
@@ -82,9 +80,7 @@ def test_audit_records_correlation_id_and_recursively_redacts_secrets(
         new_value={"profile": {"access_token": "do-not-store", "safe": "value"}},
     )
     db_session.commit()
-    assert nested.new_value == {
-        "profile": {"access_token": "[REDACTED]", "safe": "value"}
-    }
+    assert nested.new_value == {"profile": {"access_token": "[REDACTED]", "safe": "value"}}
 
 
 def test_admin_cannot_disable_or_demote_self(client, admin_token):

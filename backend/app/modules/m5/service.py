@@ -67,10 +67,7 @@ def aggregate_day(db: Session, building_id, day: date) -> DailyStat:
                 ParkingTransaction.building_id == building_id,
                 ParkingTransaction.check_in_time < end,
                 ParkingTransaction.status != TransactionStatus.CANCELLED.value,
-                (
-                    ParkingTransaction.exit_time.is_(None)
-                    | (ParkingTransaction.exit_time >= start)
-                ),
+                (ParkingTransaction.exit_time.is_(None) | (ParkingTransaction.exit_time >= start)),
             )
         )
     )
