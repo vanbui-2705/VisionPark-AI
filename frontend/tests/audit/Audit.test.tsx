@@ -46,6 +46,7 @@ describe('AuditLogsPage', () => {
     })
     await waitFor(() => expect(calls.length).toBeGreaterThan(0))
     expect(calls[0]).toContain('page=')
+    expect(new URL(calls[0]).pathname).toBe('/api/v1/audit-logs/')
   })
 
   it('filter by actor triggers refetch', async () => {

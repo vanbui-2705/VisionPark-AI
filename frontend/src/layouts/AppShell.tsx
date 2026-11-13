@@ -14,6 +14,8 @@ function SidebarIcon({ to, fallback }: { to: string; fallback: string }) {
   switch (to) {
     case '/admin/dashboard':
       return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2" /><rect x="14" y="3" width="7" height="5" rx="2" /><rect x="14" y="12" width="7" height="9" rx="2" /><rect x="3" y="16" width="7" height="5" rx="2" /></svg>
+    case '/admin/m5':
+      return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V7l8-4 8 4v14" /><path d="M2 21h20M8 10h2M14 10h2M8 14h2M14 14h2M10 21v-3h4v3" /></svg>
     case '/station/scan':
       return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><rect x="7" y="9" width="10" height="6" rx="1.5" /><path d="M10 12h4" /></svg>
     case '/detections':
@@ -51,6 +53,7 @@ function SidebarIcon({ to, fallback }: { to: string; fallback: string }) {
 
 const NAV: NavItem[] = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: '▣', perm: 'dashboard.read' },
+  { to: '/admin/m5', label: 'Báo cáo vận hành', icon: '▦', perm: 'operations.report.read' },
   { to: '/station/scan', label: 'Quét biển số', icon: '◎', perm: 'station.use' },
   { to: '/detections', label: 'Lịch sử nhận diện', icon: '≡', perm: 'detections.read' },
   { to: '/parking', label: 'Lịch sử đỗ xe', icon: '▤', perm: 'transactions.read' },
@@ -71,8 +74,10 @@ const NAV: NavItem[] = [
 
 const TITLE_MAP: Record<string, string> = {
   '/admin/dashboard': 'Dashboard',
+  '/admin/m5': 'Báo cáo vận hành',
   '/station/scan': 'Quét biển số',
   '/detections': 'Lịch sử nhận diện',
+  '/parking': 'Lịch sử đỗ xe',
   '/admin/lanes': 'Làn xe',
   '/admin/lanes/new': 'Tạo làn xe',
   '/admin/users': 'Người dùng',
@@ -148,7 +153,7 @@ function Sidebar({
       <>
         {!isCollapsed && <div className="sidebar-group">{title}</div>}
         {list.map((it) => (
-          <NavLink key={it.to} to={it.to} onClick={onCloseMobile} className={({ isActive }) => (isActive ? 'active' : undefined)}>
+          <NavLink key={it.to} to={it.to} onClick={onCloseMobile} aria-label={it.label} title={isCollapsed ? it.label : undefined} className={({ isActive }) => (isActive ? 'active' : undefined)}>
             <span className="nav-icon" aria-hidden="true"><SidebarIcon to={it.to} fallback={it.icon} /></span> {!isCollapsed && it.label}
           </NavLink>
         ))}
@@ -159,13 +164,16 @@ function Sidebar({
   const sidebarInner = (
     <>
       <div className="brand">
-        <span>◉ VisionPark</span>
-        <button type="button" className="collapse-btn" onClick={onToggle} aria-label="Toggle sidebar">
-          {isCollapsed ? '›' : '‹'}
+        <span className="brand-identity" aria-label="VisionPark">
+          <span className="brand-mark" aria-hidden="true">◉</span>
+          {!isCollapsed && <span className="brand-word">VisionPark</span>}
+        </span>
+        <button type="button" className="collapse-btn" onClick={mobileOpen ? onCloseMobile : onToggle} aria-label={mobileOpen ? 'Đóng menu' : isCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} title={mobileOpen ? 'Đóng menu' : isCollapsed ? 'Mở rộng' : 'Thu gọn'}>
+          {mobileOpen ? '×' : isCollapsed ? '›' : '‹'}
         </button>
       </div>
       <nav>
-        {group(translate("TỔNG QUAN"), visible.filter((x) => x.to === '/admin/dashboard'))}
+        {group(translate("TỔNG QUAN"), visible.filter((x) => ['/admin/dashboard', '/admin/m5'].includes(x.to)))}
         {group(translate("VẬN HÀNH"), visible.filter((x) => ['/station/scan', '/detections', '/parking'].includes(x.to)))}
         {group(translate("QUẢN LÝ"), visible.filter((x) => ['/admin/lanes', '/admin/users', '/admin/roles', '/admin/permissions'].includes(x.to)))}
         {group(translate("AI & HỆ THỐNG"), visible.filter((x) => ['/admin/alpr', '/admin/audit-logs', '/admin/errors', '/admin/system'].includes(x.to)))}
@@ -174,7 +182,7 @@ function Sidebar({
       </nav>
       <div className="sidebar-footer">
         {!isCollapsed && <NavLink to="/profile">{translate("Hồ sơ cá nhân")}</NavLink>}
-        {!isCollapsed && (
+        {!isCollapsed && import.meta.env.DEV && (
           <NavLink to="/dev/ui-kit" style={{ fontSize: 12, color: '#9ca3af' }}>
             UI Kit
           </NavLink>
@@ -209,6 +217,12 @@ export function AppShell() {
   useEffect(() => {
     localStorage.setItem('vp.sidebarCollapsed', collapsed ? '1' : '0')
   }, [collapsed])
+
+  useEffect(() => {
+    const routeTitle = TITLE_MAP[loc.pathname]
+      ?? (loc.pathname.startsWith('/detections/') ? 'Chi tiết nhận diện' : loc.pathname.startsWith('/parking/') ? 'Chi tiết đỗ xe' : 'VisionPark')
+    document.title = routeTitle === 'VisionPark' ? routeTitle : `${routeTitle} | VisionPark`
+  }, [loc.pathname])
 
   useEffect(() => {
     const unsub = subscribeNotifications(() => setUnread(getUnreadCount()))

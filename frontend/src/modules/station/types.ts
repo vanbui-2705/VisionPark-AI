@@ -5,6 +5,7 @@ export type StationState =
   | "stable"
   | "needs_confirmation"
   | "confirming"
+  | "preview_ready"
   | "success"
   | "error";
 export type LaneDirection = "IN" | "OUT";

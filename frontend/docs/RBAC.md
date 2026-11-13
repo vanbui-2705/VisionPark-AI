@@ -21,3 +21,6 @@ hiệu lực token cũ. Callback thanh toán xác thực bằng chữ ký thay v
 Phase 4 thêm checkout.create cho OPERATOR, SYSTEM_ADMIN và BUILDING_ADMIN, khớp
 require_roles ở API checkout. ACCOUNTANT và TECHNICIAN không được thu tiền/cho xe ra.
 Luồng OUT không tự gọi payment API riêng; CASH đi qua endpoint checkout.
+
+`operations.report.read` bảo vệ `/admin/m5` và mục “Báo cáo vận hành” trên sidebar.
+Quyền này dành cho SYSTEM_ADMIN và BUILDING_ADMIN; ACCOUNTANT chỉ có dashboard tổng quan.
