@@ -22,9 +22,7 @@ from app.modules.users.schemas import (
 def assigned_building_id(session: Session, user: User) -> UUID | None:
     if user.role.name == RoleName.SYSTEM_ADMIN:
         return None
-    return session.scalar(
-        select(UserBuilding.building_id).where(UserBuilding.user_id == user.id)
-    )
+    return session.scalar(select(UserBuilding.building_id).where(UserBuilding.user_id == user.id))
 
 
 def to_public_user(user: User, *, building_id: UUID | None = None) -> UserPublic:
@@ -165,9 +163,7 @@ class UserManagementService:
         return self._to_managed_user(user)
 
     def _to_managed_user(self, user: User) -> ManagedUserPublic:
-        return to_managed_user(
-            user, building_id=assigned_building_id(self.session, user)
-        )
+        return to_managed_user(user, building_id=assigned_building_id(self.session, user))
 
     def _save(self, user: User, actor: User | None, action: str, before):
         try:
