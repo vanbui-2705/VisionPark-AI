@@ -7,6 +7,18 @@ import type { ConfirmationPayload, DetectionResult, Lane, RecentHistoryItem } fr
 
 export type InputContext = { inputKind: "IMAGE_UPLOAD" | "VIDEO_FRAME"; videoTimeMs?: number }
 export type PriceContext = { vehicle_type: string; ticket_kind: 'HOURLY' | 'DAILY' | 'MONTHLY' | 'NIGHT'; customer_class_id: string; zone_id?: string }
+export type FireSignalEvent = {
+  building_id: string | null
+  camera_id: string
+  zone_code: string | null
+  event_type: 'FIRE' | 'SMOKE'
+  confidence: number
+  confirmed_frame_count: number
+  bbox: [number, number, number, number]
+  evidence_image_path?: string | null
+  timestamp: string
+  status: 'DETECTED' | 'VERIFYING' | 'CONFIRMED' | string
+}
 type Candidate = { image: Blob; laneId: string; context: InputContext; final?: DetectionResult }
 const candidates = new Map<string, Candidate>()
 let candidateGeneration = 0
@@ -26,6 +38,15 @@ function upload(image: Blob, laneId: string, mode: 'preview' | 'final', captureI
 
 export async function getActiveLanes(): Promise<Lane[]> {
   return lanesApi.getActiveLanes()
+}
+
+export function detectFire(image: Blob, cameraId: string, buildingId?: string | null, signal?: AbortSignal): Promise<FireSignalEvent[]> {
+  const form = new FormData()
+  form.append('image', image, 'fire-monitor-frame.jpg')
+  form.append('camera_id', cameraId)
+  form.append('demo_mode', 'true')
+  if (buildingId) form.append('building_id', buildingId)
+  return apiClient.postMultipart<FireSignalEvent[]>('/api/v1/alpr/fire-detection', form, { signal, timeoutMs: 60000 })
 }
 
 export type ExitSession = {
@@ -70,12 +91,13 @@ export async function prepareExit(laneId: string, identifier: string, exitImageU
   }
 }
 
-export function completeExit(session: ExitSession, cash = false): Promise<CheckOutResult> {
+export function completeExit(session: ExitSession, cash = false, overrideReason?: string): Promise<CheckOutResult> {
   return apiClient.post<CheckOutResult>('/api/v1/parking/check-out', {
     session_id: session.session_id, exit_lane_id: session.laneId, expected_fee: session.fee,
     ...(session.exit_image_url ? { exit_image_url: session.exit_image_url } : {}),
     ...(session.vehicle_type_out ? { vehicle_type_out: session.vehicle_type_out } : {}),
     ...(session.is_lost_ticket ? { is_lost_ticket: true } : {}),
+    ...(overrideReason?.trim() ? { override_reason: overrideReason.trim() } : {}),
     ...(cash ? { payment_method: 'CASH' } : {}),
   }, { headers: { 'Idempotency-Key': `station-exit-${session.session_id}` }, timeoutMs: 15000 })
 }

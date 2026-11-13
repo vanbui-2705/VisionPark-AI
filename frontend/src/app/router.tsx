@@ -29,8 +29,8 @@ import { SettingsPage } from '../modules/settings/SettingsPage.tsx'
 import { NotificationsPage } from '../modules/notifications/NotificationsPage.tsx'
 import { HelpPage } from '../modules/help/HelpPage.tsx'
 import { DocsLayout } from '../modules/docs/DocsLayout.tsx'
+import StationPage from '../modules/station/StationPage.tsx'
 
-const StationPage = lazy(() => import('../modules/station/StationPage.tsx'))
 const M5Page = lazy(() => import('../modules/m5/M5Page.tsx').then(module => ({ default: module.M5Page })))
 const RolesPage = lazy(() => import('../modules/roles/RolesPage.tsx').then(module => ({ default: module.RolesPage })))
 const PermissionsPage = lazy(() => import('../modules/permissions/PermissionsPage.tsx').then(module => ({ default: module.PermissionsPage })))

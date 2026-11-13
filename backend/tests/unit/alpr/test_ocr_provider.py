@@ -8,6 +8,11 @@ from app.alpr.errors import ALPRInferenceError, ALPRModelLoadError
 from app.alpr.ocr_provider import OCRCandidate, PaddleOCRTextRecognition, select_plate_candidate
 
 
+def _predict_each(input_value, predict_one):
+    crops = input_value if isinstance(input_value, list) else [input_value]
+    return [predict_one(crop) for crop in crops]
+
+
 def test_collect_candidates_supports_scalar_and_array_shapes():
     output: list[tuple[str, float]] = []
     PaddleOCRTextRecognition.collect_candidates(
@@ -38,16 +43,41 @@ def test_candidate_consensus_beats_one_higher_confidence_misread():
     assert result.confidence == 0.84
 
 
+def test_crops_from_one_preprocessing_family_only_cast_one_vote():
+    result = select_plate_candidate(
+        [
+            OCRCandidate("51B-0392", 0.74, "original:full"),
+            OCRCandidate("51B-0392", 0.72, "original:top"),
+            OCRCandidate("51B-04392", 0.86, "clahe:tight"),
+        ]
+    )
+
+    assert result.normalized_text == "51B04392"
+
+
+def test_five_digit_serial_wins_when_candidate_confidence_is_nearly_tied():
+    result = select_plate_candidate(
+        [
+            OCRCandidate("29A 7952", 0.781, "original:combined"),
+            OCRCandidate("29A 74952", 0.763, "clahe:combined"),
+        ]
+    )
+
+    assert result.normalized_text == "29A74952"
+
+
 def test_low_confidence_full_crop_uses_a_tighter_preprocessed_candidate(monkeypatch):
     class CropSensitiveTextRecognition:
         def __init__(self, **kwargs):
             pass
 
         def predict(self, **kwargs):
-            crop = kwargs["input"]
-            if crop.shape[0] < 28:
-                return [{"rec_texts": ["51B-04392"], "rec_scores": [0.86]}]
-            return [{"rec_texts": ["51B-0392"], "rec_scores": [0.74]}]
+            def predict_one(crop):
+                if crop.shape[0] < 28:
+                    return {"rec_texts": ["51B-04392"], "rec_scores": [0.86]}
+                return {"rec_texts": ["51B-0392"], "rec_scores": [0.74]}
+
+            return _predict_each(kwargs["input"], predict_one)
 
     monkeypatch.setitem(
         sys.modules,
@@ -65,6 +95,51 @@ def test_low_confidence_full_crop_uses_a_tighter_preprocessed_candidate(monkeypa
     assert result.confidence == 0.86
 
 
+def test_recognition_does_not_short_circuit_on_one_high_confidence_misread(monkeypatch):
+    class HighConfidenceMisread:
+        def __init__(self, **kwargs):
+            pass
+
+        def predict(self, **kwargs):
+            def predict_one(crop):
+                if crop.shape[0] < 28:
+                    return {"rec_texts": ["29A-901.01"], "rec_scores": [0.84]}
+                return {"rec_texts": ["29A-90.01"], "rec_scores": [0.90]}
+
+            return _predict_each(kwargs["input"], predict_one)
+
+    monkeypatch.setitem(
+        sys.modules, "paddleocr", SimpleNamespace(TextRecognition=HighConfidenceMisread)
+    )
+    provider = PaddleOCRTextRecognition()
+
+    result = provider.recognize(np.zeros((32, 128, 3), dtype=np.uint8))
+
+    assert result.normalized_text == "29A90101"
+
+
+def test_invalid_ocr_text_is_not_published_as_a_plate(monkeypatch):
+    class InvalidTextRecognition:
+        def __init__(self, **kwargs):
+            pass
+
+        def predict(self, **kwargs):
+            return _predict_each(
+                kwargs["input"],
+                lambda crop: {"rec_texts": ["HELLO"], "rec_scores": [0.95]},
+            )
+
+    monkeypatch.setitem(
+        sys.modules, "paddleocr", SimpleNamespace(TextRecognition=InvalidTextRecognition)
+    )
+    provider = PaddleOCRTextRecognition()
+
+    result = provider.recognize(np.zeros((32, 128, 3), dtype=np.uint8))
+
+    assert result.raw_text == "HELLO"
+    assert result.normalized_text is None
+
+
 def test_recognition_model_is_lazy_loaded_and_normalizes_text(monkeypatch):
     class FakeTextRecognition:
         instances = 0
@@ -74,8 +149,9 @@ def test_recognition_model_is_lazy_loaded_and_normalizes_text(monkeypatch):
             assert kwargs["model_name"] == "latin_PP-OCRv5_mobile_rec"
 
         def predict(self, **kwargs):
-            assert kwargs["batch_size"] == 1
-            return [{"rec_texts": ["29A-123.45"], "rec_scores": [0.94]}]
+            crops = kwargs["input"] if isinstance(kwargs["input"], list) else [kwargs["input"]]
+            assert kwargs["batch_size"] == len(crops)
+            return [{"rec_texts": ["29A-123.45"], "rec_scores": [0.94]} for _ in crops]
 
     monkeypatch.setitem(
         sys.modules, "paddleocr", SimpleNamespace(TextRecognition=FakeTextRecognition)
@@ -126,13 +202,15 @@ def test_two_line_square_plate_splits_and_combines(monkeypatch):
             pass
 
         def predict(self, **kwargs):
-            crop = kwargs.get("input")
-            h, w = crop.shape[:2]
-            if h == 64:
-                return []
-            if float(crop.mean()) < 125:
-                return [{"rec_texts": ["29-A1"], "rec_scores": [0.92]}]
-            return [{"rec_texts": ["123.45"], "rec_scores": [0.96]}]
+            def predict_one(crop):
+                h, _ = crop.shape[:2]
+                if h == 64:
+                    return {"rec_texts": [], "rec_scores": []}
+                if float(crop.mean()) < 125:
+                    return {"rec_texts": ["29-A1"], "rec_scores": [0.92]}
+                return {"rec_texts": ["123.45"], "rec_scores": [0.96]}
+
+            return _predict_each(kwargs["input"], predict_one)
 
     monkeypatch.setitem(
         sys.modules, "paddleocr", SimpleNamespace(TextRecognition=TwoLineTextRecognition)
@@ -156,11 +234,13 @@ def test_two_line_square_plate_falls_back_when_split_fails(monkeypatch):
             pass
 
         def predict(self, **kwargs):
-            crop = kwargs.get("input")
-            h, w = crop.shape[:2]
-            if h == 64:
-                return [{"rec_texts": ["29A1 12345"], "rec_scores": [0.88]}]
-            return []
+            def predict_one(crop):
+                h, _ = crop.shape[:2]
+                if h == 64:
+                    return {"rec_texts": ["29A1 12345"], "rec_scores": [0.88]}
+                return {"rec_texts": [], "rec_scores": []}
+
+            return _predict_each(kwargs["input"], predict_one)
 
     monkeypatch.setitem(
         sys.modules, "paddleocr", SimpleNamespace(TextRecognition=FallbackTextRecognition)

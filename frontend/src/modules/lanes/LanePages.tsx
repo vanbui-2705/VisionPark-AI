@@ -5,6 +5,7 @@ import { lanesApi } from '../../api/lanesApi.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import { can } from '../../lib/permissions.ts'
 import type { Lane } from '../../api/types.ts'
+import type { LanePayload } from '../../api/lanesApi.ts'
 import { LaneForm } from './LaneForm.tsx'
 import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
 
@@ -12,7 +13,7 @@ export function LaneCreatePage() {
   const nav = useNavigate()
   const [done, setDone] = useState(false)
   useEffect(() => { if (done) nav('/admin/lanes') }, [done, nav])
-  const onSubmit = async (payload: { name: string; direction: Lane['direction']; video_source?: string | null; active?: boolean }) => {
+  const onSubmit = async (payload: LanePayload) => {
     await lanesApi.createLane(payload)
     setDone(true)
   }
@@ -30,7 +31,7 @@ export function LaneEditPage() {
   const [lane, setLane] = useState<Lane | null>(null)
   useEffect(() => { lanesApi.getLane(id).then(setLane).catch(() => {}) }, [id])
   if (!lane) return <div className="spinner">{translate("Đang tải...")}</div>
-  const onSubmit = async (payload: { name: string; direction: Lane['direction']; video_source?: string | null; active?: boolean }) => {
+  const onSubmit = async (payload: LanePayload) => {
     await lanesApi.updateLane(id, payload)
     nav(`/admin/lanes/${id}`)
   }

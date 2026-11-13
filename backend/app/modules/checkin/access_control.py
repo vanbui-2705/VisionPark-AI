@@ -259,11 +259,23 @@ def evaluate_access_control(
     """Đánh giá Access Control (ALLOW / DENY / REVIEW) trước khi tạo phiên check-in."""
     del operator
     # 1. Kiểm tra làn xe có cho phép loại xe này không (BR làn xe & loại xe)
-    allowed_vtype = getattr(lane, "allowed_vehicle_type", AllowedVehicleType.ALL)
-    if type(allowed_vtype).__name__ == "MagicMock" or not allowed_vtype:
-        allowed_vtype = AllowedVehicleType.ALL
+    legacy_allowed = getattr(lane, "allowed_vehicle_type", AllowedVehicleType.ALL)
+    if type(legacy_allowed).__name__ == "MagicMock" or not legacy_allowed:
+        legacy_allowed = AllowedVehicleType.ALL
+    legacy_allowed = str(legacy_allowed)
+    configured_types = getattr(lane, "allowed_vehicle_types", None)
+    if type(configured_types).__name__ == "MagicMock":
+        configured_types = None
+    if legacy_allowed != AllowedVehicleType.ALL:
+        allowed_types = {legacy_allowed}
+    elif configured_types:
+        allowed_types = {str(item) for item in configured_types}
+    else:
+        allowed_types = {
+            item.value for item in AllowedVehicleType if item != AllowedVehicleType.ALL
+        }
 
-    if allowed_vtype != AllowedVehicleType.ALL and allowed_vtype != vehicle_type:
+    if vehicle_type not in allowed_types:
         lane_name = getattr(lane, "name", "Lane")
         if type(lane_name).__name__ == "MagicMock":
             lane_name = "Lane"
@@ -271,9 +283,9 @@ def evaluate_access_control(
             decision=AccessDecision.DENY,
             reason=(
                 f"Lane '{lane_name}' does not allow vehicle type '{vehicle_type}'. "
-                f"Allowed: '{allowed_vtype}'."
+                f"Allowed: '{', '.join(sorted(allowed_types))}'."
             ),
-            details={"allowed": str(allowed_vtype), "requested": str(vehicle_type)},
+            details={"allowed": sorted(allowed_types), "requested": str(vehicle_type)},
         )
 
     # 2. Quy tắc BR-20: Xe đạp không bắt buộc biển số nhưng bắt buộc có ticket_code

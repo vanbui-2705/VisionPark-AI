@@ -48,13 +48,24 @@ def select_plate_candidate(candidates: list[OCRCandidate]) -> OCRReadResult:
     if not grouped:
         return OCRReadResult(None, None, 0.0)
 
+    def support_score(normalized: str, agreeing: list[OCRCandidate]) -> tuple[float, int, float]:
+        best_by_family: dict[str, float] = {}
+        for candidate in agreeing:
+            family = candidate.source.partition(":")[0]
+            best_by_family[family] = max(best_by_family.get(family, 0.0), candidate.confidence)
+        confidences = list(best_by_family.values())
+        average_confidence = sum(confidences) / len(confidences)
+        consensus_bonus = 0.08 * (len(confidences) - 1)
+        five_digit_bonus = 0.025 if len(normalized) >= 8 else 0.0
+        return (
+            average_confidence + consensus_bonus + five_digit_bonus,
+            len(confidences),
+            max(confidences),
+        )
+
     normalized, agreeing = max(
         grouped.items(),
-        key=lambda item: (
-            len(item[1]),
-            sum(candidate.confidence for candidate in item[1]) / len(item[1]),
-            max(candidate.confidence for candidate in item[1]),
-        ),
+        key=lambda item: support_score(item[0], item[1]),
     )
     best = max(agreeing, key=lambda candidate: candidate.confidence)
     return OCRReadResult(
@@ -162,6 +173,34 @@ class PaddleOCRTextRecognition:
         self.collect_candidates(raw_result, candidates)
         return candidates
 
+    def _predict_crops(self, crops: list[np.ndarray]) -> list[list[tuple[str, float]]]:
+        """Recognize multiple crop variants in one PaddleOCR batch."""
+        if not crops:
+            return []
+        if len(crops) == 1:
+            return [self._predict_single_crop(crops[0])]
+        if any(crop is None or getattr(crop, "size", 0) == 0 for crop in crops):
+            raise ALPRInferenceError("OCR inference received an empty crop variant")
+        try:
+            try:
+                raw_results = list(self._model.predict(input=crops, batch_size=len(crops)))
+            except TypeError:
+                raw_results = list(self._model.predict(crops))
+        except TimeoutError as exc:
+            raise ALPROCRTimeoutError(f"OCR inference timed out: {exc}") from exc
+        except Exception as exc:
+            raise ALPRInferenceError(f"OCR inference failed: {exc}") from exc
+        if len(raw_results) != len(crops):
+            raise ALPRInferenceError(
+                f"OCR batch returned {len(raw_results)} result(s) for {len(crops)} crop variant(s)"
+            )
+        outputs: list[list[tuple[str, float]]] = []
+        for raw_result in raw_results:
+            candidates: list[tuple[str, float]] = []
+            self.collect_candidates(raw_result, candidates)
+            outputs.append(candidates)
+        return outputs
+
     def _append_candidates(
         self,
         output: list[OCRCandidate],
@@ -176,6 +215,20 @@ class PaddleOCRTextRecognition:
         )
         return predictions
 
+    def _append_variant_batch(
+        self,
+        output: list[OCRCandidate],
+        variants: list[tuple[str, np.ndarray]],
+    ) -> list[list[tuple[str, float]]]:
+        predictions_by_variant = self._predict_crops([crop for _, crop in variants])
+        for (source, _), predictions in zip(variants, predictions_by_variant, strict=True):
+            output.extend(
+                OCRCandidate(text.strip(), float(confidence), source)
+                for text, confidence in predictions
+                if text and text.strip()
+            )
+        return predictions_by_variant
+
     @staticmethod
     def _clahe(crop: np.ndarray) -> np.ndarray:
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
@@ -188,57 +241,99 @@ class PaddleOCRTextRecognition:
         self.ensure_loaded()
         h, w = crop.shape[:2]
         candidates: list[OCRCandidate] = []
-        full_predictions = self._append_candidates(candidates, crop, "original")
-
-        if full_predictions:
-            raw_text, confidence = max(full_predictions, key=lambda item: item[1])
-            normalized = normalize_plate(raw_text)
-            if confidence >= 0.90 and _looks_like_vietnamese_plate(normalized):
-                return OCRReadResult(raw_text, normalized, min(1.0, float(confidence)))
-
-        enhanced = self._clahe(crop)
-
-        # A detector box can be almost square either because the physical plate
-        # has two rows or because a distant single-row plate includes vertical
-        # padding. Evaluate both interpretations and let consensus decide.
-        if h >= 20 and w > 0 and (w / h) <= 2.2:
-            for source, variant in (("original", crop), ("clahe", enhanced)):
-                top = variant[0 : max(1, int(h * 0.59)), :]
-                bottom = variant[min(h - 1, int(h * 0.45)) : h, :]
-                top_predictions = self._append_candidates(candidates, top, f"{source}:top")
-                bottom_predictions = self._append_candidates(
-                    candidates, bottom, f"{source}:bottom"
-                )
-                if top_predictions and bottom_predictions:
-                    top_text, top_confidence = max(
-                        top_predictions, key=lambda item: item[1]
-                    )
-                    bottom_text, bottom_confidence = max(
-                        bottom_predictions, key=lambda item: item[1]
-                    )
-                    candidates.append(
-                        OCRCandidate(
-                            f"{top_text.strip()} {bottom_text.strip()}",
-                            (float(top_confidence) + float(bottom_confidence)) / 2.0,
-                            f"{source}:combined",
-                        )
-                    )
-
-        # For low-confidence one-row crops, trimming detector padding and
-        # enhancing local contrast recovered characters without changing model
-        # weights. Keep this to one extra inference to bound latency.
+        full_predictions: list[tuple[str, float]] = []
         tight_height = max(1, int(h * 0.62))
-        self._append_candidates(candidates, enhanced[:tight_height, :], "clahe:tight")
+
+        def repeated(result: OCRReadResult) -> bool:
+            return (
+                bool(result.normalized_text)
+                and sum(
+                    normalize_plate(candidate.raw_text) == result.normalized_text
+                    for candidate in candidates
+                )
+                >= 2
+            )
+
+        def append_split(source: str, variant: np.ndarray) -> None:
+            top = variant[0 : max(1, int(h * 0.59)), :]
+            bottom = variant[min(h - 1, int(h * 0.45)) : h, :]
+            top_predictions, bottom_predictions = self._append_variant_batch(
+                candidates,
+                [(f"{source}:top", top), (f"{source}:bottom", bottom)],
+            )
+            if top_predictions and bottom_predictions:
+                top_text, top_confidence = max(top_predictions, key=lambda item: item[1])
+                bottom_text, bottom_confidence = max(bottom_predictions, key=lambda item: item[1])
+                candidates.append(
+                    OCRCandidate(
+                        f"{top_text.strip()} {bottom_text.strip()}",
+                        (float(top_confidence) + float(bottom_confidence)) / 2.0,
+                        f"{source}:combined",
+                    )
+                )
+
+        ratio = w / h if h > 0 else 0.0
+        if h >= 20 and ratio < 0.9:
+            # Very tall detector boxes are strongly oblique two-row plates in
+            # the current camera domain. Contrast enhancement is both more
+            # accurate and avoids spending two OCR calls on unusable raw rows.
+            enhanced = self._clahe(crop)
+            append_split("clahe", enhanced)
+            selected = select_plate_candidate(candidates)
+            if selected.normalized_text:
+                return selected
+            append_split("original", crop)
+        elif h >= 20 and ratio <= 1.5:
+            # True square plates: reading the full box wastes work and is less
+            # accurate than recognizing the two overlapping rows directly.
+            append_split("original", crop)
+            selected = select_plate_candidate(candidates)
+            if selected.confidence >= 0.85 or repeated(selected):
+                return selected
+            enhanced = self._clahe(crop)
+            append_split("clahe", enhanced)
+        elif h >= 20 and ratio <= 2.2:
+            # A short, wide box is normally a distant one-row plate with extra
+            # vertical padding. Two nearby trims provide a cheap stability vote.
+            self._append_variant_batch(
+                candidates,
+                [
+                    ("original:top", crop[: max(1, int(h * 0.59)), :]),
+                    ("original:tight", crop[:tight_height, :]),
+                ],
+            )
+            selected = select_plate_candidate(candidates)
+            if selected.confidence >= 0.85 or repeated(selected):
+                return selected
+            enhanced = self._clahe(crop)
+            self._append_candidates(candidates, enhanced[:tight_height, :], "clahe:tight")
+        else:
+            # Standard one-row plate: compare the full detector box with a
+            # tighter crop, then pay for CLAHE only when they disagree.
+            full_predictions, _ = self._append_variant_batch(
+                candidates,
+                [("original", crop), ("original:tight", crop[:tight_height, :])],
+            )
+            selected = select_plate_candidate(candidates)
+            if repeated(selected):
+                return selected
+            enhanced = self._clahe(crop)
+            self._append_candidates(candidates, enhanced[:tight_height, :], "clahe:tight")
 
         selected = select_plate_candidate(candidates)
         if selected.normalized_text:
             return selected
 
         if not full_predictions:
+            full_predictions = self._append_candidates(candidates, crop, "original:fallback")
+        if not full_predictions:
             return OCRReadResult(None, None, 0.0)
+        selected = select_plate_candidate(candidates)
+        if selected.normalized_text:
+            return selected
         raw_text, confidence = max(full_predictions, key=lambda item: item[1])
         return OCRReadResult(
             raw_text,
-            normalize_plate(raw_text) or None,
+            None,
             max(0.0, min(1.0, float(confidence))),
         )

@@ -1,27 +1,27 @@
-# Kế hoạch cải thiện và nghiệm thu VisionPark ở chế độ FILE_UPLOAD
+# Kế hoạch cải thiện VisionPark để sẵn sàng demo
 
 Ngày lập: 08/11/2026  
 Phạm vi đánh giá: nhánh `van-dev`, sau khi hợp nhất `origin/main` tại commit `d133345`  
-Mục tiêu: nghiệm thu hệ thống vận hành thật với đầu vào JPEG/PNG/MP4; `LIVE_CAMERA/RTSP` là tích hợp tiếp theo và ALPR quality được đánh giá bằng gate độc lập
+Mục tiêu: functional demo có kiểm soát, không phải nghiệm thu production hoặc chứng nhận độ chính xác thương mại
 
 ## 1. Kết luận hiện trạng
 
-VisionPark là hệ thống thật gồm đăng nhập, nhận diện biển số, check-in, check-out, thu tiền mặt, cập nhật sức chứa, dashboard và audit log. Chế độ đầu vào hiện tại là upload JPEG/PNG hoặc MP4; frontend trích frame video và gửi vào real ALPR provider. Mức sẵn sàng nghiệm thu hệ thống hiện được ước tính khoảng 70%.
+VisionPark đã có nền tảng đủ để xây dựng một buổi demo xuyên suốt gồm đăng nhập, nhận diện biển số, check-in, check-out, thu tiền mặt, cập nhật sức chứa, dashboard và audit log. Mức sẵn sàng demo hiện được ước tính khoảng 70%.
 
-Các phần còn ngăn cản nghiệm thu hệ thống đáng tin cậy:
+Các phần còn ngăn cản một buổi demo đáng tin cậy:
 
 1. Checkout CASH chưa ghi thống nhất vào sổ `Invoice`/`Payment`, nên doanh thu và lượt xe ra có thể không khớp dashboard.
 2. Backend còn chấp nhận `payment_method` dưới dạng chuỗi tùy ý và chưa xác thực số tiền tại luồng `record_payment`.
 3. Station OUT chưa có giao diện xử lý đầy đủ cho sai loại xe, mất vé, xe không biển số hoặc tìm phiên bằng mã vé.
 4. Release gate ALPR hiện tại không còn khớp README và có nhánh benchmark tổng hợp không chứng minh độ chính xác model thật.
 5. Backend formatter check đang thất bại; Docker runtime chưa được xác nhận vì Docker daemon chưa chạy tại lần kiểm tra.
-6. Chưa có một bộ acceptance media và quy trình chuẩn bị lại môi trường kiểm thử có thể chạy nhiều lần.
+6. Chưa có một bộ dữ liệu demo và quy trình reset có thể chạy lại nhiều lần.
 
-Sau khi hoàn thành kế hoạch này, mục tiêu là nghiệm thu được toàn bộ phạm vi `FILE_UPLOAD`. Tích hợp camera live/RTSP, các thiết bị ngoại vi chưa kết nối và vận hành quy mô production có kế hoạch riêng.
+Sau khi hoàn thành kế hoạch này, mục tiêu là đạt khoảng 90% sẵn sàng demo. Phần còn lại thuộc phạm vi production như thiết bị vật lý, ngân hàng thật, benchmark thực địa và vận hành dài hạn.
 
-## 2. Phạm vi nghiệm thu hệ thống
+## 2. Phạm vi demo được chốt
 
-### 2.1. Chức năng phải chạy thật
+### 2.1. Chức năng sẽ trình diễn
 
 - Đăng nhập bằng tài khoản `OPERATOR` hoặc `BUILDING_ADMIN`.
 - Chọn làn IN và nhận diện biển số từ ảnh JPEG/PNG hoặc video MP4 đã chuẩn bị.
@@ -31,14 +31,14 @@ Sau khi hoàn thành kế hoạch này, mục tiêu là nghiệm thu được to
 - Chọn làn OUT, tìm phiên đang gửi và hiển thị ảnh vào/ra.
 - Preview thời gian gửi và phí từ price snapshot.
 - Xác nhận thu tiền mặt `CASH`.
-- Hoàn tất checkout, giảm bộ đếm và ghi barrier event thật vào hệ thống. Việc điều khiển barrier vật lý được kết luận riêng theo adapter/controller thực tế.
+- Hoàn tất checkout, giảm bộ đếm và ghi sự kiện barrier mô phỏng.
 - Xem dashboard, lịch sử giao dịch và audit log.
 - Trình diễn một xe vé tháng nếu dữ liệu và pricing đã được seed ổn định.
 
-### 2.2. Ngoài phạm vi FILE_UPLOAD hiện tại
+### 2.2. Ngoài phạm vi demo
 
 - Camera RTSP trực tiếp.
-- Phần cứng nào chưa có adapter/controller được xác nhận trên môi trường triển khai.
+- Barrier vật lý và tín hiệu ACK từ controller/cảm biến.
 - VietQR hoặc ngân hàng thật.
 - Heartbeat từ thiết bị thật.
 - Vận hành offline và đồng bộ lại khi có mạng.
@@ -47,7 +47,7 @@ Sau khi hoàn thành kế hoạch này, mục tiêu là nghiệm thu được to
 - Portal cư dân, voucher, đặt chỗ và dự báo cao điểm.
 - Chuỗi xử lý sự cố cháy/khói ngoài hiện trường.
 
-Không được gọi toàn hệ thống là mock hoặc mô phỏng. UI/tài liệu phải ghi rõ input mode là `FILE_UPLOAD`, `LIVE_CAMERA/RTSP` chưa tích hợp, và trạng thái thiết bị ngoại vi đúng theo evidence triển khai.
+Mọi màn hình liên quan phải ghi rõ barrier và thiết bị đang ở chế độ mô phỏng. Không sử dụng số liệu demo để đại diện cho số liệu production.
 
 ## 3. Baseline kỹ thuật
 
@@ -74,7 +74,7 @@ Ba OpenSpec change vẫn đang mở:
 
 ## 4. Hạng mục cần build mới và cần cải thiện
 
-Phần này là phạm vi implementation chính thức cho đợt nghiệm thu hệ thống. Mỗi hạng mục phải tạo ra code, migration, test hoặc tài liệu có thể kiểm tra được; không chỉ dừng ở việc mô tả hiện trạng.
+Phần này là phạm vi implementation chính thức cho đợt demo. Mỗi hạng mục phải tạo ra code, migration, test hoặc tài liệu có thể kiểm tra được; không chỉ dừng ở việc mô tả hiện trạng.
 
 ### 4.1. Các thành phần cần build mới
 
@@ -145,18 +145,18 @@ Vị trí code dự kiến:
 - `frontend/src/modules/station/StationPage.tsx`.
 - `frontend/tests/station/`.
 
-#### BUILD-04 — Chuẩn bị và reset môi trường acceptance
+#### BUILD-04 — Demo seed và reset command
 
-Xây command chuyên dụng để chuẩn bị lại môi trường test/acceptance mà không chỉnh thủ công trong database.
+Xây command chuyên dụng để chuẩn bị lại môi trường demo mà không chỉnh thủ công trong database.
 
 Command cần:
 
-- Tạo/cập nhật building acceptance.
-- Tạo user acceptance từ mật khẩu được cung cấp qua biến môi trường.
+- Tạo/cập nhật building demo.
+- Tạo user demo từ mật khẩu được cung cấp qua biến môi trường.
 - Tạo làn IN/OUT.
 - Tạo capacity và pricing version.
-- Tạo ticket product, xe và subscription acceptance.
-- Chỉ xóa/reset dữ liệu nằm trong namespace acceptance được xác định rõ; không reset production.
+- Tạo ticket product, xe và subscription demo.
+- Chỉ xóa/reset dữ liệu nằm trong namespace demo được xác định rõ.
 - Chạy lặp lại không tạo dữ liệu trùng.
 
 Đầu ra dự kiến:
@@ -167,16 +167,16 @@ Command cần:
 
 Không hard-code secret hoặc tự động chạy trên production.
 
-#### BUILD-05 — Acceptance media manifest
+#### BUILD-05 — Demo media manifest
 
-Xây manifest cho bộ ảnh/video dùng để kiểm thử và nghiệm thu, chứa:
+Xây manifest cho bộ ảnh/video demo, chứa:
 
 - ID kịch bản.
 - Đường dẫn media.
 - SHA-256.
 - Expected plate/scenario.
 - Nguồn và quyền sử dụng.
-- Phân loại rõ functional acceptance media và independent quality dataset.
+- Ghi chú đây là fixture demo, không phải accuracy dataset.
 
 Đầu ra dự kiến:
 
@@ -184,13 +184,13 @@ Xây manifest cho bộ ảnh/video dùng để kiểm thử và nghiệm thu, ch
 - Script kiểm tra file tồn tại và checksum đúng.
 - Bộ media đủ cho success, low confidence, no plate, manual fallback và ảnh vào/ra.
 
-#### BUILD-06 — System Functional Gate
+#### BUILD-06 — Functional demo gate
 
-Xây một gate riêng đánh giá tính đúng của hệ thống thật ở chế độ `FILE_UPLOAD`:
+Xây một gate riêng chỉ đánh giá tính đúng của workflow demo:
 
 - Database readiness.
 - API/frontend health.
-- Dữ liệu acceptance hợp lệ.
+- Seed demo hợp lệ.
 - Check-in và duplicate protection.
 - Checkout CASH và idempotency.
 - Ledger/report/counter nhất quán.
@@ -200,11 +200,11 @@ Gate phải trả exit code khác 0 khi bất kỳ điều kiện nào thất b�
 
 Đầu ra dự kiến:
 
-- Script `backend/scripts/system_gate.py`.
+- Script mới, ví dụ `backend/scripts/demo_gate.py`.
 - Không dùng tên hoặc kết quả của gate này để tuyên bố ALPR accuracy.
 - Được gọi trong checklist dry-run hoặc CI profile phù hợp.
 
-#### BUILD-07 — System E2E test
+#### BUILD-07 — Demo E2E test
 
 Xây test xuyên suốt cho kịch bản chính:
 
@@ -235,7 +235,7 @@ check-in → counter tăng → preview checkout → CASH payment
 
 - Gom các thay đổi transaction, ledger, counter và audit vào transaction boundary rõ ràng.
 - Rollback toàn bộ nếu invoice/payment/counter ghi thất bại.
-- Phân biệt barrier business event đã ghi trong hệ thống với ACK của controller vật lý; kết luận trạng thái thiết bị theo adapter triển khai.
+- Không báo `barrier_opened=true` như trạng thái thiết bị vật lý; dùng tên như `barrier_event_recorded` hoặc ghi rõ `SIMULATED` trong response/demo UI.
 
 #### IMPROVE-03 — M5 dashboard và báo cáo
 
@@ -250,33 +250,33 @@ check-in → counter tăng → preview checkout → CASH payment
 - Không để nút bị disable mà không có hướng dẫn xử lý.
 - Khóa submit lặp và giữ cùng idempotency key cho cùng một phiên.
 - Sau checkout chỉ hiển thị nút xe tiếp theo.
-- Hiển thị rõ trạng thái barrier business event và trạng thái controller vật lý, không suy diễn hai trạng thái là một.
+- Hiển thị rõ barrier đang mô phỏng.
 
 #### IMPROVE-05 — Release gate ALPR
 
 - Khôi phục hoặc thay thế lệnh functional gate đã ghi trong README.
 - Loại bỏ nhánh dùng `expected_plate` làm đầu vào rồi tính accuracy.
 - Giữ quality gate ở trạng thái HOLD nếu không có dataset thực độc lập.
-- System Functional Gate và ALPR Quality Gate phải là hai command/report khác nhau.
+- Functional demo gate và ALPR quality gate phải là hai command/report khác nhau.
 
 #### IMPROVE-06 — CI và code quality
 
 - Format các file đang làm `ruff format --check` thất bại.
 - Chạy test/lint/format trong cùng môi trường với CI.
 - Xử lý warning hooks ảnh hưởng Station/settings.
-- Chỉ tối ưu bundle sau khi luồng nghiệp vụ hệ thống ổn định.
+- Chỉ tối ưu bundle sau khi luồng nghiệp vụ demo ổn định.
 
-#### IMPROVE-07 — Tài liệu và operational runbook
+#### IMPROVE-07 — Tài liệu và demo runbook
 
 - Đồng bộ README với command thực tế.
 - Cập nhật `docs/UAT-Demo-Script.md` theo kịch bản A–E.
 - Ghi tài khoản/secret bằng biến môi trường, không commit giá trị thật.
 - Thêm checklist preflight, reset, warmup, port, health và troubleshooting.
-- Ghi rõ: hệ thống thật ở chế độ `FILE_UPLOAD`, chưa tích hợp `LIVE_CAMERA/RTSP`, trạng thái barrier theo adapter thực tế, CASH operational workflow và ALPR quality PASS/FAIL/HOLD độc lập.
+- Ghi rõ giới hạn: MP4/upload, chưa RTSP, barrier mô phỏng, CASH demo, ALPR quality HOLD.
 
-### 4.3. Thành phần chưa cần build trong phạm vi FILE_UPLOAD
+### 4.3. Thành phần chưa cần build trong đợt demo
 
-Các hạng mục sau được đưa vào backlog tích hợp/pilot riêng, không nằm trong critical path nghiệm thu hiện tại:
+Các hạng mục sau được đưa vào backlog production/pilot riêng, không nằm trong critical path của demo:
 
 - RTSP/live camera adapter.
 - Barrier controller vật lý, PLC và cảm biến xe qua cổng.
@@ -294,38 +294,38 @@ Sửa CASH và ledger
         ↓
 Hoàn thiện Station OUT tối thiểu
         ↓
-Tạo dữ liệu acceptance và acceptance media
+Tạo seed/reset và bộ media demo
         ↓
 Sửa release gate, CI và tài liệu
         ↓
 Chạy E2E + Docker dry-run
         ↓
-Nghiệm thu theo UAT System Script
+Tổng duyệt theo UAT Demo Script
 ```
 
-Không đảo thứ tự bằng cách làm giao diện hoặc dashboard trước khi sổ tiền được thống nhất, vì hệ thống có thể báo checkout thành công nhưng báo cáo doanh thu bằng 0.
+Không đảo thứ tự bằng cách làm giao diện hoặc dashboard trước khi sổ tiền được thống nhất, vì demo có thể hiển thị checkout thành công nhưng báo cáo doanh thu bằng 0.
 
 ## 6. Backlog ưu tiên
 
 | ID | Ưu tiên | Công việc | Kết quả đầu ra | Tiêu chí hoàn thành |
 | --- | --- | --- | --- | --- |
-| DEMO-01 | P0 | Giới hạn phương thức thanh toán Station | Enum/validation chỉ chấp nhận `CASH` trong workflow hiện tại | Chuỗi lạ bị backend từ chối bằng lỗi 422/400 có mã rõ ràng |
+| DEMO-01 | P0 | Giới hạn phương thức thanh toán demo | Enum/validation chỉ chấp nhận `CASH` trong Station demo | Chuỗi lạ bị backend từ chối bằng lỗi 422/400 có mã rõ ràng |
 | DEMO-02 | P0 | Xác thực tiền phải thu | So sánh số tiền thanh toán với phí snapshot/fee hiện tại | Thu thiếu hoặc thu thừa bị từ chối; override cần quyền và lý do |
 | DEMO-03 | P0 | Nối checkout CASH với ledger | Checkout tạo/settle `Invoice` và `Payment` trong transaction phù hợp | Một checkout chỉ sinh một invoice/payment; retry không tạo trùng |
-| DEMO-04 | P0 | Đồng bộ dashboard và báo cáo | Lượt ra, doanh thu, số xe trong bãi đọc từ dữ liệu thống nhất | Sau một lượt vận hành, counter và báo cáo thay đổi đúng một lần |
+| DEMO-04 | P0 | Đồng bộ dashboard và báo cáo | Lượt ra, doanh thu, số xe trong bãi đọc từ dữ liệu thống nhất | Sau một lượt demo, counter và báo cáo thay đổi đúng một lần |
 | DEMO-05 | P0 | Sửa CI format | Format các file đang fail và chạy lại pipeline | Backend test/lint/format cùng PASS |
-| DEMO-06 | P0 | Tách hai acceptance gate | Tách System Functional Gate khỏi ALPR Quality Gate | Functional gate không tuyên bố accuracy; README command chạy được |
+| DEMO-06 | P0 | Sửa release gate/demo gate | Tách functional demo gate khỏi quality benchmark | Functional gate không tuyên bố accuracy; README command chạy được |
 | DEMO-07 | P1 | Hoàn thiện Station OUT tối thiểu | UI xử lý phí thay đổi, mismatch và override có lý do | Không còn trạng thái nút bị khóa mà không có cách xử lý |
 | DEMO-08 | P1 | Tìm phiên theo mã vé | Station OUT hỗ trợ `ticket_code` cho xe không biển số/xe đạp | Có test frontend và integration tương ứng |
 | DEMO-09 | P1 | Kịch bản mất vé có kiểm soát | Checkbox/action mất vé và hiển thị phí mất vé | Phí và audit thể hiện đúng `is_lost_ticket` |
-| DEMO-10 | P1 | Dữ liệu acceptance idempotent | Một lệnh tạo lại building, users, lanes, pricing, capacity và vé tháng trên môi trường acceptance | Chạy hai lần không tạo bản ghi trùng hoặc đổi mật khẩu ngoài ý muốn |
-| DEMO-11 | P1 | Acceptance media cố định | Ảnh/video được cấp quyền sử dụng và có manifest/checksum | Mỗi media gắn với expected scenario, không phụ thuộc Internet |
-| DEMO-12 | P1 | System E2E tự động | Test check-in → checkout CASH → report → audit | Toàn bộ luồng PASS trên database test riêng |
-| DEMO-13 | P1 | Deployment verification | Build, migrate, seed, health và chạy hệ thống bằng Compose | Backend/frontend/database healthy; restart và chạy lại thành công |
-| DEMO-14 | P1 | Cập nhật tài liệu vận hành | README, UAT và troubleshooting thống nhất | Người khác có thể vận hành FILE_UPLOAD chỉ bằng tài liệu |
+| DEMO-10 | P1 | Seed/reset demo idempotent | Một lệnh tạo lại building, users, lanes, pricing, capacity và vé tháng | Chạy hai lần không tạo bản ghi trùng hoặc đổi mật khẩu ngoài ý muốn |
+| DEMO-11 | P1 | Bộ media demo cố định | Ảnh/video được cấp quyền sử dụng và có manifest/checksum | Mỗi media gắn với expected scenario, không phụ thuộc Internet |
+| DEMO-12 | P1 | E2E demo tự động | Test check-in → checkout CASH → report → audit | Toàn bộ luồng PASS trên database test riêng |
+| DEMO-13 | P1 | Docker dry-run | Build, migrate, seed, health và chạy demo bằng Compose | Backend/frontend/database healthy; reset và chạy lại thành công |
+| DEMO-14 | P1 | Cập nhật tài liệu demo | README, UAT Demo Script và troubleshooting thống nhất | Người khác có thể chạy demo chỉ bằng tài liệu |
 | DEMO-15 | P2 | Dọn cảnh báo frontend | Sửa warning hooks quan trọng và code splitting cơ bản | Không còn warning ảnh hưởng Station/settings; build vẫn PASS |
 
-## 7. Thiết kế luồng CASH operational
+## 7. Thiết kế luồng CASH tối thiểu cho demo
 
 ### 7.1. Nguyên tắc
 
@@ -349,7 +349,7 @@ Không đảo thứ tự bằng cách làm giao diện hoặc dashboard trước
 - Checkout hoàn tất → counter giảm đúng một lần.
 - Dashboard/report → doanh thu và lượt ra khớp payment/transaction.
 
-## 8. Hoàn thiện Station OUT cho phạm vi hiện tại
+## 8. Hoàn thiện Station OUT cho demo
 
 Station OUT phải có các trạng thái rõ ràng:
 
@@ -364,14 +364,14 @@ Station OUT phải có các trạng thái rõ ràng:
 Các thay đổi tối thiểu:
 
 - Thêm lựa chọn tìm bằng biển số hoặc mã vé.
-- Thêm lựa chọn mất vé cho workflow vận hành.
+- Thêm lựa chọn mất vé khi demo kịch bản này.
 - Hiển thị cảnh báo sai loại xe và trường nhập lý do override.
 - Chỉ cho role có quyền thực hiện override.
-- Hiển thị riêng barrier event của hệ thống và ACK của controller vật lý; không tuyên bố thiết bị đã mở nếu chưa nhận ACK.
+- Hiển thị rõ `barrier mô phỏng`, không dùng câu chữ khiến người xem hiểu là thiết bị thật đã mở.
 - Khi API trả `FEE_CHANGED`, bắt buộc preview lại trước khi xác nhận.
 - Sau khi hoàn tất, vô hiệu hóa nút thu tiền và chỉ cho chuyển sang xe tiếp theo.
 
-## 9. Dữ liệu và acceptance media
+## 9. Dữ liệu và media demo
 
 ### 9.1. Dữ liệu seed tối thiểu
 
@@ -384,35 +384,35 @@ Các thay đổi tối thiểu:
 - Một xe vé tháng còn hạn.
 - Không seed giao dịch đang mở trừ khi kịch bản cụ thể yêu cầu.
 
-Mật khẩu môi trường acceptance phải được cung cấp qua biến môi trường hoặc hướng dẫn cục bộ, không commit secret vào repository.
+Mật khẩu demo phải được cung cấp qua biến môi trường hoặc hướng dẫn cục bộ, không commit secret vào repository.
 
-### 9.2. Acceptance media tối thiểu
+### 9.2. Media demo tối thiểu
 
-- Ảnh biển rõ để kiểm tra luồng thành công.
-- Ảnh confidence thấp để kiểm tra xác nhận/sửa tay.
-- Ảnh không có biển để kiểm tra manual fallback.
+- Ảnh biển rõ để demo luồng thành công.
+- Ảnh confidence thấp để demo xác nhận/sửa tay.
+- Ảnh không có biển để demo manual fallback.
 - Video MP4 ngắn dùng cùng workflow với ảnh.
-- Ảnh vào và ảnh ra cho cùng một xe để đối chiếu.
+- Ảnh vào và ảnh ra cho cùng một xe để demo đối chiếu.
 
-Mỗi file cần có nguồn/quyền sử dụng, checksum và expected result. Functional acceptance media và independent quality dataset phải được phân loại riêng.
+Mỗi file cần có nguồn/quyền sử dụng, checksum và expected result. Bộ này là fixture demo, không phải tập benchmark chứng nhận accuracy.
 
-## 10. System Functional Gate và ALPR Quality Gate
+## 10. Functional demo gate và quality gate
 
 Hai gate phải tách biệt:
 
-### 10.1. System Functional Gate
+### 10.1. Functional demo gate
 
 Được phép sử dụng test double/fixture có ghi nhãn rõ để xác nhận:
 
 - API và UI chạy đúng workflow.
 - Manual fallback hoạt động.
-- Check-in/check-out idempotent trong workflow thật.
+- Check-in/check-out idempotent trong kịch bản demo.
 - Payment, counter, report và audit nhất quán.
 - Lỗi dependency không làm mất khả năng xử lý thủ công.
 
 ### 10.2. ALPR quality gate
 
-Chỉ được PASS khi chạy model thật trên dataset ảnh/video thật có ground truth độc lập. Không lấy `expected_plate` làm đầu vào inference hoặc fallback tính accuracy. Nếu chưa đủ evidence, giữ trạng thái `HOLD`; trạng thái này độc lập với nghiệm thu chức năng hệ thống.
+Chỉ được PASS khi chạy model thật trên dataset ảnh/video thật có ground truth độc lập. Không lấy `expected_plate` làm đầu vào inference hoặc fallback tính accuracy. Nếu chưa đủ evidence, giữ trạng thái `HOLD` và trình bày trung thực trong buổi demo.
 
 ## 11. Kịch bản trình diễn chuẩn
 
@@ -428,7 +428,7 @@ Chỉ được PASS khi chạy model thật trên dataset ảnh/video thật có
 8. Upload ảnh xe ra hoặc nhập biển số.
 9. Xem ảnh vào/ra, thời gian và phí.
 10. Xác nhận đã thu đủ CASH.
-11. Hệ thống hoàn tất phiên và ghi barrier event; ACK thiết bị vật lý được kiểm tra riêng nếu adapter đã kết nối.
+11. Hệ thống hoàn tất phiên và ghi barrier mô phỏng.
 12. Kiểm tra số xe trong bãi giảm một.
 13. Kiểm tra lượt ra và doanh thu tăng đúng số tiền.
 14. Mở audit log và lịch sử giao dịch.
@@ -449,7 +449,7 @@ Chỉ được PASS khi chạy model thật trên dataset ảnh/video thật có
 
 ### Kịch bản D — Manual fallback
 
-1. Upload ảnh không nhận diện được hoặc kiểm tra nhánh real provider unavailable.
+1. Upload ảnh không nhận diện được hoặc mô phỏng AI unavailable.
 2. Operator nhập biển số thủ công.
 3. Giao dịch được đánh dấu đúng nguồn manual và có audit.
 
@@ -460,7 +460,7 @@ Chỉ được PASS khi chạy model thật trên dataset ảnh/video thật có
 3. Check-out áp đúng chính sách đã seed.
 4. Không tạo doanh thu CASH nếu chính sách cho miễn phí.
 
-## 12. Lệnh kiểm tra trước nghiệm thu
+## 12. Lệnh kiểm tra trước demo
 
 ### Backend
 
@@ -470,8 +470,6 @@ py -3 -m pytest tests
 py -3 -m ruff check app scripts tests
 py -3 -m ruff format --check app scripts tests
 py -3 scripts/verify_model_bundle.py
-py -3 scripts/system_gate.py --image <path-to-image> --video <path-to-mp4>
-py -3 scripts/release_gate.py --dataset datasets/phase2-release.json
 ```
 
 ### Frontend
@@ -491,60 +489,58 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Sau khi stack healthy, chạy System Functional Gate và toàn bộ kịch bản A–E. Không chạy `docker compose down -v` trên môi trường cần giữ dữ liệu.
+Sau khi stack healthy, chạy smoke test và toàn bộ kịch bản A–E. Không chạy `docker compose down -v` trên môi trường cần giữ dữ liệu.
 
-## 13. Definition of Done cho phạm vi FILE_UPLOAD
+## 13. Definition of Done cho demo
 
-Hệ thống chỉ được coi là sẵn sàng trong phạm vi hiện tại khi đáp ứng toàn bộ điều kiện sau:
+Demo chỉ được coi là sẵn sàng khi đáp ứng toàn bộ điều kiện sau:
 
 - [ ] Backend tests, lint và format PASS.
-- [ ] Frontend tests, lint và build PASS; warning còn lại đã được đánh giá không ảnh hưởng vận hành.
+- [ ] Frontend tests, lint và build PASS; warning còn lại đã được đánh giá không ảnh hưởng demo.
 - [ ] Docker Compose build và health check PASS trên máy sẽ trình diễn.
-- [ ] Chuẩn bị/reset dữ liệu acceptance chạy lại được ít nhất hai lần mà không tạo dữ liệu trùng.
+- [ ] Seed/reset demo chạy lại được ít nhất hai lần mà không tạo dữ liệu trùng.
 - [ ] Kịch bản A–E chạy thành công theo đúng thứ tự.
 - [ ] CASH checkout tạo dữ liệu ledger và báo cáo khớp nhau.
 - [ ] Double-click/retry không tạo payment hoặc checkout trùng.
 - [ ] Counter tăng/giảm đúng sau check-in/check-out.
 - [ ] Không có nút Station OUT bị khóa mà không có hướng dẫn hoặc đường xử lý.
-- [ ] Input mode được ghi rõ là `FILE_UPLOAD`; `LIVE_CAMERA/RTSP` ghi `NOT_INTEGRATED`.
-- [ ] Barrier event và trạng thái controller vật lý được báo cáo riêng theo evidence.
-- [ ] System Functional Gate và ALPR Quality Gate được tách biệt.
-- [ ] README/UAT khớp đúng command và UI hiện tại.
+- [ ] Barrier, camera và payment giả lập được ghi nhãn rõ.
+- [ ] Functional demo gate và ALPR quality gate được tách biệt.
+- [ ] README/UAT Demo Script khớp đúng command và UI hiện tại.
 - [ ] Có checklist khởi động, reset và xử lý sự cố nhanh cho người trình diễn.
-- [ ] Không còn lỗi Critical/High trong phạm vi FILE_UPLOAD.
+- [ ] Không còn lỗi Critical/High trong phạm vi kịch bản demo.
 
 ## 14. Rủi ro và phương án giảm thiểu
 
 | Rủi ro | Tác động | Giảm thiểu |
 | --- | --- | --- |
-| Model không warmup kịp | FILE_UPLOAD ALPR bị chờ hoặc unavailable | Warmup trước, chuẩn bị manual fallback và kiểm tra health |
-| Dữ liệu cũ làm trùng biển số | Check-in acceptance thất bại | Reset namespace acceptance hoặc dùng biển số fixture cố định |
-| Phí thay đổi giữa preview và checkout | Station trả `FEE_CHANGED` | Preview lại và giữ pricing/time ổn định trong ca nghiệm thu |
+| Model không warmup kịp | Demo ALPR bị chờ hoặc unavailable | Warmup trước, chuẩn bị manual fallback và kiểm tra health |
+| Dữ liệu cũ làm trùng biển số | Check-in demo thất bại | Reset database demo hoặc dùng namespace/biển số fixture cố định |
+| Phí thay đổi giữa preview và checkout | Station trả `FEE_CHANGED` | Preview lại và giữ pricing/time ổn định trong buổi demo |
 | Dashboard không khớp checkout | Mất độ tin cậy | Hoàn thành DEMO-03/04 và test E2E trước tổng duyệt |
-| Docker hoặc port bị chiếm | Không khởi động stack | Checklist port/process, xác minh deployment trên đúng máy vận hành |
-| Acceptance media không ổn định | Kết quả ALPR thay đổi | Dùng bộ media có checksum và tách khỏi quality dataset |
-| Mạng Internet không ổn định | Tải dependency hoặc asset thất bại | Cài sẵn dependency/image; hệ thống không phụ thuộc dịch vụ Internet cho workflow hiện tại |
+| Docker hoặc port bị chiếm | Không khởi động stack | Checklist port/process, chạy dry-run trên đúng máy demo |
+| Media demo không ổn định | Kết quả ALPR thay đổi | Dùng bộ media có checksum, nhưng không gọi đó là accuracy benchmark |
+| Mạng Internet không ổn định | Tải dependency hoặc asset thất bại | Cài sẵn dependency/image; demo không phụ thuộc dịch vụ Internet |
 
-## 15. Những việc không nên làm trước nghiệm thu
+## 15. Những việc không nên làm trước demo
 
 - Không thêm tính năng lớn như đặt chỗ, voucher hoặc portal cư dân.
 - Không tích hợp ngân hàng thật trước khi ledger CASH ổn định.
 - Không dùng mock/synthetic benchmark để tuyên bố model đạt độ chính xác thương mại.
 - Không trình diễn báo cáo doanh thu nếu checkout chưa ghi cùng một sổ dữ liệu.
-- Không mô tả camera live là đã tích hợp khi hệ thống đang ở `FILE_UPLOAD` mode.
-- Không suy diễn barrier business event thành ACK thiết bị nếu controller chưa xác nhận.
-- Không dành thời gian tối ưu giao diện nhỏ trước các lỗi tiền, counter, retry và chuẩn bị lại môi trường acceptance.
+- Không che giấu việc barrier và camera đang mô phỏng.
+- Không dành thời gian tối ưu giao diện nhỏ trước các lỗi tiền, counter, retry và demo reset.
 
-## 16. Kết quả bàn giao của đợt cải thiện hệ thống
+## 16. Kết quả bàn giao của đợt cải thiện demo
 
 Đợt này cần bàn giao tối thiểu:
 
 1. Code sửa CASH/ledger/report và Station OUT tối thiểu.
 2. Test backend/frontend cho các lỗi đã sửa.
-3. Chuẩn bị/reset dữ liệu acceptance idempotent.
-4. Acceptance media có manifest/checksum.
-5. System Functional Gate chạy lại được.
-6. README và UAT đã cập nhật.
-7. Biên bản deployment verification gồm kết quả command, môi trường và các giới hạn đã biết.
+3. Seed/reset demo idempotent.
+4. Bộ media demo có manifest/checksum.
+5. Functional demo gate chạy lại được.
+6. README và UAT Demo Script đã cập nhật.
+7. Biên bản dry-run gồm kết quả command, môi trường và các giới hạn đã biết.
 
-Khi các đầu ra trên hoàn thành, VisionPark được nghiệm thu như một hệ thống thật trong phạm vi `FILE_UPLOAD`. Tích hợp `LIVE_CAMERA/RTSP` và các thiết bị ngoại vi còn thiếu dùng kế hoạch riêng; ALPR quality tiếp tục theo trạng thái PASS/FAIL/HOLD độc lập.
+Khi các đầu ra trên hoàn thành, VisionPark có thể được trình diễn như một functional MVP đáng tin cậy. Việc chuyển sang pilot hoặc vận hành thương mại phải dùng một kế hoạch riêng cho thiết bị thật, ALPR quality, đối soát, bảo mật, backup/restore và giám sát production.

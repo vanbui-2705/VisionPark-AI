@@ -1,6 +1,6 @@
 import { t as translate } from "../../lib/i18n"
 import { useCallback, useEffect, useRef, useState } from "react";
-import { clearCandidates, confirmDetection, confirmExitDetection, getActiveLanes, getRecentHistory, manualCheckIn, prepareExit, type ExitSession, type PriceContext } from "./api";
+import { clearCandidates, confirmDetection, confirmExitDetection, detectFire, getActiveLanes, getRecentHistory, manualCheckIn, prepareExit, type ExitSession, type FireSignalEvent, type PriceContext } from "./api";
 import { apiClient } from '../../api/client.ts';
 import LaneSelector from "./components/LaneSelector";
 import VideoSelector from "./components/VideoSelector";
@@ -11,6 +11,7 @@ import RecentHistory from "./components/RecentHistory";
 import ErrorPanel from "./components/ErrorPanel";
 import ImageComparison from "./components/ImageComparison";
 import ExitSummary from "./components/ExitSummary";
+import FireAlert from "./components/FireAlert";
 import { useStationShortcuts } from "./hooks/useStationShortcuts";
 import { useAlprDetection } from "./hooks/useAlprDetection";
 import type { ApiError, Lane, RecentHistoryItem } from "./types";
@@ -43,8 +44,13 @@ export default function StationPage() {
   const [vehicleType, setVehicleType] = useState('CAR');
   const [ticketKind, setTicketKind] = useState<PriceContext['ticket_kind']>('HOURLY');
   const [zoneId, setZoneId] = useState('');
-  const scopedLane = lanes.find(lane => lane.id === selectedLaneId && lane.building_id);
-  const isOut = lanes.find(lane => lane.id === selectedLaneId)?.direction === 'OUT';
+  const [fireAlert, setFireAlert] = useState<FireSignalEvent | null>(null);
+  const fireRequestBusy = useRef(false);
+  const fireIncidentLatched = useRef(false);
+  const fireMonitorGeneration = useRef(0);
+  const selectedLane = lanes.find(lane => lane.id === selectedLaneId);
+  const scopedLane = selectedLane?.building_id ? selectedLane : undefined;
+  const isOut = selectedLane?.direction === 'OUT';
   const priceContext: PriceContext | undefined = scopedLane && classId ? { vehicle_type: vehicleType, ticket_kind: ticketKind, customer_class_id: classId, ...(zoneId ? { zone_id: zoneId } : {}) } : undefined;
   const [editingPlate, setEditingPlate] = useState(false);
   const manualKey = useRef(crypto.randomUUID());
@@ -93,6 +99,7 @@ export default function StationPage() {
   useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
   const changeInput = (mode: 'image' | 'video') => {
     if (confirming.current) return;
+    fireMonitorGeneration.current += 1; fireIncidentLatched.current = false; setFireAlert(null);
     setInputMode(mode); setImageFile(null); setImageUrl(''); setVideoUrl(''); setVideoName('');
     setTransactionId(null); setEditingPlate(false); setActionError(null);
     setExitSession(null);
@@ -100,17 +107,20 @@ export default function StationPage() {
   };
   const chooseImage = (file: File | null) => {
     if (confirming.current) return;
+    fireMonitorGeneration.current += 1; fireIncidentLatched.current = false; setFireAlert(null);
     setExitSession(null);
     clearCandidates(); reset(); setTransactionId(null); setEditingPlate(false);
     setImageFile(null); setImageUrl(''); setActionError(null);
     if (!file) return;
-    if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+    const normalizedFile = normalizeStationImage(file);
+    if (!normalizedFile || normalizedFile.size > 5 * 1024 * 1024) {
       setActionError({ status: 422, code: 'INVALID_IMAGE', message: translate("Chọn ảnh JPEG/PNG không quá 5MB.") }); return;
     }
-    setImageFile(file); setImageUrl(URL.createObjectURL(file));
+    setImageFile(normalizedFile); setImageUrl(URL.createObjectURL(normalizedFile));
   };
   const onVideo = (file: File, url: string) => {
     if (confirming.current) { URL.revokeObjectURL(url); return; }
+    fireMonitorGeneration.current += 1; fireIncidentLatched.current = false; setFireAlert(null);
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl(url);
     setVideoName(file.name);
@@ -120,6 +130,27 @@ export default function StationPage() {
     clearCandidates();
     reset();
   };
+  const monitorFire = useCallback(async (image: Blob) => {
+    if (!selectedLane || fireRequestBusy.current) return;
+    fireRequestBusy.current = true;
+    const generation = fireMonitorGeneration.current;
+    try {
+      const events = await detectFire(image, selectedLane.camera_id ?? selectedLane.id, selectedLane.building_id);
+      if (generation !== fireMonitorGeneration.current) return;
+      const event = events.reduce<FireSignalEvent | null>((highest, item) => !highest || item.confidence > highest.confidence ? item : highest, null);
+      if (!event) {
+        fireIncidentLatched.current = false;
+        return;
+      }
+      if (fireIncidentLatched.current) return;
+      fireIncidentLatched.current = true;
+      setFireAlert(event);
+    } catch {
+      // Fire monitoring stays isolated from ALPR so a monitor outage cannot block a vehicle.
+    } finally {
+      fireRequestBusy.current = false;
+    }
+  }, [selectedLane]);
   const onFrame = useCallback(async (image: Blob, videoTimeMs?: number) => {
     if (confirming.current || transactionId) return;
     if (!selectedLaneId) {
@@ -131,10 +162,16 @@ export default function StationPage() {
       return;
     }
     setActionError(null);
-    await detect(image, selectedLaneId, { inputKind: inputMode === 'image' ? 'IMAGE_UPLOAD' : 'VIDEO_FRAME', videoTimeMs });
-  }, [detect, selectedLaneId, transactionId, inputMode]);
+    void monitorFire(image);
+    const detection = await detect(image, selectedLaneId, { inputKind: inputMode === 'image' ? 'IMAGE_UPLOAD' : 'VIDEO_FRAME', videoTimeMs });
+    const detectedType = detection?.vehicle_type?.toUpperCase()
+    if (detectedType === 'CAR' || detectedType === 'MOTORBIKE' || detectedType === 'BICYCLE') {
+      setVehicleType(detectedType)
+    }
+  }, [detect, monitorFire, selectedLaneId, transactionId, inputMode]);
   const changeLane = (laneId: string) => {
     if (confirming.current) return;
+    fireMonitorGeneration.current += 1; fireIncidentLatched.current = false; setFireAlert(null);
     const nextLane = lanes.find(lane => lane.id === laneId);
     if (nextLane?.building_id !== scopedLane?.building_id || nextLane?.direction === 'OUT') {
       setCustomerClasses([]); setClassId('');
@@ -235,6 +272,7 @@ export default function StationPage() {
     clearCandidates(); reset();
   };
   return <section ref={stationRoot} className="stack scan-page">
+    {fireAlert && <FireAlert event={fireAlert} laneName={selectedLane?.name ?? fireAlert.camera_id} onDismiss={() => setFireAlert(null)} />}
     <header className={`scan-hero${exitSession ? ' scan-hero--checkout' : ''}`}>
       <div className="scan-hero-copy">
         <span className="scan-kicker">TRẠM KIỂM SOÁT CỔNG</span>
@@ -298,7 +336,7 @@ export default function StationPage() {
           <span className="scan-state">{inputMode === 'video' ? 'VIDEO MP4' : 'IMAGE JPEG/PNG'}</span>
         </div>
         {inputMode === 'video' ? (
-          <VideoPlayer key={`${selectedLaneId}:${videoUrl || "empty"}`} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} suspended={editingPlate || state === 'confirming' || Boolean(transactionId)} />
+          <VideoPlayer key={`${selectedLaneId}:${videoUrl || "empty"}`} videoUrl={videoUrl} bbox={result?.bbox ?? null} onFrameCaptured={onFrame} onMonitoringFrame={monitorFire} suspended={editingPlate || state === 'confirming' || Boolean(transactionId)} monitoringSuspended={Boolean(fireAlert)} />
         ) : (
           <div className="stack" style={{ gap: 14 }}>
             {imageUrl ? (
@@ -355,4 +393,22 @@ export default function StationPage() {
 
     <RecentHistory items={history} />
   </section>;
+}
+
+function normalizeStationImage(file: File): File | null {
+  const extension = file.name.toLowerCase().split('.').pop()
+  const inferredType = extension === 'png'
+    ? 'image/png'
+    : extension === 'jpg' || extension === 'jpeg'
+      ? 'image/jpeg'
+      : null
+  const normalizedType = file.type === 'image/jpg' ? 'image/jpeg' : file.type
+  const imageType = normalizedType === 'image/jpeg' || normalizedType === 'image/png'
+    ? normalizedType
+    : normalizedType === ''
+      ? inferredType
+      : null
+  if (!imageType) return null
+  if (file.type === imageType) return file
+  return new File([file], file.name, { type: imageType, lastModified: file.lastModified })
 }

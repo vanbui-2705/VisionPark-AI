@@ -20,11 +20,13 @@ export default function ExitSummary({ session, onBusyChange, onCompleted, onNext
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [overrideReason, setOverrideReason] = useState('')
   const submitting = useRef(false)
   const needsCash = preview.fee > 0 && preview.status !== 'PAID'
   const completed = Boolean(outcome)
   const missingExitImage = !preview.exit_image_url
-  const actionBlocked = busy || completed || needsRefresh || preview.vehicle_type_mismatch || missingExitImage
+  const mismatchUnresolved = preview.vehicle_type_mismatch && overrideReason.trim().length < 10
+  const actionBlocked = busy || completed || needsRefresh || mismatchUnresolved || missingExitImage
   const minutes = outcome ? Math.max(0, Math.floor((Date.parse(outcome.transaction.exit_time) - Date.parse(preview.check_in_time)) / 60000)) : preview.duration_minutes
   const days = Math.floor(minutes / 1440)
   const duration = `${days ? `${days} ngày ` : ''}${Math.floor(minutes % 1440 / 60)} giờ ${minutes % 60} phút`
@@ -36,7 +38,7 @@ export default function ExitSummary({ session, onBusyChange, onCompleted, onNext
     : preview.session_id
 
   const act = async (refresh = false) => {
-    if (submitting.current || completed || (!refresh && (needsRefresh || missingExitImage || preview.vehicle_type_mismatch))) return
+    if (submitting.current || completed || (!refresh && (needsRefresh || missingExitImage || mismatchUnresolved))) return
     submitting.current = true
     setBusy(true); onBusyChange(true); setError('')
     try {
@@ -48,7 +50,7 @@ export default function ExitSummary({ session, onBusyChange, onCompleted, onNext
         setNeedsRefresh(false)
         return
       }
-      const response = await completeExit(preview, needsCash)
+      const response = await completeExit(preview, needsCash, overrideReason)
       if (!['COMPLETED', 'EXITED'].includes(response.status) || !response.barrier_opened || response.transaction.id !== preview.session_id || response.transaction.exit_lane_id !== preview.laneId || response.fee !== preview.fee) {
         throw new Error('Backend chưa xác nhận đúng phiên xe ra, số tiền và trạng thái mở cổng.')
       }
@@ -106,7 +108,12 @@ export default function ExitSummary({ session, onBusyChange, onCompleted, onNext
       </div>}
       {preview.vehicle_type_mismatch && !completed && <div role="alert" className="alert alert-danger station-action-alert">
         <strong>Loại xe không khớp.</strong>
-        <span> Vui lòng kiểm tra lại xe, biển số và liên hệ quản lý trước khi tiếp tục.</span>
+        <span> Loại lúc vào: {preview.vehicle_type_in ?? 'không rõ'} · lúc ra: {preview.vehicle_type_out ?? 'không rõ'}. Kiểm tra ảnh và nhập lý do xác nhận để tiếp tục.</span>
+        <label className="field">
+          <span>Lý do xác nhận lệch loại xe</span>
+          <textarea value={overrideReason} maxLength={500} rows={3} placeholder="Ví dụ: Đã đối chiếu biển số và ảnh, camera phân loại nhầm." onChange={event => setOverrideReason(event.target.value)} />
+        </label>
+        {mismatchUnresolved && <small>Nhập ít nhất 10 ký tự; lý do sẽ được lưu vào audit.</small>}
       </div>}
       {preview.is_lost_ticket && !completed && <div role="status" className="alert alert-warning station-action-alert">
         <strong>Đang xử lý mất vé / thẻ.</strong><span> Phí mất vé đã được đưa vào bản tính phí.</span>

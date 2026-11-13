@@ -10,7 +10,11 @@ from app.modules.auth.dependencies import require_roles
 from app.modules.users.models import Role, User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import ManagedUserPublic, RoleName, UserCreate, UserUpdate
-from app.modules.users.service import UserManagementService, to_managed_user
+from app.modules.users.service import (
+    UserManagementService,
+    assigned_building_id,
+    to_managed_user,
+)
 
 router = APIRouter(tags=["users"])
 Admin = Annotated[User, Depends(require_roles(RoleName.SYSTEM_ADMIN, RoleName.BUILDING_ADMIN))]
@@ -33,12 +37,16 @@ def list_users(
     role: RoleName | None = None,
     active: bool | None = None,
 ):
-    return [to_managed_user(user) for user in UserRepository(db).list(q, role, active)]
+    return [
+        to_managed_user(user, building_id=assigned_building_id(db, user))
+        for user in UserRepository(db).list(q, role, active)
+    ]
 
 
 @router.get("/users/{user_id}", response_model=ManagedUserPublic)
 def read_user(user_id: UUID, db: Db, actor: Admin):
-    return to_managed_user(UserManagementService(db).get(user_id))
+    user = UserManagementService(db).get(user_id)
+    return to_managed_user(user, building_id=assigned_building_id(db, user))
 
 
 @router.post("/users", response_model=ManagedUserPublic, status_code=201)

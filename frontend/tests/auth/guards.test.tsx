@@ -323,6 +323,14 @@ describe('Route guards', () => {
         })
       }
 
+      if (s.includes('/lanes/active')) {
+        return j([])
+      }
+
+      if (s.includes('/parking/transactions')) {
+        return j([])
+      }
+
       if (s.includes('/health/ready')) {
         return j({
           status: 'ready',
@@ -335,10 +343,8 @@ describe('Route guards', () => {
       return j({})
     })
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/Trạm quét biển số/i),
-      ).toBeInTheDocument(),
-    )
+    expect(
+      await screen.findByRole('heading', { name: /Trạm quét biển số/i, timeout: 10000 }),
+    ).toBeInTheDocument()
   })
 })

@@ -126,7 +126,8 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
   if (!res.ok) {
     const parsed = await parseErrorBody(res)
     const previewFrame = path.endsWith('/alpr/detections') && isFormData && (body as FormData).get('mode') === 'preview'
-    if (token && !path.includes('/errors') && !previewFrame) {
+    const backgroundMonitorFrame = path.endsWith('/alpr/fire-detection') && isFormData
+    if (token && !path.includes('/errors') && !previewFrame && !backgroundMonitorFrame) {
       recordError({ code: parsed.code, status: res.status, source: 'api', correlationId: parsed.correlationId })
     }
     throw new ApiError(parsed.message, {

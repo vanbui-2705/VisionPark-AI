@@ -5,7 +5,7 @@
     "annotation_policy": "Ground truth was manually transcribed from the physical plate. Null means no complete readable plate is present. Overlays and model output were not used as labels.",
     "dataset_version": "phase2-release-candidate-2026-10-09"
   },
-  "annotation": "One frame per user-video vehicle avoids adjacent-frame inflation. All other cases are distinct Commons photographs. Edge cases are natural captures, not generated transformations.",
+  "annotation": "Adjacent user-video frames stay together in the smoke regression split; all other cases are distinct Commons photographs. Edge cases are natural captures, not generated transformations.",
   "splits": {
     "smoke": [
       {
@@ -18,6 +18,60 @@
         "sha256": "4f9dbd874a4d3b41c46a4ed3dfef3b843901a4e9e448535e0ea3c436dec0d2b3"
       },
       {
+        "id": "user-toyota-44750",
+        "vehicle_id": "user-toyota-29A90101",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-toyota-44.75.jpg",
+        "expected_plate": "29A90101",
+        "scenario": "success",
+        "sha256": "d8626015d6be6dfdf7e0c3829cc45df419692dc2a337bc3c1f28c662eeaad9e0"
+      },
+      {
+        "id": "user-toyota-45000",
+        "vehicle_id": "user-toyota-29A90101",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-toyota-45.0.jpg",
+        "expected_plate": "29A90101",
+        "scenario": "success",
+        "sha256": "1ce9f95a6e90bf16f40ef484b23a8a8573626c70856abbc1518abe7a5243eaa7"
+      },
+      {
+        "id": "user-toyota-45250",
+        "vehicle_id": "user-toyota-29A90101",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-toyota-45.25.jpg",
+        "expected_plate": "29A90101",
+        "scenario": "success",
+        "sha256": "9dc306336c2411f9e1983ff8fbca2eafb059e8947f12122109f6087102d26900"
+      },
+      {
+        "id": "user-toyota-45500",
+        "vehicle_id": "user-toyota-29A90101",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-toyota-45.5.jpg",
+        "expected_plate": "29A90101",
+        "scenario": "success",
+        "sha256": "adb7865aae16d6d6a37f8d008ff92e1de4e11f75e6c9ee9d5117f843ec1b204c"
+      },
+      {
+        "id": "user-hyundai-89500",
+        "vehicle_id": "user-hyundai-30V4495",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-hyundai-89.5.jpg",
+        "expected_plate": "30V4495",
+        "scenario": "success",
+        "sha256": "0bce8defb16e7d0249cf831b739839bcc72b45f3df482d3f3dd2e20cdffeff37"
+      },
+      {
+        "id": "user-hyundai-89750",
+        "vehicle_id": "user-hyundai-30V4495",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-hyundai-89.75.jpg",
+        "expected_plate": "30V4495",
+        "scenario": "success",
+        "sha256": "1471533746a59f9467d569cd93f11ee1ba77cde798c09f8194e945bd7b1da675"
+      },
+      {
         "id": "user-hyundai-90000",
         "vehicle_id": "user-hyundai-30V4495",
         "video_id": "milpr-demo-dxJC4GXu4mc",
@@ -25,6 +79,24 @@
         "expected_plate": "30V4495",
         "scenario": "success",
         "sha256": "cf5eb103cdc7c2d8d95e1a4ed7fdce927156665de6fe1b3cb3c576bda0f6c957"
+      },
+      {
+        "id": "user-hyundai-90250",
+        "vehicle_id": "user-hyundai-30V4495",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-hyundai-90.25.jpg",
+        "expected_plate": "30V4495",
+        "scenario": "success",
+        "sha256": "df659654b45cf40bb11c8e3e9f2b3d3923c83447ff25a8ce0ba3f8a0f4e876b8"
+      },
+      {
+        "id": "user-hyundai-90500",
+        "vehicle_id": "user-hyundai-30V4495",
+        "video_id": "milpr-demo-dxJC4GXu4mc",
+        "image": "../var/completion-video/case-hyundai-90.5.jpg",
+        "expected_plate": "30V4495",
+        "scenario": "success",
+        "sha256": "f0df38ec220a66acec85710932f2053cb9c5f0092caf71a92e31c9581ff7d3a7"
       },
       {
         "id": "user-title-no-plate",
@@ -99,6 +171,8 @@
         "vehicle_id": "commons-ecobus-29B00312",
         "image": "../var/phase2-release-dataset/ecobus-01.jpg",
         "expected_plate": "29B00312",
+        "detector_required": false,
+        "detector_exemption_reason": "Registration is painted on the vehicle body rather than mounted on a physical plate.",
         "scenario": ["success", "small-or-partial"],
         "sha256": "79c0b6a9fc969d793242a43650c344431b1b06af5468b7fe914a96f4d6b5e024",
         "source_url": "https://commons.wikimedia.org/wiki/File:Parked_Ecobuses,_Ecopark_(2018)_01.jpg",
