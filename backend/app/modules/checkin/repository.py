@@ -157,7 +157,7 @@ class DatabaseCheckInRepository(CheckInRepository):
             .where(ParkingTransaction.id == transaction_id)
         )
         if for_update:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update(of=ParkingTransaction)
         return self.session.scalar(stmt)
 
     def get_active_by_plate(

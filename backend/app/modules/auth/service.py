@@ -44,5 +44,5 @@ class AuthService:
         return TokenResponse(
             access_token=token,
             expires_in=self.settings.access_token_expire_minutes * 60,
-            user=to_public_user(user),
+            user=to_public_user(user, building_id=building_id),
         )

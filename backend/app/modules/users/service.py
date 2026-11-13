@@ -19,7 +19,13 @@ from app.modules.users.schemas import (
 )
 
 
-def to_public_user(user: User) -> UserPublic:
+def assigned_building_id(session: Session, user: User) -> UUID | None:
+    if user.role.name == RoleName.SYSTEM_ADMIN:
+        return None
+    return session.scalar(select(UserBuilding.building_id).where(UserBuilding.user_id == user.id))
+
+
+def to_public_user(user: User, *, building_id: UUID | None = None) -> UserPublic:
     return UserPublic(
         id=user.id,
         username=user.username,
@@ -29,12 +35,14 @@ def to_public_user(user: User) -> UserPublic:
         must_change_password=user.must_change_password,
         email=user.email,
         last_login_at=user.last_login_at,
-        building_id=user.building_id,
+        building_id=building_id,
     )
 
 
-def to_managed_user(user: User) -> ManagedUserPublic:
-    return ManagedUserPublic(**to_public_user(user).model_dump(), created_at=user.created_at)
+def to_managed_user(user: User, *, building_id: UUID | None = None) -> ManagedUserPublic:
+    return ManagedUserPublic(
+        **to_public_user(user, building_id=building_id).model_dump(), created_at=user.created_at
+    )
 
 
 class UserManagementService:
@@ -94,7 +102,7 @@ class UserManagementService:
             )
         )
         self._save(user, actor, "CREATE_USER", None)
-        return to_managed_user(user)
+        return self._to_managed_user(user)
 
     def update(self, user_id: UUID, payload: UserUpdate, actor: User) -> ManagedUserPublic:
         user = self.get(user_id)
@@ -136,7 +144,7 @@ class UserManagementService:
                 )
         if any(key in values for key in ("password", "active", "role")):
             user.token_version += 1
-        before = to_managed_user(user).model_dump(mode="json")
+        before = self._to_managed_user(user).model_dump(mode="json")
         if "role" in values:
             role = self.repo.get_role(values.pop("role").value)
             if role is None:
@@ -152,7 +160,10 @@ class UserManagementService:
         for name, value in values.items():
             setattr(user, name, value)
         self._save(user, actor, "UPDATE_USER", before)
-        return to_managed_user(user)
+        return self._to_managed_user(user)
+
+    def _to_managed_user(self, user: User) -> ManagedUserPublic:
+        return to_managed_user(user, building_id=assigned_building_id(self.session, user))
 
     def _save(self, user: User, actor: User | None, action: str, before):
         try:
@@ -167,7 +178,7 @@ class UserManagementService:
                 "User",
                 str(user.id),
                 before,
-                to_managed_user(user).model_dump(mode="json"),
+                self._to_managed_user(user).model_dump(mode="json"),
             )
             if membership is not None:
                 entry.building_id = membership.building_id

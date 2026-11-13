@@ -14,6 +14,7 @@ export interface AuthContextValue {
   loading: boolean
   error: string | null
   login(username: string, password: string): Promise<void>
+  clearSession(): void
   logout(): void
   refreshCurrentUser(): Promise<void>
   isAuthenticated: boolean
@@ -35,12 +36,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const logout = useCallback(() => {
-    if (getToken()) void apiClient.post("/api/v1/auth/logout").catch(() => undefined)
+  const clearSession = useCallback(() => {
     removeToken()
     setTokenState(null)
     setUser(null)
   }, [])
+
+  const logout = useCallback(() => {
+    if (getToken()) void apiClient.post("/api/v1/auth/logout").catch(() => undefined)
+    clearSession()
+  }, [clearSession])
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -119,12 +124,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       error,
       login,
+      clearSession,
       logout,
       refreshCurrentUser,
       isAuthenticated: !!user && !!token,
       isAdmin: user?.role === 'SYSTEM_ADMIN' || (user?.role as string) === 'ADMIN',
     }),
-    [user, token, initialized, loading, error, login, logout, refreshCurrentUser],
+    [user, token, initialized, loading, error, login, clearSession, logout, refreshCurrentUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

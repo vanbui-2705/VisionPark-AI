@@ -5,17 +5,23 @@ type Props = {
   videoUrl: string;
   bbox?: [number, number, number, number] | null;
   onFrameCaptured?: (image: Blob, videoTimeMs?: number) => Promise<void>;
+  onMonitoringFrame?: (image: Blob) => Promise<void>;
   suspended?: boolean;
+  monitoringSuspended?: boolean;
 };
 export default function VideoPlayer({
   videoUrl,
   bbox = null,
   onFrameCaptured,
-  suspended = false
+  onMonitoringFrame,
+  suspended = false,
+  monitoringSuspended = false
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const monitoringCanvasRef = useRef<HTMLCanvasElement>(null);
   const busyRef = useRef(false);
+  const monitoringBusyRef = useRef(false);
   const [ended, setEnded] = useState(false);
   const [intervalMs, setIntervalMs] = useState(1000);
   const [auto, setAuto] = useState(false);
@@ -49,11 +55,37 @@ export default function VideoPlayer({
       setProcessing(false);
     }
   }, [onFrameCaptured, suspended]);
+  const captureMonitoringFrame = useCallback(async () => {
+    const video = videoRef.current;
+    const canvas = monitoringCanvasRef.current;
+    if (!video || !canvas || video.readyState < 2 || video.videoWidth < 1 || video.videoHeight < 1 || video.paused || video.ended || monitoringBusyRef.current || monitoringSuspended || !onMonitoringFrame) return;
+    monitoringBusyRef.current = true;
+    try {
+      const width = Math.min(video.videoWidth, 640);
+      const height = Math.max(1, Math.round(video.videoHeight * (width / video.videoWidth)));
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.drawImage(video, 0, 0, width, height);
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("Không tạo được frame giám sát.")), "image/jpeg", 0.75));
+      await onMonitoringFrame(blob);
+    } catch {
+      // Fire monitoring is secondary and must never interrupt the Station flow.
+    } finally {
+      monitoringBusyRef.current = false;
+    }
+  }, [monitoringSuspended, onMonitoringFrame]);
   useEffect(() => {
     if (!auto || !videoUrl || suspended) return;
     const id = window.setInterval(() => void captureFrame(), intervalMs);
     return () => window.clearInterval(id);
   }, [auto, intervalMs, videoUrl, captureFrame, suspended]);
+  useEffect(() => {
+    if (!videoUrl || !onMonitoringFrame || monitoringSuspended) return;
+    const id = window.setInterval(() => void captureMonitoringFrame(), 2500);
+    return () => window.clearInterval(id);
+  }, [videoUrl, onMonitoringFrame, monitoringSuspended, captureMonitoringFrame]);
   if (!videoUrl) return <div className="video-placeholder" style={{ position: "relative", display: "grid", placeItems: "center", marginTop: 16 }}>
     <div className="bbox"><span>ALPR READY</span></div>
     <span className="video-placeholder-caption">{translate("Chọn video MP4 để bắt đầu.")}</span>
@@ -105,5 +137,6 @@ export default function VideoPlayer({
     {mediaError && <p role="alert" className="alert alert-danger" style={{ marginTop: 10 }}>{translate("Không thể đọc video. Kiểm tra file/codec hoặc thử trình duyệt khác.")}</p>}
     <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>{processing ? translate("Đang xử lý frame...") : translate("Sẵn sàng")} · Captures: {count}{ended ? " · EOF" : ""}</p>
     <canvas ref={canvasRef} hidden />
+    <canvas ref={monitoringCanvasRef} hidden />
   </div>;
 }

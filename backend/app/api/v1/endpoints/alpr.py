@@ -453,6 +453,7 @@ async def detect_fire_smoke(
     image: UploadFile = File(...),
     building_id: str | None = Form(None),
     zone_code: str | None = Form(None),
+    demo_mode: bool = Form(False),
     request: Request = None,
     current_user: Annotated[
         User,
@@ -474,4 +475,5 @@ async def detect_fire_smoke(
         camera_id,
         building_id=building_id,
         zone_code=zone_code,
+        settings={"temporal_debounce_frames": 1} if demo_mode else None,
     )
