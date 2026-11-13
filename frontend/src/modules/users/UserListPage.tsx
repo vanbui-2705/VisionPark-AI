@@ -55,7 +55,7 @@ export function UserListPage() {
     <div className="data-page users-page">
       <section className="data-hero data-hero--forest">
         <div className="data-hero-copy">
-          <span className="data-kicker">User Management · Duy Anh</span>
+          <span className="data-kicker">User Management · VisionPark</span>
           <h2>{translate("Người dùng")}</h2>
           <p>{translate("Quản lý tài khoản và vai trò, trạng thái hoạt động và hồ sơ vận hành.")}</p>
         </div>
@@ -69,9 +69,9 @@ export function UserListPage() {
           <Select label={translate("Vai trò")} value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="ALL">ALL</option>
             <option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option>
+            <option value="BUILDING_ADMIN">BUILDING_ADMIN</option>
             <option value="OPERATOR">OPERATOR</option>
             <option value="ACCOUNTANT">ACCOUNTANT</option>
-            <option value="TECHNICIAN">TECHNICIAN</option>
           </Select>
           <Select label={translate("Trạng thái")} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="ALL">ALL</option>
@@ -98,7 +98,7 @@ export function UserListPage() {
                   <td className="data-mono"><strong>{u.username}</strong></td>
                   <td>{u.display_name}</td>
                   <td>{u.email ?? '—'}</td>
-                  <td><span className={`badge ${u.role === 'SYSTEM_ADMIN' ? 'badge-info' : u.role === 'ACCOUNTANT' ? 'badge-success' : u.role === 'TECHNICIAN' ? 'badge-warn' : 'badge-muted'}`}>{u.role}</span></td>
+                  <td><span className={`badge ${u.role === 'SYSTEM_ADMIN' ? 'badge-info' : u.role === 'ACCOUNTANT' ? 'badge-success' : u.role === 'BUILDING_ADMIN' ? 'badge-warn' : 'badge-muted'}`}>{u.role}</span></td>
                   <td><span className={`badge ${u.active ? 'badge-success' : 'badge-muted'}`}>{u.active ? 'Active' : 'Locked'}</span></td>
                   <td><Link to={`/admin/users/${u.id}`} className="data-inline-action">{translate("Sửa")}</Link></td>
                 </tr>

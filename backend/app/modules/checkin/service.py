@@ -15,7 +15,7 @@ from app.database.idempotency import (
 from app.modules.audit_logs.service import log_action
 from app.modules.lanes.models import LaneDirection
 from app.modules.pricing.domain import TicketKind
-from app.modules.pricing.models import Subscription, TicketProduct, Vehicle
+from app.modules.pricing.models import CustomerClass, Subscription, TicketProduct, Vehicle
 from app.modules.pricing.service import has_effective_pricing, select_price_snapshot
 from app.modules.users.models import User
 
@@ -108,6 +108,29 @@ class CheckInService:
                 message="The selected lane does not exist.",
             )
 
+        customer_class = request.customer_class
+        if request.customer_class_id is not None:
+            if self.session is None or lane_building_id is None:
+                raise AppError(
+                    status_code=422,
+                    code="CUSTOMER_CLASS_NOT_FOUND",
+                    message="The selected customer class is not available for this building.",
+                )
+            customer_class_row = self.session.scalar(
+                select(CustomerClass).where(
+                    CustomerClass.id == request.customer_class_id,
+                    CustomerClass.building_id == lane_building_id,
+                    CustomerClass.active.is_(True),
+                )
+            )
+            if customer_class_row is None:
+                raise AppError(
+                    status_code=422,
+                    code="CUSTOMER_CLASS_NOT_FOUND",
+                    message="The selected customer class is not available for this building.",
+                )
+            customer_class = customer_class_row.code
+
         # Compute provenance for fingerprint
         ai_plate = detection.normalized_plate if detection else None
         ai_normalized = normalize_plate(ai_plate) if ai_plate else None
@@ -183,7 +206,7 @@ class CheckInService:
             vehicle_type=vehicle_type,
             license_plate=normalized_plate,
             ticket_code=ticket_code,
-            customer_class=getattr(request, "customer_class", "VISITOR"),
+            customer_class=customer_class,
             operator=operator,
             is_override=bool(request.override_reason),
             override_reason=request.override_reason,
@@ -422,7 +445,7 @@ class CheckInService:
                 building_id=getattr(lane, "building_id", None),
                 vehicle_type=vehicle_type,
                 session_id=transaction.id,
-                customer_class=getattr(request, "customer_class", "VISITOR"),
+                customer_class=customer_class,
                 actor_type=ActorType.OPERATOR if operator else ActorType.SYSTEM,
                 actor_id=operator.id if operator else None,
                 reason="CHECK_IN",

@@ -9,6 +9,7 @@ from app.modules.checkin.counter_models import CounterEvent, ParkingCounter
 from app.modules.checkin.lifecycle_models import AppendOnlyModelError
 from app.modules.checkin.models import TransactionStatus
 from app.modules.lanes.models import AllowedVehicleType, Lane, LaneDirection
+from app.modules.pricing.models import CustomerClass
 
 
 @pytest.fixture
@@ -181,6 +182,46 @@ def test_checkin_resident_allowed_when_visitor_full_until_physical_capacity(
     assert response2.status_code == 403
     assert response2.json()["code"] == "CAPACITY_FULL"
     assert "vật lý tối đa" in response2.json()["message"].lower()
+
+
+def test_customer_class_id_drives_access_quota_without_legacy_class_string(
+    client: TestClient, operator_token: str, in_lane: Lane, db_session: Session
+):
+    customer_class = CustomerClass(
+        building_id=in_lane.building_id,
+        code="RESIDENT",
+        name="Cư dân",
+        discount_percent=0,
+        active=True,
+    )
+    counter = db_session.scalar(
+        select(ParkingCounter).where(
+            ParkingCounter.building_id == in_lane.building_id,
+            ParkingCounter.vehicle_type == "CAR",
+        )
+    )
+    if counter is None:
+        counter = ParkingCounter(building_id=in_lane.building_id, vehicle_type="CAR")
+        db_session.add(counter)
+    counter.occupied = 75
+    db_session.add(customer_class)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/parking/check-in",
+        headers={
+            "Authorization": f"Bearer {operator_token}",
+            "Idempotency-Key": str(uuid4()),
+        },
+        json={
+            "lane_id": str(in_lane.id),
+            "license_plate": "30A88991",
+            "vehicle_type": "CAR",
+            "customer_class_id": str(customer_class.id),
+        },
+    )
+
+    assert response.status_code == 201, response.text
 
 
 def test_adjust_counter_endpoint_and_events(

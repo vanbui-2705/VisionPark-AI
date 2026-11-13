@@ -6,6 +6,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, UUIDPrimaryKeyMixin
+from app.modules.buildings.models import BuildingOwnedMixin
 
 
 class BarrierAction(enum.StrEnum):
@@ -30,7 +31,7 @@ class BarrierStatus(enum.StrEnum):
     FAILED = "FAILED"
 
 
-class BarrierEvent(UUIDPrimaryKeyMixin, Base):
+class BarrierEvent(BuildingOwnedMixin, UUIDPrimaryKeyMixin, Base):
     __tablename__ = "barrier_events"
 
     building_id: Mapped[UUID | None] = mapped_column(

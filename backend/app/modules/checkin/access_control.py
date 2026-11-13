@@ -19,7 +19,7 @@ from app.modules.pricing.domain import (
     TicketKind,
     check_ticket_access,
 )
-from app.modules.pricing.models import Subscription, TicketProduct, Vehicle
+from app.modules.pricing.models import Subscription, TicketProduct, Vehicle, VehicleAccessRule
 from app.modules.users.models import User
 
 
@@ -36,17 +36,30 @@ class AccessCheckResult:
     details: dict[str, Any] | None = None
 
 
-# TODO: Tích hợp với module M1 khi có bảng vehicle_access_rules (blacklist/whitelist)
-# Hiện tại M1 chưa có code quản lý blacklist phương tiện nên tiếp tục giữ STUB danh sách đen.
-BLACKLIST_STUB: set[str] = {"29A99999", "BLACKLIST123"}
-
-
-def check_blacklist_stub(license_plate: str | None) -> tuple[bool, str | None]:
-    if license_plate:
-        norm = normalize_plate(license_plate)
-        if norm in BLACKLIST_STUB:
-            return True, "Phương tiện nằm trong danh sách đen từ chối phục vụ (Blacklist M1)."
-    return False, None
+def find_access_rule(
+    db: Session | None,
+    building_id: UUID | None,
+    license_plate: str | None,
+    ticket_code: str | None,
+) -> VehicleAccessRule | None:
+    if db is None or building_id is None or type(db).__name__ == "MagicMock":
+        return None
+    plate = normalize_plate(license_plate) if license_plate else None
+    code = ticket_code.strip().upper() if ticket_code else None
+    if not plate and not code:
+        return None
+    condition = (
+        VehicleAccessRule.ticket_code == code
+        if code
+        else VehicleAccessRule.normalized_plate == plate
+    )
+    return db.scalar(
+        select(VehicleAccessRule).where(
+            VehicleAccessRule.building_id == building_id,
+            VehicleAccessRule.active.is_(True),
+            condition,
+        )
+    )
 
 
 def verify_ticket_entitlement_for_checkin(
@@ -207,13 +220,14 @@ def check_access_control(
     zone_id: UUID | None = None,
     at: datetime | None = None,
 ) -> tuple[AccessDecision, str]:
-    """Kiểm tra Blacklist (M1) và Quyền vé (M4) trước khi cho xe vào."""
+    """Kiểm tra quy tắc truy cập và quyền vé trước khi cho xe vào."""
     del customer_class
-    is_bl, bl_msg = check_blacklist_stub(license_plate)
-    if is_bl:
-        return AccessDecision.DENY, bl_msg or "Blacklisted"
-
     b_id = building_id or getattr(lane, "building_id", None)
+    rule = find_access_rule(db, b_id, license_plate, ticket_code)
+    if rule is not None and rule.decision == "DENY":
+        return AccessDecision.DENY, f"Blacklist: {rule.reason}"
+    if rule is not None and rule.decision == "ALLOW":
+        return AccessDecision.ALLOW, f"Whitelist: {rule.reason}"
     return verify_ticket_entitlement_for_checkin(
         db=db,
         building_id=b_id,

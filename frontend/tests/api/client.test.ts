@@ -12,7 +12,7 @@ function mockFetchOnce(handler: (req: Request) => Response | Promise<Response>) 
   return () => { globalThis.fetch = orig }
 }
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.useRealTimers() })
 
 describe('api/client', () => {
   beforeEach(() => { localStorage.clear(); setUnauthorizedHandler(null) })
@@ -74,5 +74,21 @@ describe('api/client', () => {
     expect(bodyIsFormData).toBe(true)
     expect(explicitCT).toBeNull()
     globalThis.fetch = orig
+  })
+
+  it('honors the configured API timeout instead of clamping it to two seconds', async () => {
+    vi.stubEnv('VITE_API_TIMEOUT_MS', '15000')
+    vi.useFakeTimers()
+    let signal: AbortSignal | undefined
+    globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal ?? undefined
+      return await new Promise<Response>(() => undefined)
+    }) as typeof fetch
+
+    void apiClient.get('/api/v1/health/ready')
+    await vi.advanceTimersByTimeAsync(2001)
+    expect(signal?.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(12999)
+    expect(signal?.aborted).toBe(true)
   })
 })

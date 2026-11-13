@@ -11,12 +11,18 @@ import { Select } from '../../components/ui/Select.tsx'
 import { ApiError } from '../../api/errors.ts'
 
 function sanitize(obj: unknown): unknown {
+  if (Array.isArray(obj)) return obj.map(sanitize)
   if (!obj || typeof obj !== 'object') return obj
-  const o = obj as Record<string, unknown>
-  const out: Record<string, unknown> = { ...o }
-  for (const k of ['password', 'password_hash', 'hash', 'jwt', 'access_token', 'secret', 'token']) if (k in out) out[k] = '[REDACTED]'
-  return out
+  return Object.fromEntries(Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
+    key,
+    ['password', 'secret', 'token', 'jwt', 'hash'].some(part => key.toLowerCase().includes(part))
+      ? '[REDACTED]'
+      : sanitize(value),
+  ]))
 }
+
+const startOfLocalDay = (value: string) => value ? new Date(`${value}T00:00:00`).toISOString() : undefined
+const endOfLocalDay = (value: string) => value ? new Date(`${value}T23:59:59.999`).toISOString() : undefined
 
 export function AuditLogsPage() {
   const [items, setItems] = useState<AuditLog[]>([])
@@ -44,8 +50,8 @@ export function AuditLogsPage() {
         actor: actor || undefined,
         action: action || undefined,
         resource: resource || undefined,
-        from: from || undefined,
-        to: to || undefined,
+        from: startOfLocalDay(from),
+        to: endOfLocalDay(to),
         q: q || undefined,
         page,
         pageSize,
@@ -93,9 +99,11 @@ export function AuditLogsPage() {
           <Input label="Actor" value={actor} onChange={(e) => onFilterChange(() => setActor(e.target.value))} placeholder={translate("Tên người thực hiện")} />
           <Select label="Action" value={action} onChange={(e) => onFilterChange(() => setAction(e.target.value))}>
             <option value="">{translate("Tất cả")}</option>
-            <option value="LANE_CREATE">LANE_CREATE</option>
-            <option value="CHECK_IN">CHECK_IN</option>
-            <option value="CONFIRM_PLATE">CONFIRM_PLATE</option>
+            <option value="CREATE_LANE">Tạo làn</option>
+            <option value="UPDATE_LANE">Cập nhật làn</option>
+            <option value="CREATE_CHECKIN">Check-in</option>
+            <option value="CONFIRM_PLATE">Xác nhận biển số</option>
+            <option value="COMPLETE_CHECKOUT">Hoàn tất checkout</option>
           </Select>
           <Select label="Resource" value={resource} onChange={(e) => onFilterChange(() => setResource(e.target.value))}>
             <option value="">{translate("Tất cả")}</option>
@@ -147,7 +155,6 @@ export function AuditLogsPage() {
             <div>Source: <span>{String(after?.source ?? row.source ?? '—')}</span></div>
             <div>Timestamp: {new Date(row.time).toLocaleString('vi-VN')}</div>
           </div>
-          <div className="data-table-head"><div><span className="data-section-kicker">{translate("BẢN GHI")}{row.id}</span><h3>{translate("Chi tiết nhật ký")}</h3></div></div>
           <div className="audit-detail-grid">
             <div><div className="data-section-kicker">{translate("TRƯỚC")}</div><pre className="code-block">{JSON.stringify(sanitize(row.before), null, 2) ?? '—'}</pre></div>
             <div><div className="data-section-kicker">SAU</div><pre className="code-block">{JSON.stringify(sanitize(row.after), null, 2) ?? '—'}</pre></div>

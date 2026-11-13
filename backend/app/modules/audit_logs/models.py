@@ -16,6 +16,7 @@ class AuditLog(BuildingOwnedMixin, Base, UUIDPrimaryKeyMixin, TimestampMixin):
     entity_id = Column(String(100), nullable=False, index=True)  # ID của dòng dữ liệu bị tác động
 
     # Lưu trữ dữ liệu trước và sau khi sửa (dạng JSON)
+    correlation_id = Column(String(128), nullable=True, index=True)
     old_value = Column(JSON, nullable=True)
     new_value = Column(JSON, nullable=True)
 

@@ -4,6 +4,8 @@
 - API: `src/api/client.ts` (base URL từ `VITE_API_BASE_URL`, Bearer, timeout mặc định 15s; nhận diện ALPR 60s; ApiError).
 - Auth: `AuthContext` + token `visionpark.access_token`.
 - Permissions: `src/lib/permissions.ts` (`can()` + `PERMISSION_MATRIX`).
+- Route protection: `PermissionGuard`; tài khoản `must_change_password` bị chuyển tới
+  `/change-password` trước khi render AppShell. Các màn hình nặng Station/M5/docs/dev được lazy-load.
 
 Current runtime: backend API only, ALPR_PROVIDER=real with OCR enabled. Preferences, notifications and error events persist in PostgreSQL.
 
@@ -21,3 +23,8 @@ API client/Bearer, DetectionImage, VideoPlayer và final candidate. Preview tr�
 và ghi barrier event mô phỏng. expected_fee optional chặn phí thay đổi sau preview
 trước khi thu tiền; client yêu cầu xem lại phí. Phím tắt kích hoạt các nút đang được
 phép thao tác, dùng chung khóa chống submit lặp và idempotency key.
+
+M4 ticket settings dùng API building-scoped cho parking zones, vehicle access rules,
+customer classes, vehicles và subscriptions. Gia hạn bắt đầu sau `valid_until` cũ 1 ms vì
+backend dùng khoảng thời gian inclusive. Audit lưu correlation ID, lọc ngày theo trọn ngày
+local và redact dữ liệu nhạy cảm đệ quy ở cả backend lẫn UI.

@@ -1,4 +1,4 @@
-export type UserRole = 'SYSTEM_ADMIN' | 'BUILDING_ADMIN' | 'OPERATOR' | 'ACCOUNTANT' | 'TECHNICIAN'
+export type UserRole = 'SYSTEM_ADMIN' | 'BUILDING_ADMIN' | 'OPERATOR' | 'ACCOUNTANT'
 
 export interface CurrentUser {
   id: string
@@ -8,6 +8,7 @@ export interface CurrentUser {
   role: UserRole
   building_id?: string | null
   active: boolean
+  must_change_password?: boolean
 }
 
 export type LaneDirection = 'IN' | 'OUT'

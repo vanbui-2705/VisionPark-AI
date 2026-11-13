@@ -17,12 +17,14 @@ from app.modules.pricing.models import (
     CustomerClass,
     GuestInvite,
     Invoice,
+    ParkingZone,
     Payment,
     PricingRule,
     PricingVersion,
     Subscription,
     TicketProduct,
     Vehicle,
+    VehicleAccessRule,
 )
 from app.modules.users.models import Role, User
 
@@ -45,6 +47,8 @@ __all__ = [
     "PricingVersion",
     "PricingRule",
     "Vehicle",
+    "VehicleAccessRule",
+    "ParkingZone",
     "Subscription",
     "GuestInvite",
     "Invoice",

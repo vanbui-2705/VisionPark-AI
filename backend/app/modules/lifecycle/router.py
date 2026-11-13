@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.database.tenant import requested_building
 from app.modules.auth.dependencies import require_roles
 from app.modules.users.models import User
 from app.modules.users.schemas import RoleName
@@ -45,6 +46,7 @@ def list_sessions(
     status: str | None = None,
     lane_id: UUID | None = None,
     has_exception: bool | None = None,
+    building_id: UUID | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> SessionListPaginatedResponse:
@@ -63,7 +65,8 @@ def list_sessions(
         page_size=page_size,
     )
     service = LifecycleService(db)
-    return service.list_sessions(filter_params, current_user)
+    target_building = requested_building(db, current_user, building_id)
+    return service.list_sessions(filter_params, current_user, target_building)
 
 
 @router.get("/sessions/export-csv")
@@ -79,6 +82,7 @@ def export_sessions_csv(
     status: str | None = None,
     lane_id: UUID | None = None,
     has_exception: bool | None = None,
+    building_id: UUID | None = None,
 ) -> Response:
     """GET /api/v1/lifecycle/sessions/export-csv — xuất danh sách lượt xe ra CSV (BR-4.8)."""
     filter_params = SessionLifecycleFilter(
@@ -95,7 +99,8 @@ def export_sessions_csv(
         page_size=5000,
     )
     service = LifecycleService(db)
-    csv_content = service.export_sessions_csv(filter_params, current_user)
+    target_building = requested_building(db, current_user, building_id)
+    csv_content = service.export_sessions_csv(filter_params, current_user, target_building)
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"parking_sessions_{timestamp}.csv"
 

@@ -14,7 +14,7 @@ export function mapUser(raw: unknown): CurrentUser {
   if (role && typeof role === 'object') role = (role as Record<string, unknown>).name ?? (role as Record<string, unknown>).role
   const rawRole = String(role ?? '').toUpperCase()
   const roleStr = rawRole === 'ADMIN' ? 'SYSTEM_ADMIN' : rawRole
-  const allowed = new Set(['SYSTEM_ADMIN', 'BUILDING_ADMIN', 'OPERATOR', 'ACCOUNTANT', 'TECHNICIAN'])
+  const allowed = new Set(['SYSTEM_ADMIN', 'BUILDING_ADMIN', 'OPERATOR', 'ACCOUNTANT'])
   return {
     id: String(r.id ?? r.user_id ?? ''),
     email: r.email as string | null | undefined,
@@ -23,6 +23,7 @@ export function mapUser(raw: unknown): CurrentUser {
     role: (allowed.has(roleStr) ? roleStr : 'OPERATOR') as CurrentUser['role'],
     building_id: typeof r.building_id === 'string' ? r.building_id : null,
     active: (r.is_active as boolean) ?? (r.active as boolean) ?? true,
+    must_change_password: Boolean(r.must_change_password),
   }
 }
 

@@ -1,5 +1,5 @@
 import { t as translate } from "../../lib/i18n"
-import { can, PERMISSION_MATRIX } from '../../lib/permissions.ts'
+import { PERMISSION_MATRIX } from '../../lib/permissions.ts'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { Breadcrumb } from '../../components/ui/Breadcrumb.tsx'
 
@@ -13,7 +13,7 @@ export function PermissionsPage() {
 
       <section className="utility-hero utility-hero--forest">
         <div className="utility-hero-copy">
-          <span className="utility-kicker">Access Matrix · Duy Anh</span>
+          <span className="utility-kicker">Access Matrix · VisionPark</span>
           <h1>{translate("Ma trận phân quyền")}</h1>
           <p>{translate("Chỉ đọc — frontend dùng helper can(user, perm), backend vẫn là authority cuối cùng.")}</p>
         </div>
@@ -35,8 +35,8 @@ export function PermissionsPage() {
         </div>
         <div className="utility-table-wrap">
           <table className="table utility-table">
-            <thead><tr><th>Permission</th><th>{translate("Mô tả")}</th><th>ADMIN</th><th>OPERATOR</th><th>ACCOUNTANT</th><th>TECHNICIAN</th></tr></thead>
-            <tbody>{PERMISSION_MATRIX.map((r) => <tr key={r.perm}><td><code>{r.perm}</code></td><td style={{ fontWeight: 500 }}>{translate(r.label)}</td><td><Badge variant={r.admin ? 'success' : 'neutral'}>{r.admin ? '✓' : '—'}</Badge></td><td><Badge variant={r.operator ? 'info' : 'neutral'}>{r.operator ? '✓' : '—'}</Badge></td>{(["ACCOUNTANT", "TECHNICIAN"] as const).map(role => <td key={role}>{can({ id: "", username: "", display_name: "", active: true, role }, r.perm) ? "yes" : "-"}</td>)}</tr>)}</tbody>
+            <thead><tr><th>Permission</th><th>{translate("Mô tả")}</th><th>SYSTEM_ADMIN</th><th>BUILDING_ADMIN</th><th>OPERATOR</th><th>ACCOUNTANT</th></tr></thead>
+            <tbody>{PERMISSION_MATRIX.map((r) => <tr key={r.perm}><td><code>{r.perm}</code></td><td style={{ fontWeight: 500 }}>{translate(r.label)}</td><td><Badge variant={r.admin ? 'success' : 'neutral'}>{r.admin ? '✓' : '—'}</Badge></td><td><Badge variant={r.buildingAdmin ? 'info' : 'neutral'}>{r.buildingAdmin ? '✓' : '—'}</Badge></td><td><Badge variant={r.operator ? 'info' : 'neutral'}>{r.operator ? '✓' : '—'}</Badge></td><td><Badge variant={r.accountant ? 'success' : 'neutral'}>{r.accountant ? '✓' : '—'}</Badge></td></tr>)}</tbody>
           </table>
         </div>
       </section>

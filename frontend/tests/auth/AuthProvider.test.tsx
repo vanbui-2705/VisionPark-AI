@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from '../../src/modules/auth/AuthContext.tsx'
 
 function Probe() {
   const { initialized, isAuthenticated, user, isAdmin } = useAuth()
-  return <div data-testid="probe">{JSON.stringify({ initialized, isAuthenticated, role: user?.role ?? null, isAdmin })}</div>
+  return <div data-testid="probe">{JSON.stringify({ initialized, isAuthenticated, role: user?.role ?? null, mustChangePassword: user?.must_change_password ?? false, isAdmin })}</div>
 }
 function json(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }) }
 
@@ -35,5 +35,12 @@ describe('AuthProvider', () => {
     render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>)
     await waitFor(() => expect(screen.getByTestId('probe').textContent).toContain('"initialized":true'))
     await waitFor(() => expect(localStorage.getItem('visionpark.access_token')).toBeNull())
+  })
+
+  it('preserves the forced-password flag returned by the API', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ id: '1', username: 'ba', role: 'BUILDING_ADMIN', is_active: true, must_change_password: true }))
+    render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>)
+    await waitFor(() => expect(screen.getByTestId('probe').textContent).toContain('"mustChangePassword":true'))
   })
 })

@@ -98,4 +98,29 @@ describe('Station API contract', () => {
     expect(fetch.mock.calls[1][1]?.headers).toEqual(fetch.mock.calls[2][1]?.headers)
     expect(JSON.parse(String(fetch.mock.calls[1][1]?.body))).toEqual({ session_id: 'parked', exit_lane_id: 'out', expected_fee: 17000, payment_method: 'CASH', exit_image_url: '/api/v1/alpr/media/exit.jpg' })
   })
+
+  it('supports bicycle ticket lookup, lost-ticket pricing and vehicle mismatch input', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => response(
+      String(url).endsWith('/preview')
+        ? { session_id: 'bike-session', fee: 50000, ticket_code: 'BIKE-01', vehicle_type_mismatch: false }
+        : {},
+    ))
+    const session = await prepareExit('out', 'BIKE-01', undefined, undefined, {
+      useTicketCode: true,
+      isLostTicket: true,
+      vehicleTypeOut: 'BICYCLE',
+    })
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({
+      exit_lane_id: 'out',
+      ticket_code: 'BIKE-01',
+      is_lost_ticket: true,
+      vehicle_type_out: 'BICYCLE',
+    })
+    await completeExit(session, true)
+    expect(JSON.parse(String(fetch.mock.calls[1][1]?.body))).toMatchObject({
+      session_id: 'bike-session',
+      is_lost_ticket: true,
+      vehicle_type_out: 'BICYCLE',
+    })
+  })
 })

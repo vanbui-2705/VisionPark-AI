@@ -125,6 +125,46 @@ class Vehicle(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
 
+class ParkingZone(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "parking_zones"
+    __table_args__ = (UniqueConstraint("building_id", "code"),)
+
+    building_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    code: Mapped[str] = mapped_column(String(40), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class VehicleAccessRule(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "vehicle_access_rules"
+    __table_args__ = (
+        CheckConstraint(
+            "normalized_plate IS NOT NULL OR ticket_code IS NOT NULL",
+            name="ck_vehicle_access_rules_identifier",
+        ),
+        CheckConstraint("decision IN ('ALLOW', 'DENY')", name="ck_vehicle_access_rules_decision"),
+        UniqueConstraint("building_id", "normalized_plate"),
+        UniqueConstraint("building_id", "ticket_code"),
+    )
+
+    building_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    normalized_plate: Mapped[str | None] = mapped_column(String(50))
+    ticket_code: Mapped[str | None] = mapped_column(String(80))
+    decision: Mapped[str] = mapped_column(String(10), nullable=False)
+    reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
 class Subscription(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "subscriptions"
     __table_args__ = (
@@ -140,7 +180,9 @@ class Subscription(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     vehicle_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("vehicles.id", ondelete="RESTRICT"), nullable=False
     )
-    zone_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    zone_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("parking_zones.id", ondelete="RESTRICT"), nullable=False
+    )
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     grace_days: Mapped[int] = mapped_column(Integer, nullable=False, default=3)

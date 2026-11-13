@@ -20,7 +20,7 @@ export function SystemPage() {
       <Breadcrumb items={[{ label: 'System Health' }]} />
       <section className="utility-hero utility-hero--forest">
         <div className="utility-hero-copy">
-          <span className="utility-kicker">Runtime · Duy Anh</span>
+          <span className="utility-kicker">Runtime · VisionPark</span>
           <h1>{translate("Trạng thái hệ thống")}</h1>
           <p>{translate("Backend / ALPR / Frontend — kiểm tra nhanh trước khi vận hành.")}</p>
         </div>

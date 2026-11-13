@@ -3,12 +3,15 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext.tsx'
 
 export function ProtectedRoute({ children }: { children?: React.ReactNode }) {
-  const { initialized, isAuthenticated } = useAuth()
+  const { initialized, isAuthenticated, user } = useAuth()
   const loc = useLocation()
   if (!initialized) return <div style={{ padding: 24 }}>{translate("Đang tải...")}</div>
   if (!isAuthenticated) {
     const returnUrl = loc.pathname + loc.search
     return <Navigate to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`} replace />
+  }
+  if (user?.must_change_password && loc.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />
   }
   return children ? <>{children}</> : <Outlet />
 }

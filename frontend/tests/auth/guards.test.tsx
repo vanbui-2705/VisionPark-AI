@@ -161,7 +161,7 @@ describe('Route guards', () => {
     ).toBe(false)
   })
 
-  it('ACCOUNTANT can open audit while TECHNICIAN can open ALPR status', async () => {
+  it('ACCOUNTANT can open audit', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
 
     const accountant = renderApp('/admin/audit-logs', async (u) => {
@@ -197,89 +197,9 @@ describe('Route guards', () => {
     ).toBeInTheDocument()
 
     accountant.unmount()
-    vi.restoreAllMocks()
-
-    renderApp('/admin/alpr', async (u) => {
-      const url = String(u)
-
-      if (url.includes('/auth/me')) {
-        return j({
-          id: '2',
-          username: 'technician',
-          display_name: 'Technician',
-          role: 'TECHNICIAN',
-          active: true,
-        })
-      }
-
-      if (url.includes('/health/ready')) {
-        return j({
-          status: 'ready',
-          alpr: {
-            status: 'ready',
-            provider: 'real',
-          },
-        })
-      }
-
-      return j({})
-    })
-
-    expect(
-      await screen.findByText('License Plate Recognition · Duy Anh'),
-    ).toBeInTheDocument()
-
-    expect(
-      screen.queryByRole('link', { name: 'ALPR Test Lab' }),
-    ).not.toBeInTheDocument()
   })
 
-  it('TECHNICIAN can open Station without requesting parking history', async () => {
-    localStorage.setItem('visionpark.access_token', 'tok')
-
-    const calls: string[] = []
-
-    renderApp('/station/scan', async (u) => {
-      const url = String(u)
-      calls.push(url)
-
-      if (url.includes('/auth/me')) {
-        return j({
-          id: '1',
-          username: 'technician',
-          display_name: 'Technician',
-          role: 'TECHNICIAN',
-          active: true,
-        })
-      }
-
-      if (url.includes('/lanes/active')) {
-        return j([])
-      }
-
-      if (url.includes('/health/ready')) {
-        return j({
-          status: 'ready',
-          alpr: {
-            status: 'ready',
-            provider: 'real',
-          },
-        })
-      }
-
-      return j({})
-    })
-
-    expect(
-      await screen.findByText(/Trạm quét biển số/i),
-    ).toBeInTheDocument()
-
-    expect(
-      calls.some((url) => url.includes('/parking/transactions')),
-    ).toBe(false)
-  })
-
-  it('TECHNICIAN can inspect a detection without requesting audit data', async () => {
+  it('OPERATOR can inspect a detection without requesting audit data', async () => {
     localStorage.setItem('visionpark.access_token', 'tok')
 
     const calls: string[] = []
@@ -291,9 +211,9 @@ describe('Route guards', () => {
       if (url.includes('/auth/me')) {
         return j({
           id: '1',
-          username: 'technician',
-          display_name: 'Technician',
-          role: 'TECHNICIAN',
+          username: 'operator',
+          display_name: 'Operator',
+          role: 'OPERATOR',
           active: true,
         })
       }
@@ -360,6 +280,31 @@ describe('Route guards', () => {
         screen.getByText(/Quản lý làn/i),
       ).toBeInTheDocument(),
     )
+  })
+
+  it('BUILDING_ADMIN can access user management without a false 403', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    renderApp('/admin/users', async (u) => {
+      const url = String(u)
+      if (url.includes('/auth/me')) return j({ id: '1', username: 'ba', display_name: 'Building admin', role: 'BUILDING_ADMIN', building_id: 'b1', active: true })
+      if (url.includes('/users')) return j([])
+      return j({})
+    })
+    expect(await screen.findByText(/User Management/i)).toBeInTheDocument()
+    expect(screen.queryByText(/403/)).not.toBeInTheDocument()
+  })
+
+  it('forced-password users are redirected before the application shell loads', async () => {
+    localStorage.setItem('visionpark.access_token', 'tok')
+    const calls: string[] = []
+    renderApp('/admin/dashboard', async (u) => {
+      const url = String(u)
+      calls.push(url)
+      if (url.includes('/auth/me')) return j({ id: '1', username: 'ba', display_name: 'Building admin', role: 'BUILDING_ADMIN', active: true, must_change_password: true })
+      return j({})
+    })
+    expect(await screen.findByRole('heading', { name: /Đổi mật khẩu/i })).toBeInTheDocument()
+    expect(calls.some((url) => url.includes('/health/ready'))).toBe(false)
   })
 
   it('root / redirects OPERATOR to /station', async () => {

@@ -33,7 +33,9 @@ export type ExitSession = {
   check_in_time: string; exit_time: string; duration_minutes: number; fee: number
   check_in_image_url: string | null; exit_image_url: string | null
   status: string; vehicle_type_mismatch: boolean; message: string; laneId: string
+  vehicle_type_in?: string; vehicle_type_out?: string | null; is_lost_ticket?: boolean
 }
+export type ExitOptions = { useTicketCode?: boolean; isLostTicket?: boolean; vehicleTypeOut?: string }
 export type CheckOutResult = {
   transaction: ParkingTransaction & { exit_lane_id: string; exit_time: string }
   fee: number; status: string; barrier_opened: boolean; message: string
@@ -52,18 +54,28 @@ export async function confirmExitDetection(candidateId: string, laneId: string, 
   return `/api/v1/alpr/media/${encodeURIComponent(confirmed.image_key)}`
 }
 
-export async function prepareExit(laneId: string, plate: string, exitImageUrl?: string, sessionId?: string): Promise<ExitSession> {
+export async function prepareExit(laneId: string, identifier: string, exitImageUrl?: string, sessionId?: string, options: ExitOptions = {}): Promise<ExitSession> {
   const response = await apiClient.post<Omit<ExitSession, 'laneId'>>('/api/v1/parking/check-out/preview', {
-    exit_lane_id: laneId, ...(sessionId ? { session_id: sessionId } : { license_plate: plate }),
+    exit_lane_id: laneId,
+    ...(sessionId ? { session_id: sessionId } : options.useTicketCode ? { ticket_code: identifier } : { license_plate: identifier }),
     ...(exitImageUrl ? { exit_image_url: exitImageUrl } : {}),
+    ...(options.vehicleTypeOut ? { vehicle_type_out: options.vehicleTypeOut } : {}),
+    ...(options.isLostTicket ? { is_lost_ticket: true } : {}),
   })
-  return { ...response, laneId }
+  return {
+    ...response,
+    laneId,
+    vehicle_type_out: response.vehicle_type_out ?? options.vehicleTypeOut ?? null,
+    is_lost_ticket: options.isLostTicket ?? false,
+  }
 }
 
 export function completeExit(session: ExitSession, cash = false): Promise<CheckOutResult> {
   return apiClient.post<CheckOutResult>('/api/v1/parking/check-out', {
     session_id: session.session_id, exit_lane_id: session.laneId, expected_fee: session.fee,
     ...(session.exit_image_url ? { exit_image_url: session.exit_image_url } : {}),
+    ...(session.vehicle_type_out ? { vehicle_type_out: session.vehicle_type_out } : {}),
+    ...(session.is_lost_ticket ? { is_lost_ticket: true } : {}),
     ...(cash ? { payment_method: 'CASH' } : {}),
   }, { headers: { 'Idempotency-Key': `station-exit-${session.session_id}` }, timeoutMs: 15000 })
 }

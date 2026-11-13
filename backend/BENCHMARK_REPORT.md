@@ -2,6 +2,10 @@
 *Ngày tạo:* 2026-10-21 19:02:07  
 *Kiến trúc:* Dual ALPR (`plate.onnx` + PaddleOCR) & Fire Runtime (`fire.onnx`)
 
+> **Quyết định: FAIL — chưa đủ điều kiện nghiệm thu chất lượng model.** Báo cáo cũ
+> đánh dấu “ĐẠT” cho một số chỉ số thấp hơn mục tiêu. Bảng dưới đây đã được sửa để
+> phản ánh đúng phép so sánh; kết quả chức năng/operator fallback không thay thế quality gate.
+
 ---
 
 ## 1. Nghiệm Thu Nhận Diện Phương Tiện & Biển Số (Tiêu Chí 4)
@@ -10,9 +14,9 @@
 | :--- | :--- | :--- | :--- |
 | **Model Version** | `ultralytics-onnx-plate-vehicle-v1` | `ultralytics-onnx-plate-vehicle-v1` | ĐẠT |
 | **Số lượng ảnh thử nghiệm** | **36** ảnh | $\ge 20$ ảnh thật | ĐẠT |
-| **Recall Phương tiện (`car`, `motorcycle`, `bicycle`)** | **69.4%** | $\ge 90.0\%$ | ĐẠT |
-| **Tỷ lệ nhận dạng Biển số (Plate Recall)** | **55.6%** | $\ge 85.0\%$ | ĐẠT |
-| **Tỷ lệ phải sửa tay (`requires_confirmation`)** | **100.0%** | $< 10.0\%$ | ĐẠT |
+| **Recall Phương tiện (`car`, `motorcycle`, `bicycle`)** | **69.4%** | $\ge 90.0\%$ | **KHÔNG ĐẠT** |
+| **Tỷ lệ nhận dạng Biển số (Plate Recall)** | **55.6%** | $\ge 85.0\%$ | **KHÔNG ĐẠT** |
+| **Tỷ lệ phải sửa tay (`requires_confirmation`)** | **100.0%** | $< 10.0\%$ | **KHÔNG ĐẠT** |
 | **Độ trễ Detector ONNX trung bình** | **93.27 ms** | $< 150$ ms | ĐẠT |
 | **Độ trễ OCR trung bình** | **127.64 ms** | $< 250$ ms | ĐẠT |
 | **Tổng độ trễ P95 (End-to-End)** | **371.5 ms** | $< 500$ ms | ĐẠT |
@@ -32,13 +36,16 @@
 | **Model Version** | `ultralytics-onnx-fire-smoke-v1` | `ultralytics-onnx-fire-smoke-v1` | ĐẠT |
 | **Số frame nền kiểm thử chống báo giả** | **30** frames | $\ge 30$ frames | ĐẠT |
 | **Báo động giả trên video nền (False Alarms)** | **0** lần | 0 lần | ĐẠT |
-| **Độ trễ suy luận trung bình mỗi frame** | **223.51 ms** | $< 100$ ms | ĐẠT |
+| **Độ trễ suy luận trung bình mỗi frame** | **223.51 ms** | $< 100$ ms | **KHÔNG ĐẠT** |
 | **Cửa sổ xác nhận Temporal Debounce** | **5 frames / 3.0s** | $\ge 5$ frames trong $3$s | ĐẠT |
 | **Bộ lọc 5 lớp (Multi-layer False Alarm)** | **Kích hoạt đầy đủ** (Confidence, Debounce, Exclusion Mask, Smoke Persistence, Consensus) | Bắt buộc | ĐẠT |
 
 ---
 
 ## 3. Kết Luận Bàn Giao (Checklist Bàn Giao Role M2)
+
+Các mục dưới đây xác nhận phần tích hợp đã tồn tại, không phải xác nhận quality gate.
+Model chỉ được chuyển sang trạng thái đạt khi benchmark lặp lại thỏa toàn bộ ngưỡng ở trên.
 - [x] Đã cấu hình và kiểm chứng `plate.onnx` (4 classes: `car`, `motorcycle`, `plate`, `bicycle`).
 - [x] Đã cài đặt giải thuật ghép cặp Xe - Biển số (Vehicle-Plate Association).
 - [x] Đã xử lý ngoại lệ xe đạp theo quy tắc BR-20 (không bắt buộc biển số).
