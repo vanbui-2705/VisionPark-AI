@@ -222,6 +222,7 @@ def test_access_check_endpoint(
     operator_token: str,
     in_lane: Lane,
     motorbike_only_lane: Lane,
+    db_session: Session,
 ):
     """Kiểm tra endpoint POST /api/v1/parking/access-check."""
     headers = {"Authorization": f"Bearer {operator_token}"}
@@ -248,7 +249,18 @@ def test_access_check_endpoint(
     assert res2.status_code == 200
     assert res2.json()["decision"] == "DENY"
 
-    # Case 3: DENY (blacklist)
+    # Case 3: DENY (persisted blacklist rule)
+    from app.modules.pricing.models import VehicleAccessRule
+
+    db_session.add(
+        VehicleAccessRule(
+            building_id=in_lane.building_id,
+            normalized_plate="29A99999",
+            decision="DENY",
+            reason="TEST_ACCESS_CHECK_BLACKLIST",
+        )
+    )
+    db_session.commit()
     res3 = client.post(
         "/api/v1/parking/access-check",
         json={
