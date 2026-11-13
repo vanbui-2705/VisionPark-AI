@@ -49,6 +49,4 @@ def read_current_user(
     if not isinstance(building_id, UUID):
         building_id = resolve_building(session, current_user)
 
-    return public_user.model_copy(
-        update={"building_id": building_id}
-    )
+    return public_user.model_copy(update={"building_id": building_id})
