@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearCandidates, completeExit, confirmDetection, confirmExitDetection, createDetection, getActiveLanes, prepareExit } from '../../src/modules/station/api.ts'
+import { clearCandidates, completeExit, confirmDetection, confirmExitDetection, createDetection, detectFire, getActiveLanes, prepareExit } from '../../src/modules/station/api.ts'
 import { setToken } from '../../src/api/token.ts'
 
 const result = { detection_id: null, normalized_plate_number: '29A12345', confidence: 0.9 }
@@ -73,6 +73,28 @@ describe('Station API contract', () => {
     await expect(createDetection(new Blob(['jpeg']), 'in')).rejects.toMatchObject({ code: 'ALPR_NOT_READY' })
     await Promise.resolve()
     expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('uploads a sampled video frame with its timestamp', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response(result))
+    await createDetection(new Blob(['frame'], { type: 'image/jpeg' }), 'in', {
+      inputKind: 'VIDEO_FRAME', videoTimeMs: 1250,
+    })
+    const form = fetch.mock.calls[0][1]?.body as FormData
+    expect(form.get('input_kind')).toBe('VIDEO_FRAME')
+    expect(form.get('video_time_ms')).toBe('1250')
+    expect(form.get('image')).toMatchObject({ type: 'image/jpeg', name: 'station-image.jpg' })
+  })
+
+  it('sends a fire-monitor frame in single-frame demo mode', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response([]))
+    await detectFire(new Blob(['frame'], { type: 'image/jpeg' }), 'camera-entry', 'building-1')
+    expect(fetch.mock.calls[0][0]).toContain('/api/v1/alpr/fire-detection')
+    const form = fetch.mock.calls[0][1]?.body as FormData
+    expect(form.get('camera_id')).toBe('camera-entry')
+    expect(form.get('building_id')).toBe('building-1')
+    expect(form.get('demo_mode')).toBe('true')
+    expect(form.get('image')).toMatchObject({ type: 'image/jpeg', name: 'fire-monitor-frame.jpg' })
   })
 
   it('persists and confirms OUT metadata without creating a check-in', async () => {

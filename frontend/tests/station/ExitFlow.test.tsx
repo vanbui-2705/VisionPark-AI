@@ -30,6 +30,56 @@ beforeEach(() => { localStorage.clear() })
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('Station OUT flow', () => {
+  it('previews a selected JPEG even when the browser omits its MIME type', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const path = String(url)
+      if (path.includes('/lanes/active')) return response([
+        { id: 'in', name: 'Entry', direction: 'IN', is_active: true, building_id: 'building', camera_id: 'entry-camera' },
+      ])
+      if (path.includes('/customer-classes')) return response([{ id: 'class', name: 'Visitor' }])
+      if (path.endsWith('/alpr/fire-detection')) return response([{
+        building_id: 'building', camera_id: 'entry-camera', zone_code: null,
+        event_type: 'FIRE', confidence: 0.92, confirmed_frame_count: 1,
+        bbox: [5, 6, 70, 80], timestamp: '2026-11-13T10:00:00Z', status: 'VERIFYING',
+      }])
+      if (path.endsWith('/alpr/detections')) return response({
+        detection_id: null, raw_plate_number: '59X12345', normalized_plate_number: '59X12345',
+        bbox: [1, 2, 30, 40], confidence: 0.94, processing_time_ms: 25,
+        model_version: 'test', requires_confirmation: false,
+        vehicle_type: 'MOTORBIKE', vehicle_confidence: 0.91,
+      })
+      return response([])
+    })
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:selected-vehicle')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+
+    render(<AuthContext.Provider value={auth}><StationPage /></AuthContext.Provider>)
+    await screen.findByRole('option', { name: 'Entry - IN' })
+    fireEvent.change(screen.getByLabelText('Lane'), { target: { value: 'in' } })
+    fireEvent.change(screen.getByLabelText('Chế độ nhận diện'), { target: { value: 'image' } })
+    const file = new File(['jpeg'], 'vehicle.JPG', { type: '' })
+    fireEvent.change(screen.getByLabelText('Ảnh đầu vào'), { target: { files: [file] } })
+
+    expect(screen.getByRole('img', { name: 'Khung hình nhận diện' })).toHaveAttribute('src', 'blob:selected-vehicle')
+    expect(screen.getByRole('button', { name: 'Nhận diện ảnh' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Nhận diện ảnh' }))
+    expect((await screen.findAllByText('59X12345')).length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('Loại xe')).toHaveValue('MOTORBIKE')
+    const request = fetch.mock.calls.find(([url]) => String(url).endsWith('/alpr/detections'))!
+    const form = request[1]?.body as FormData
+    expect(form.get('input_kind')).toBe('IMAGE_UPLOAD')
+    expect(form.get('image')).toMatchObject({ type: 'image/jpeg', name: 'station-image.jpg' })
+    const fireDialog = await screen.findByRole('alertdialog', { name: 'CẢNH BÁO CHÁY' })
+    expect(fireDialog).toHaveTextContent('Phát hiện lửa tại Entry')
+    expect(fireDialog).toHaveTextContent('92%')
+    const fireRequest = fetch.mock.calls.find(([url]) => String(url).endsWith('/alpr/fire-detection'))!
+    const fireForm = fireRequest[1]?.body as FormData
+    expect(fireForm.get('camera_id')).toBe('entry-camera')
+    expect(fireForm.get('demo_mode')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'ĐÃ NHẬN CẢNH BÁO – TẮT' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  })
+
   it('runs OUT preview, cash, gate and next vehicle, then preserves manual IN', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
       const path = String(url)
@@ -146,10 +196,12 @@ describe('Station OUT flow', () => {
     expect(requireImage).toHaveBeenCalledOnce()
   })
 
-  it('blocks checkout when the detected vehicle type does not match', () => {
+  it('requires an audited reason when the detected vehicle type does not match', () => {
     render(<ExitSummary session={{ ...session, vehicle_type_mismatch: true }} {...summaryProps} />)
     expect(screen.getByRole('alert')).toHaveTextContent('Loại xe không khớp')
     expect(screen.getByRole('button', { name: /Xác nhận thu tiền/ })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Lý do xác nhận lệch loại xe'), { target: { value: 'Đã kiểm tra ảnh và biển số khớp.' } })
+    expect(screen.getByRole('button', { name: /Xác nhận thu tiền/ })).toBeEnabled()
   })
 })
 
@@ -174,6 +226,8 @@ describe('Station shortcuts', () => {
     fireEvent.keyDown(window, { key: 'F8' })
     const dialog = document.createElement('dialog'); dialog.open = true; document.body.append(dialog)
     fireEvent.keyDown(window, { key: 'F2' }); dialog.remove()
+    const alertDialog = document.createElement('div'); alertDialog.setAttribute('role', 'alertdialog'); alertDialog.setAttribute('aria-modal', 'true'); document.body.append(alertDialog)
+    fireEvent.keyDown(window, { key: 'F2' }); alertDialog.remove()
     expect(click).toHaveBeenCalledOnce()
     unmount()
     fireEvent.keyDown(window, { key: 'F2' })

@@ -30,7 +30,7 @@ class CheckInRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_identification(self) -> "CheckInRequest":
-        if not self.vehicle_type:
+        if not self.vehicle_type or self.vehicle_type == "UNKNOWN":
             self.vehicle_type = "CAR"
         if self.vehicle_type == "BICYCLE":
             # BR-20: Xe đạp không bắt buộc biển số nhưng phải có ticket_code

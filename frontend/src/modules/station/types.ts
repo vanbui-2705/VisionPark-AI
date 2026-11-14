@@ -34,6 +34,9 @@ export type DetectionResult = {
   quality_flags?: string[];
   provider?: string;
   provider_status?: string;
+  vehicle_type?: "CAR" | "MOTORBIKE" | "BICYCLE" | "UNKNOWN" | null;
+  vehicle_confidence?: number | null;
+  bbox_vehicle?: [number, number, number, number] | null;
 };
 export type ApiError = {
   status: number;

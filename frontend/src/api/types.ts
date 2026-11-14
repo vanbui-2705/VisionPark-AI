@@ -19,6 +19,9 @@ export interface Lane {
   direction: LaneDirection
   building_id?: string | null
   video_source?: string | null
+  allowed_vehicle_types?: Array<'CAR' | 'MOTORBIKE' | 'BICYCLE'>
+  camera_id?: string | null
+  barrier_id?: string | null
   active: boolean
   created_at?: string
   updated_at?: string

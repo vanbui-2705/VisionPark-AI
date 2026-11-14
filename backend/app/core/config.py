@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     alpr_device: str = "cpu"
     alpr_detector_confidence: float = 0.25
     alpr_confidence_threshold: float = 0.85
-    alpr_ocr_margin: float = 0.08
+    alpr_ocr_margin: float = 0.0
     alpr_ocr_enabled: bool = True
 
     auto_seed: bool = False

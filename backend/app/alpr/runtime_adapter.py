@@ -11,7 +11,7 @@ def create_runtime(
     device: str = "cpu",
     detector_confidence: float = 0.25,
     confirmation_threshold: float = 0.85,
-    ocr_margin: float = 0.08,
+    ocr_margin: float = 0.0,
     ocr_enabled: bool = False,
 ) -> ALPRRuntime:
     if provider == "real":

@@ -213,7 +213,7 @@ def test_detector_and_recognition_provider_returns_normalized_plate(tmp_path, mo
             pass
 
         def recognize(self, crop):
-            assert crop.shape[1] > crop.shape[0]
+            assert crop.shape == (50, 200, 3)
             return OCRReadResult("30A-123.45", "30A12345", 0.93)
 
     image = np.random.default_rng(4).integers(40, 220, size=(120, 280, 3), dtype=np.uint8)

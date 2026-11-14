@@ -13,7 +13,11 @@ class LaneCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="Tên của làn xe, ví dụ: LANE_IN_01")
     direction: LaneDirection
-    video_source: str = Field(..., description="Đường dẫn camera RTSP hoặc file video")
+    video_source: str = Field(
+        default="FILE_UPLOAD",
+        min_length=1,
+        description="FILE_UPLOAD cho ảnh/video tại Station hoặc đường dẫn camera RTSP",
+    )
     is_active: bool | None = True
     allowed_vehicle_types: list[VehicleType] = Field(
         default_factory=lambda: list(VehicleType), min_length=1

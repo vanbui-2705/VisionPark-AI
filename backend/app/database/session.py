@@ -8,13 +8,17 @@ from app.database.tenant import TenantSession
 
 
 class DatabaseManager:
-    """Own the SQLAlchemy engine and request-scoped session factory."""
+    """Quản lý SQLAlchemy engine và bộ tạo session dùng cho từng request."""
 
     def __init__(self) -> None:
+        """Khởi tạo trình quản lý ở trạng thái chưa kết nối database."""
+
         self.engine: Engine | None = None
         self.session_factory: sessionmaker[Session] | None = None
 
     def configure(self, database_url: str, *, echo: bool = False) -> None:
+        """Tạo engine và cấu hình bộ sinh session từ URL kết nối database."""
+
         if self.engine is not None:
             self.engine.dispose()
         connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
@@ -32,11 +36,15 @@ class DatabaseManager:
         )
 
     def create_session(self) -> Session:
+        """Tạo một session mới hoặc báo lỗi nếu database chưa được cấu hình."""
+
         if self.session_factory is None:
             raise RuntimeError("Database has not been configured")
         return self.session_factory()
 
     def check_readiness(self) -> ReadinessStatus:
+        """Chạy truy vấn đơn giản để kiểm tra database có sẵn sàng hay không."""
+
         if self.engine is None:
             return ReadinessStatus(False, "Database has not been configured.")
         try:
@@ -47,6 +55,8 @@ class DatabaseManager:
             return ReadinessStatus(False, "Database connection failed.")
 
     def dispose(self) -> None:
+        """Đóng connection pool và đưa trình quản lý về trạng thái chưa cấu hình."""
+
         if self.engine is not None:
             self.engine.dispose()
         self.engine = None
@@ -57,7 +67,7 @@ database = DatabaseManager()
 
 
 def get_db() -> Generator[Session, None, None]:
-    """Provide one SQLAlchemy session per request and always close it."""
+    """Cấp một session cho mỗi request, rollback khi lỗi và luôn đóng session."""
 
     session = database.create_session()
     try:
@@ -70,4 +80,6 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def get_database_readiness() -> ReadinessStatus:
+    """Trả về trạng thái sẵn sàng của kết nối database cho health check."""
+
     return database.check_readiness()

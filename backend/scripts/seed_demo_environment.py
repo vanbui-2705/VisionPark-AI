@@ -25,9 +25,9 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+import app.database.models  # noqa: E402, F401
 from app.core.config import Settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
-import app.database.models  # noqa: F401
 from app.database.session import DatabaseManager  # noqa: E402
 from app.modules.buildings.models import Building, ParkingLot, UserBuilding  # noqa: E402
 from app.modules.checkin.counter_models import ParkingCounter  # noqa: E402

@@ -1218,14 +1218,51 @@ body { background: radial-gradient(circle at top left, rgba(37,99,235,0.08), tra
   text-align: center;
   animation: station-fire-enter .18s ease-out;
 }
-.station-fire-kicker { display: inline-block; margin-bottom: 14px; padding: 7px 10px; border-radius: 4px; background: #b42318; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .12em; }
-.station-fire-alert h2 { margin: 0; color: #b42318; font-size: clamp(38px, 8vw, 64px); font-weight: 800; letter-spacing: -.03em; line-height: .98; }
-.station-fire-message { max-width: 52ch; margin: 24px auto 0; color: #561b16; font-size: clamp(18px, 3vw, 23px); line-height: 1.5; }
-.station-fire-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 26px 0; text-align: left; }
+.station-fire-kicker {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  background: #b42318;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+.station-fire-alert h2 {
+  margin: 0;
+  color: #b42318;
+  font-size: clamp(38px, 8vw, 64px);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  line-height: .98;
+}
+.station-fire-message {
+  max-width: 52ch;
+  margin: 24px auto 0;
+  color: #561b16;
+  font-size: clamp(18px, 3vw, 23px);
+  line-height: 1.5;
+}
+.station-fire-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 26px 0;
+  text-align: left;
+}
 .station-fire-facts > div { padding: 13px 15px; border: 1px solid #e8b4ad; border-radius: 8px; background: #fff; }
 .station-fire-facts dt { color: #8b4c45; font-size: 12px; font-weight: 600; text-transform: uppercase; }
 .station-fire-facts dd { margin: 5px 0 0; color: #45110d; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
-.station-fire-dismiss { width: 100%; min-height: 54px; border-color: #9f1d14; background: #b42318; color: #fff; font-size: 16px; font-weight: 750; }
+.station-fire-dismiss {
+  width: 100%;
+  min-height: 54px;
+  border-color: #9f1d14;
+  background: #b42318;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 750;
+}
 .station-fire-dismiss:hover { border-color: #7f160f; background: #8f1c14; }
 .station-fire-dismiss:focus-visible { outline: 4px solid #f59e0b; outline-offset: 4px; }
 @keyframes station-fire-enter {

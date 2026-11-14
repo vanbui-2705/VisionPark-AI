@@ -1,0 +1,90 @@
+{
+  "assessment_date_local": "2026-11-05",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "branch": "van-dev",
+  "commit": "8cbc7bf9196ced4775348dd675bea32d908718ea",
+  "scope": "Local automated checks, static workflow review, isolated API diagnostic probes; no production database or hardware changes",
+  "frontend": {
+    "test_command": "npm test -- --run",
+    "test_files_passed": 20,
+    "tests_passed": 75,
+    "build_exit_code": 0,
+    "lint_exit_code": 0,
+    "lint_warnings": 13,
+    "build_warnings": [
+      "Main chunk exceeds 500 kB after minification",
+      "errorLog dynamic import also has static import"
+    ]
+  },
+  "backend_tests": {
+    "command": "py -3 -m pytest tests --tb=short",
+    "exit_code": 0,
+    "passed": 284,
+    "skipped": 3,
+    "warnings": 1,
+    "duration_seconds": 437.0,
+    "database": "isolated SQLite databases",
+    "skip_reason": "Three concurrent-request cases require real PostgreSQL"
+  },
+  "backend_lint": {
+    "command": "py -3 -m ruff check app scripts tests",
+    "exit_code": 1,
+    "existing_errors": 22,
+    "file": "backend/scripts/benchmark_alpr_and_fire.py"
+  },
+  "ai_evidence_checks": {
+    "model_bundle_checksums": { "exit_code": 0, "verified_files": 5 },
+    "functional_gate": {
+      "command": "py -3 -m scripts.release_gate --functional-only --skip-tests",
+      "exit_code": 0
+    },
+    "quality_gate": {
+      "command": "py -3 -m scripts.release_gate --skip-tests",
+      "exit_code": 1,
+      "stored_validation_exact_match": 0.25,
+      "stored_demo_exact_match": 0.0,
+      "release_floor": 0.8
+    },
+    "limitation": "Gates read stored Phase 2 evidence; current dual model inference was not benchmarked again in this assessment"
+  },
+  "diagnostic_probes": {
+    "environment": "FastAPI TestClient, separately migrated SQLite database per case, repository cash-workflow fixtures, fake ALPR runtime",
+    "cases_reproduced": 3,
+    "cases": [
+      {
+        "name": "cash_checkout_missing_from_m5_report",
+        "checkout_http_status": 200,
+        "checkout_status": "COMPLETED",
+        "checkout_fee_vnd": 15000,
+        "invoice_rows": 0,
+        "payment_rows": 0,
+        "same_day_m5_exits": 0,
+        "same_day_m5_revenue_vnd": 0
+      },
+      {
+        "name": "zero_amount_completes_nonzero_fee_session",
+        "pending_fee_vnd": 15000,
+        "submitted_payment_method": "CASH",
+        "submitted_amount_vnd": 0,
+        "http_status": 200,
+        "resulting_status": "COMPLETED",
+        "barrier_opened_response": true
+      },
+      {
+        "name": "unrecognized_payment_method_completes_session",
+        "submitted_payment_method": "NOT_A_PAYMENT",
+        "fee_vnd": 15000,
+        "http_status": 200,
+        "resulting_status": "COMPLETED"
+      }
+    ],
+    "interpretation": "Successful reproduction confirms defects; these are diagnostic assertions of current unsafe behavior, not acceptance tests proving correctness",
+    "temporary_test_file_removed": true
+  },
+  "runtime_limitations": {
+    "docker_daemon_available": false,
+    "fresh_postgresql_race_verification": false,
+    "live_load_test_run": false,
+    "physical_barrier_or_rtsp_verification": false
+  }
+}

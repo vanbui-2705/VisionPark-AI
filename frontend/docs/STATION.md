@@ -3,6 +3,7 @@
 Route canonical: `/station/scan`; fullscreen cũ redirect về đây.
 
 - Chọn một lane IN hoặc OUT active từ backend; chọn JPEG/PNG hoặc MP4 local.
+- Ảnh `.jpg/.jpeg/.png` vẫn được nhận khi trình duyệt không cung cấp MIME type; frontend chuẩn hóa MIME trước khi gửi backend. MP4 được phát local, mỗi frame capture được gửi dưới dạng JPEG với `VIDEO_FRAME` và timestamp.
 - Giám sát cháy chạy song song với ALPR: khi video đang phát, Station tự lấy một JPEG tối đa 640 px mỗi 2,5 giây; ảnh tĩnh được kiểm tra cháy cùng lúc người dùng bấm nhận diện. Request dùng `camera_id` cấu hình trên lane (fallback về lane ID), `building_id` của lane và `demo_mode=true`.
 - Khi backend trả về `FIRE` hoặc `SMOKE`, Station hiển thị `alertdialog` toàn màn hình và giữ nguyên cho đến khi Operator bấm **ĐÃ NHẬN CẢNH BÁO – TẮT**. Backdrop, Escape và phím tắt Station không tắt cảnh báo. Một sự cố được latch để không bật lại liên tục; monitor chỉ tái kích hoạt sau một frame không còn tín hiệu cháy/khói hoặc khi đổi lane/nguồn ảnh.
 - Lỗi riêng của fire runtime không chặn luồng xe và không tạo error-report theo từng frame nền. Demo hiện chỉ cảnh báo tại màn hình, chưa lưu incident, phát âm thanh hay điều khiển thiết bị PCCC.
@@ -25,6 +26,8 @@ Route canonical: `/station/scan`; fullscreen cũ redirect về đây.
   Quyền checkout.create dành cho OPERATOR/SYSTEM_ADMIN/BUILDING_ADMIN.
 - ALPR OUT lưu đúng final candidate, xác nhận metadata (check_in=false), rồi truyền
   URL ảnh đã lưu sang preview/checkout. Nhập tay tra xe độc lập với ALPR.
+- Loại xe từ ALPR (`vehicle_type`, `vehicle_confidence`) được hiển thị và tự điền cho cả IN/OUT; Operator vẫn có thể sửa trước khi xác nhận.
+- Khi loại xe vào/ra lệch nhau, Station yêu cầu lý do xác nhận tối thiểu 10 ký tự và gửi `override_reason` để backend lưu audit; không còn dead-end khóa vĩnh viễn checkout.
 - Ảnh vào và ảnh ra hiển thị cạnh nhau, màn hình nhỏ xếp dọc. Ảnh tải bằng Bearer qua
   DetectionImage; thiếu ảnh có thông báo rõ ràng, không dùng ảnh giả.
 - Thời điểm vào, ra dự kiến lấy từ server, thời gian gửi theo ngày/giờ/phút và phí VND

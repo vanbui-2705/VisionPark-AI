@@ -259,6 +259,7 @@ class CheckOutService:
     ) -> CheckOutPreviewResponse:
         """POST /check-out/preview — tính phí mà không thay đổi trạng thái phiên."""
         transaction = self._find_single_session(request, operator)
+        self._validate_exit_lane(transaction, request.exit_lane_id)
         exit_time = datetime.now(UTC)
         t_in = _normalize_tz(transaction.check_in_time)
         t_out = _normalize_tz(exit_time)
@@ -461,6 +462,8 @@ class CheckOutService:
 
         # 2. Tìm phiên (khóa dòng cấp DB để chống đua song song - BUILD-01)
         transaction = self._find_single_session(request, operator, lock=True)
+        self._validate_exit_lane(transaction, request.exit_lane_id)
+        tx_building_id = getattr(transaction, "building_id", None)
 
         # Nếu phiên đã PAID trước đó
         if transaction.status == TransactionStatus.PAID:
@@ -478,35 +481,7 @@ class CheckOutService:
                 fee_breakdown=breakdown,
             )
 
-        # 3. Kiểm tra làn ra
-        exit_lane = self.session.get(Lane, request.exit_lane_id)
-        if exit_lane is None:
-            raise AppError(status_code=404, code="LANE_NOT_FOUND", message="Làn ra không tồn tại.")
-        if not exit_lane.is_active:
-            raise AppError(
-                status_code=400, code="LANE_INACTIVE", message="Làn ra đang không hoạt động."
-            )
-        if exit_lane.direction != LaneDirection.OUT:
-            raise AppError(
-                status_code=400,
-                code="INVALID_LANE_TYPE",
-                message="Check-out chỉ được thực hiện trên làn OUT.",
-            )
-
-        lane_building_id = getattr(exit_lane, "building_id", None)
-        tx_building_id = getattr(transaction, "building_id", None)
-        if (
-            lane_building_id is not None
-            and tx_building_id is not None
-            and lane_building_id != tx_building_id
-        ):
-            raise AppError(
-                status_code=400,
-                code="BUILDING_MISMATCH",
-                message="Làn ra thuộc tòa nhà khác với phiên gửi xe.",
-            )
-
-        # Cảnh báo lệch loại xe
+        # 3. Cảnh báo lệch loại xe
         vtype_in = getattr(transaction, "vehicle_type", "CAR") or "CAR"
         vtype_out = request.vehicle_type_out
         mismatch = bool(vtype_out and vtype_out.upper() != vtype_in.upper())
@@ -1052,6 +1027,35 @@ class CheckOutService:
             payment_id=payment_id,
             message=out_message,
         )
+
+    def _validate_exit_lane(self, transaction: ParkingTransaction, exit_lane_id: UUID) -> Lane:
+        exit_lane = self.session.get(Lane, exit_lane_id)
+        if exit_lane is None:
+            raise AppError(status_code=404, code="LANE_NOT_FOUND", message="Làn ra không tồn tại.")
+        if not exit_lane.is_active:
+            raise AppError(
+                status_code=400, code="LANE_INACTIVE", message="Làn ra đang không hoạt động."
+            )
+        if exit_lane.direction != LaneDirection.OUT:
+            raise AppError(
+                status_code=400,
+                code="INVALID_LANE_TYPE",
+                message="Check-out chỉ được thực hiện trên làn OUT.",
+            )
+
+        lane_building_id = getattr(exit_lane, "building_id", None)
+        tx_building_id = getattr(transaction, "building_id", None)
+        if (
+            lane_building_id is not None
+            and tx_building_id is not None
+            and lane_building_id != tx_building_id
+        ):
+            raise AppError(
+                status_code=400,
+                code="BUILDING_MISMATCH",
+                message="Làn ra thuộc tòa nhà khác với phiên gửi xe.",
+            )
+        return exit_lane
 
     def _find_single_session(
         self,
